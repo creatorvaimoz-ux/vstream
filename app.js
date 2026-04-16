@@ -115,22 +115,36 @@ app.delete('/api/media/:filename', (req, res) => {
     res.json({ success: true });
 });
 
-// --- JALUR BARU: IMPORT DARI URL (DIUPGRADE LEBIH PINTAR) ---
+// --- JALUR BARU: IMPORT DARI URL (DIPERBARUI DENGAN GDRIVE CONVERTER) ---
 app.post('/api/media/import-url', (req, res) => {
-    const { url } = req.body;
+    let { url } = req.body;
     if (!url) return res.status(400).json({ success: false, message: 'URL tidak valid' });
 
-    // Mengekstrak nama file dari URL atau memberikan nama default
+    // 1. PEMBERSIH URL: Buang spasi dan Enter yang tidak sengaja ter-paste
+    url = url.trim();
+
+    // 2. GDRIVE CONVERTER: Ubah link gdrive biasa menjadi Direct Download
+    let downloadUrl = url;
+    const gdriveMatch = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+    if (gdriveMatch && gdriveMatch[1]) {
+        const fileId = gdriveMatch[1];
+        // Tambahkan konfirmasi agar bypass warning virus Google Drive untuk file besar
+        downloadUrl = `https://drive.google.com/uc?export=download&confirm=t&id=${fileId}`;
+    }
+
+    // Mengekstrak nama file dari URL asal atau berikan nama import default
     let filename = url.substring(url.lastIndexOf('/') + 1).split('?')[0];
-    if (!filename || filename.indexOf('.') === -1) {
+    
+    // Jika dari GDrive atau file tidak punya akhiran format (.mp4), berikan nama otomatis
+    if (!filename || filename.indexOf('.') === -1 || gdriveMatch) {
         filename = `import_${Date.now()}.mp4`; 
     }
     filename = filename.replace(/[^a-zA-Z0-9.-]/g, '_'); // Bersihkan nama
     
     const dest = path.join(MEDIA_DIR, filename);
 
-    // Menggunakan curl agar lebih kebal redirect, aman dari blokir, dan menyamar sebagai browser
-    const command = `curl -L -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" -o "${dest}" "${url}"`;
+    // Menggunakan curl kebal redirect, menyamar sebagai browser.
+    const command = `curl -L -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" -o "${dest}" "${downloadUrl}"`;
     
     exec(command, (error, stdout, stderr) => {
         if (error) {
@@ -139,14 +153,14 @@ app.post('/api/media/import-url', (req, res) => {
         }
 
         // Validasi Ekstra: Pastikan file yang terunduh ukurannya masuk akal (> 100KB)
-        // Jika kurang dari 100KB, hampir dipastikan itu adalah halaman HTML penolakan, bukan video.
+        // Jika kurang dari 100KB, itu adalah halaman HTML penolakan, bukan video.
         if (fs.existsSync(dest)) {
             const stats = fs.statSync(dest);
             if (stats.size < 100 * 1024) { 
                 fs.unlinkSync(dest); // Hapus file sampah
                 return res.status(400).json({ 
                     success: false, 
-                    message: 'Gagal: URL tersebut tidak mengarah langsung ke video, melainkan ke halaman web (mendapat file 0 MB / HTML).' 
+                    message: 'Gagal: URL ditolak oleh server asal (mendapat file 0 MB). Pastikan URL/Drive Anda disetting "Public" / "Siapa saja memiliki link".' 
                 });
             }
             res.json({ success: true, message: `File berhasil diimpor sebagai ${filename}` });
