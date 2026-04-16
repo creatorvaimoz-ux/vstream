@@ -24,7 +24,7 @@ const SECRETS_DIR = path.join(__dirname, 'api_secrets');
 const MEDIA_DIR = path.join(__dirname, 'public/uploads');
 const THUMB_DIR = path.join(__dirname, 'public/thumbnails');
 const PLAYLIST_FILE = path.join(__dirname, 'playlists.json');
-const TASKS_FILE = path.join(__dirname, 'tasks.json'); // Database Tugas Live
+const TASKS_FILE = path.join(__dirname, 'tasks.json');
 const LOG_FILE = path.join(__dirname, 'ffmpeg_stream.log');
 
 [SECRETS_DIR, MEDIA_DIR, THUMB_DIR].forEach(dir => {
@@ -56,6 +56,7 @@ const uploadThumb = multer({ storage: thumbStorage });
 
 // --- FUNGSI GOOGLE OAUTH ---
 const CREDENTIALS_FILE = path.join(__dirname, 'google_credentials.json');
+let cachedCredentials = null;
 function getOAuth2Client() {
     let clientId, clientSecret;
     if (fs.existsSync(CREDENTIALS_FILE)) {
@@ -84,7 +85,7 @@ function downloadGoogleDrive(fileId, destPath, callback) {
             hostname: parsedUrl.hostname,
             path: parsedUrl.pathname + parsedUrl.search,
             headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
                 'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
             }
         };
@@ -105,7 +106,7 @@ function downloadGoogleDrive(fileId, destPath, callback) {
             } else if (res.statusCode === 200) {
                 const contentType = res.headers['content-type'] || '';
                 if (contentType.includes('text/html')) {
-                    if (isRetry) return callback(new Error("Gagal Bypass GDrive."));
+                    if (isRetry) return callback(new Error("Gagal Bypass GDrive: Google masih memblokir. Pastikan link Public."));
                     
                     let body = '';
                     res.on('data', chunk => body += chunk);
@@ -169,7 +170,7 @@ function downloadStandardUrl(urlStr, destPath, callback, redirectCount = 0) {
 const activeStreams = new Map();
 
 function startStreamInternal(task) {
-    if (activeStreams.has(task.id)) return false; // Sudah jalan
+    if (activeStreams.has(task.id)) return false; 
 
     const fullVideoPath = path.join(MEDIA_DIR, task.videoPath);
     if (!fs.existsSync(fullVideoPath)) {
@@ -180,6 +181,9 @@ function startStreamInternal(task) {
     const timestamp = new Date().toISOString();
     fs.appendFileSync(LOG_FILE, `\n[${timestamp}] [SYSTEM] Menerima tugas Live: ${task.taskName}\n`);
 
+    // Pastikan tidak ada spasi tersembunyi di stream key
+    const cleanStreamKey = task.streamKey.trim();
+
     const ffmpegArgs = ['-re']; 
     if (task.videoMode === 'Satu Video (Looping)') ffmpegArgs.push('-stream_loop', '-1'); 
     
@@ -188,7 +192,7 @@ function startStreamInternal(task) {
         '-c:v', 'libx264', '-preset', 'veryfast', '-b:v', '3000k', '-maxrate', '3000k', '-bufsize', '6000k',
         '-pix_fmt', 'yuv420p', '-g', '60', 
         '-c:a', 'aac', '-b:a', '128k', '-ar', '44100', '-f', 'flv',
-        `rtmp://a.rtmp.youtube.com/live2/${task.streamKey}`
+        `rtmp://a.rtmp.youtube.com/live2/${cleanStreamKey}`
     );
 
     const ffmpegProcess = spawn('ffmpeg', ffmpegArgs);
@@ -199,7 +203,6 @@ function startStreamInternal(task) {
         activeStreams.delete(task.id);
         fs.appendFileSync(LOG_FILE, `\n[${new Date().toISOString()}] [SYSTEM] FFmpeg ${task.taskName} Terhenti (Code: ${code})\n`);
         
-        // Update status di database jadi Berhenti
         try {
             let tasks = JSON.parse(fs.readFileSync(TASKS_FILE));
             let t = tasks.find(x => x.id === task.id);
@@ -211,18 +214,15 @@ function startStreamInternal(task) {
 }
 
 // --- CRON JOB (PENJADWAL OTOMATIS) ---
-// Berjalan setiap 60 detik (1 menit) mengecek file tasks.json
 setInterval(() => {
     try {
         const tasks = JSON.parse(fs.readFileSync(TASKS_FILE));
         let isModified = false;
         
         const now = new Date();
-        // Paksa timezone ke WIB (Asia/Jakarta)
         const optionsDate = { timeZone: 'Asia/Jakarta', year: 'numeric', month: '2-digit', day: '2-digit' };
         const optionsTime = { timeZone: 'Asia/Jakarta', hour: '2-digit', minute: '2-digit', hour12: false };
         
-        // Format ISO Date manual YYYY-MM-DD
         const formatter = new Intl.DateTimeFormat('en-CA', optionsDate);
         const parts = formatter.formatToParts(now);
         const currentDate = `${parts.find(p=>p.type==='year').value}-${parts.find(p=>p.type==='month').value}-${parts.find(p=>p.type==='day').value}`;
@@ -246,10 +246,24 @@ setInterval(() => {
     } catch (e) { console.log("[CRON ERROR] " + e.message); }
 }, 60000); 
 
-
 // --- API ROUTES ---
 
 app.get('/api/status', (req, res) => res.json({ status: 'running', message: 'Backend VStream Aktif' }));
+
+// BACA LOG FFMPEG UNTUK FRONTEND
+app.get('/api/logs', (req, res) => {
+    try {
+        if (fs.existsSync(LOG_FILE)) {
+            const logContent = fs.readFileSync(LOG_FILE, 'utf8');
+            const logLines = logContent.split('\n').filter(line => line.trim() !== '').slice(-100); 
+            res.json({ success: true, logs: logLines });
+        } else {
+            res.json({ success: true, logs: ['[SYSTEM] File log belum dibuat.'] });
+        }
+    } catch (e) {
+        res.status(500).json({ success: false, message: e.message });
+    }
+});
 
 // --- TASK (TUGAS LIVE) API ---
 app.post('/api/tasks', (req, res) => {
@@ -268,20 +282,18 @@ app.post('/api/tasks', (req, res) => {
             startStreamInternal(newTask);
         }
 
-        res.json({ success: true, message: 'Tugas Live berhasil disimpan!', task: newTask });
+        res.json({ success: true, message: 'Tugas Live berhasil disimpan & diproses!', task: newTask });
     } catch (e) {
         res.status(500).json({ success: false, message: e.message });
     }
 });
 
 app.get('/api/tasks', (req, res) => {
-    try {
-        res.json(JSON.parse(fs.readFileSync(TASKS_FILE)));
-    } catch (e) { res.json([]); }
+    try { res.json(JSON.parse(fs.readFileSync(TASKS_FILE))); } catch (e) { res.json([]); }
 });
 
 app.post('/api/stream/stop', (req, res) => {
-    const { streamId } = req.body; // Ini adalah task.id
+    const { streamId } = req.body; 
     const process = activeStreams.get(streamId);
     
     try {
@@ -302,19 +314,15 @@ app.post('/api/stream/stop', (req, res) => {
 app.delete('/api/tasks/:id', (req, res) => {
     try {
         let tasks = JSON.parse(fs.readFileSync(TASKS_FILE));
-        
-        // Matikan jika sedang jalan
         const process = activeStreams.get(req.params.id);
         if (process) { process.kill('SIGKILL'); activeStreams.delete(req.params.id); }
-
         tasks = tasks.filter(t => t.id !== req.params.id);
         fs.writeFileSync(TASKS_FILE, JSON.stringify(tasks, null, 2));
         res.json({ success: true });
     } catch (e) { res.status(500).json({ success: false, message: e.message }); }
 });
 
-
-// --- UPLOAD THUMBNAIL ---
+// --- MEDIA & OTHERS ---
 app.post('/api/thumbnails/upload', uploadThumb.single('thumbnail'), (req, res) => {
     if (!req.file) return res.status(400).json({ success: false, message: 'Gagal upload thumbnail' });
     res.json({ success: true, filename: req.file.filename, url: `/thumbnails/${req.file.filename}` });
@@ -322,8 +330,6 @@ app.post('/api/thumbnails/upload', uploadThumb.single('thumbnail'), (req, res) =
 
 app.use('/thumbnails', express.static(THUMB_DIR));
 
-
-// --- MEDIA & OAUTH ROUTES (Tetap sama) ---
 app.post('/api/media/upload', uploadMedia.array('files'), (req, res) => {
     res.json({ success: true, message: `${req.files ? req.files.length : 0} file berhasil diunggah.` });
 });

@@ -150,7 +150,7 @@ export default function App() {
           {activeTab === 'media' && <MediaView isPreview={isPreview} API_BASE={API_BASE} />}
           {activeTab === 'analytics' && <AnalyticsView accounts={accounts} />}
           {activeTab === 'pengaturan' && <SettingsView accounts={accounts} fetchAccounts={fetchAccounts} isPreview={isPreview} API_BASE={API_BASE} />}
-          {activeTab === 'log' && <LogView />}
+          {activeTab === 'log' && <LogView isPreview={isPreview} API_BASE={API_BASE} />}
         </main>
         
       </div>
@@ -769,8 +769,8 @@ function TugasLiveView({ accounts, isPreview, API_BASE, onNavigate }) {
               ) : (
                 <>
                   <Upload className="w-8 h-8 text-gray-400 group-hover:text-emerald-500 mb-3 transition-colors" />
-                  <p className="text-sm font-bold text-gray-700 dark:text-slate-300 mb-1">Pilih 1 File Gambar</p>
-                  <p className="text-xs text-gray-500 dark:text-slate-400">Seret dan lepas (Drag & Drop) di sini</p>
+                  <p className="text-sm font-bold text-gray-700 dark:text-slate-300 mb-1">Pilih File Gambar Thumbnail</p>
+                  <p className="text-xs text-gray-500 dark:text-slate-400">Klik di sini untuk upload</p>
                 </>
               )}
             </div>
@@ -1782,19 +1782,56 @@ function SettingsView({ accounts, fetchAccounts, isPreview, API_BASE }) {
 // -----------------------------------------------------------------------------
 // TAB 6: LOG VIEW
 // -----------------------------------------------------------------------------
-function LogView() {
-  const [logs, setLogs] = useState([{ type: 'info', text: 'Menunggu koneksi ke server VPS FFmpeg...' }]);
+function LogView({ isPreview, API_BASE }) {
+  const [logs, setLogs] = useState([{ type: 'info', text: 'Menghubungkan ke log server VPS...' }]);
   const [bitrateHistory, setBitrateHistory] = useState(Array(20).fill(0));
   const [currentFps, setCurrentFps] = useState(0);
   const [droppedFrames, setDroppedFrames] = useState(0);
+  const [currentBitrateStr, setCurrentBitrateStr] = useState('0');
   
   const logsEndRef = useRef(null);
 
   useEffect(() => {
-    // INFO UNTUK PRODUCTION:
-    // Logika setInterval untuk data dummy (FFmpeg output dll) telah dihapus
-    // Silakan hubungkan state `setLogs`, `setBitrateHistory`, dll dengan WebSocket dari Backend / VPS
-  }, []);
+    if (isPreview) return;
+    const fetchLogs = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/logs`);
+        const data = await res.json();
+        if (data.success && data.logs) {
+          const formattedLogs = data.logs.filter(l => l.trim() !== '').map(text => {
+            let type = 'ffmpeg';
+            if (text.includes('[SYSTEM]')) type = 'system';
+            else if (text.toLowerCase().includes('error') || text.toLowerCase().includes('failed') || text.toLowerCase().includes('invalid') || text.toLowerCase().includes('could not')) type = 'error';
+            return { type, text };
+          });
+          
+          if(formattedLogs.length > 0) {
+             setLogs(formattedLogs);
+             
+             // Ekstrak informasi dari baris log terakhir (jika ada data frame)
+             const lastLog = formattedLogs[formattedLogs.length - 1].text;
+             const fpsMatch = lastLog.match(/fps=\s*(\d+)/);
+             const bitrateMatch = lastLog.match(/bitrate=\s*([\d.]+)kbits\/s/);
+             const dropMatch = lastLog.match(/drop=\s*(\d+)/);
+             
+             if (fpsMatch) setCurrentFps(parseInt(fpsMatch[1]));
+             if (dropMatch) setDroppedFrames(parseInt(dropMatch[1]));
+             if (bitrateMatch) {
+                const br = parseFloat(bitrateMatch[1]);
+                setCurrentBitrateStr(br.toFixed(0));
+                setBitrateHistory(prev => {
+                   const next = [...prev.slice(1), br * 1000]; // simpan sebagai bps untuk grafik
+                   return next;
+                });
+             }
+          }
+        }
+      } catch(e) {}
+    };
+    fetchLogs();
+    const interval = setInterval(fetchLogs, 2000); // Polling tiap 2 detik
+    return () => clearInterval(interval);
+  }, [API_BASE, isPreview]);
 
   useEffect(() => {
     logsEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -1809,8 +1846,8 @@ function LogView() {
     }).join(' ');
   };
 
-  const currentBitrate = bitrateHistory[bitrateHistory.length - 1];
-  const bitrateColor = currentBitrate > 0 ? (currentBitrate > 4500 ? 'text-green-500 dark:text-emerald-400' : currentBitrate > 4100 ? 'text-yellow-500 dark:text-amber-400' : 'text-red-500 dark:text-rose-400') : 'text-gray-500 dark:text-slate-500';
+  const currentBitrateNum = bitrateHistory[bitrateHistory.length - 1];
+  const bitrateColor = currentBitrateNum > 0 ? (currentBitrateNum > 4500000 ? 'text-green-500 dark:text-emerald-400' : currentBitrateNum > 2000000 ? 'text-yellow-500 dark:text-amber-400' : 'text-red-500 dark:text-rose-400') : 'text-gray-500 dark:text-slate-500';
 
   return (
     <div className="flex flex-col lg:flex-row gap-6 h-[calc(100vh-8rem)]">
@@ -1827,14 +1864,14 @@ function LogView() {
               <Wifi className="w-3 h-3" /> Bitrate
             </div>
             <div className={`text-2xl font-black font-mono tracking-tighter ${bitrateColor} drop-shadow-[0_0_8px_rgba(currentColor,0.5)] dark:drop-shadow-none`}>
-              {currentBitrate} <span className="text-xs font-normal text-gray-500 dark:text-slate-500">kbps</span>
+              {currentBitrateStr} <span className="text-xs font-normal text-gray-500 dark:text-slate-500">kbps</span>
             </div>
           </div>
           <div className="bg-gray-900 dark:bg-slate-800 text-white p-4 rounded-xl border border-gray-800 dark:border-slate-700/60 shadow-[inset_0_2px_10px_rgba(0,0,0,0.5)] dark:shadow-none">
             <div className="flex items-center gap-1.5 text-xs text-gray-400 dark:text-slate-400 font-bold uppercase tracking-wider mb-1">
               <Monitor className="w-3 h-3" /> FPS
             </div>
-            <div className={`text-2xl font-black font-mono tracking-tighter ${currentFps >= 60 ? 'text-green-400 dark:text-emerald-400' : currentFps > 0 ? 'text-yellow-400 dark:text-amber-400' : 'text-gray-500 dark:text-slate-500'}`}>
+            <div className={`text-2xl font-black font-mono tracking-tighter ${currentFps >= 30 ? 'text-green-400 dark:text-emerald-400' : currentFps > 0 ? 'text-yellow-400 dark:text-amber-400' : 'text-gray-500 dark:text-slate-500'}`}>
               {currentFps} <span className="text-xs font-normal text-gray-500 dark:text-slate-500">/ 60</span>
             </div>
           </div>
@@ -1843,7 +1880,7 @@ function LogView() {
               <Zap className="w-3 h-3" /> Frame Drops
             </div>
             <div className={`text-2xl font-black font-mono tracking-tighter ${droppedFrames > 0 ? 'text-orange-500 dark:text-amber-500' : 'text-gray-500 dark:text-slate-500'}`}>
-              {droppedFrames} <span className="text-xs font-normal text-gray-500 dark:text-slate-500">(0.00%)</span>
+              {droppedFrames} <span className="text-xs font-normal text-gray-500 dark:text-slate-500"></span>
             </div>
           </div>
           <div className="bg-gray-900 dark:bg-slate-800 text-white p-4 rounded-xl border border-gray-800 dark:border-slate-700/60 shadow-[inset_0_2px_10px_rgba(0,0,0,0.5)] dark:shadow-none">
@@ -1851,9 +1888,9 @@ function LogView() {
               <Cpu className="w-3 h-3" /> Encoder
             </div>
             <div className="text-sm font-black font-mono mt-1 text-gray-500 dark:text-slate-500">
-              Menunggu...
+              x264 (Software)
             </div>
-            <div className="text-xs text-gray-500 dark:text-slate-500 mt-1">CPU: 0.0%</div>
+            <div className="text-xs text-gray-500 dark:text-slate-500 mt-1">Preset: veryfast</div>
           </div>
         </div>
 
@@ -1861,8 +1898,8 @@ function LogView() {
           <div className="flex justify-between items-center mb-4 relative z-10">
             <span className="text-xs font-bold text-gray-400 dark:text-slate-300 uppercase tracking-widest">Network Stability</span>
             <div className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-gray-500 dark:bg-slate-500"></span>
-              <span className="text-xs text-gray-500 dark:text-slate-500 font-medium">Menunggu Stream</span>
+              <span className={`w-2 h-2 rounded-full ${currentBitrateNum > 0 ? 'bg-green-500 animate-pulse' : 'bg-gray-500 dark:bg-slate-500'}`}></span>
+              <span className="text-xs text-gray-500 dark:text-slate-500 font-medium">{currentBitrateNum > 0 ? 'Streaming Live' : 'Menunggu Stream'}</span>
             </div>
           </div>
           
@@ -1885,8 +1922,8 @@ function LogView() {
             </svg>
           </div>
           <div className="flex justify-between mt-2 text-[10px] text-gray-600 dark:text-slate-400 font-mono">
+            <span>T-40s</span>
             <span>T-20s</span>
-            <span>T-10s</span>
             <span>Now</span>
           </div>
         </div>
@@ -1910,28 +1947,25 @@ function LogView() {
 
         <div className="p-4 overflow-y-auto flex-1 z-10 custom-scrollbar">
           <div className="space-y-1.5 text-[13px] leading-relaxed">
-            {logs.length === 0 ? (
-              <div className="text-gray-500 dark:text-slate-600 italic">Menunggu koneksi log dari server...</div>
-            ) : (
-              logs.map((log, index) => {
-                let colorClass = "text-gray-300 dark:text-slate-300";
-                if (log.type === 'system') colorClass = "text-purple-400 dark:text-purple-300 font-bold";
-                if (log.type === 'info') colorClass = "text-blue-400 dark:text-blue-300";
-                if (log.type === 'success') colorClass = "text-green-400 dark:text-emerald-300";
-                if (log.type === 'warning') colorClass = "text-yellow-400 dark:text-amber-300";
-                if (log.type === 'error') colorClass = "text-red-500 dark:text-rose-400 font-bold";
-                if (log.type === 'ffmpeg') colorClass = "text-gray-400 dark:text-slate-500";
+            {logs.map((log, index) => {
+              let colorClass = "text-gray-300 dark:text-slate-300";
+              if (log.type === 'system') colorClass = "text-purple-400 dark:text-purple-300 font-bold";
+              if (log.type === 'info') colorClass = "text-blue-400 dark:text-blue-300";
+              if (log.type === 'success') colorClass = "text-green-400 dark:text-emerald-300";
+              if (log.type === 'warning') colorClass = "text-yellow-400 dark:text-amber-300";
+              if (log.type === 'error') colorClass = "text-red-500 dark:text-rose-400 font-bold bg-red-500/10";
+              if (log.type === 'ffmpeg') colorClass = "text-gray-400 dark:text-slate-500";
 
-                return (
-                  <div key={index} className={`${colorClass} break-all hover:bg-white/5 dark:hover:bg-white/10 px-1 rounded transition-colors`}>
-                    <span className="opacity-50 dark:opacity-40 mr-2 text-xs">
-                      {new Date().toISOString().split('T')[1].substring(0,8)}
-                    </span>
-                    {log.text}
-                  </div>
-                );
-              })
-            )}
+              return (
+                <div key={index} className={`${colorClass} break-all hover:bg-white/5 dark:hover:bg-white/10 px-1 rounded transition-colors`}>
+                  <span className="opacity-50 dark:opacity-40 mr-2 text-xs">
+                    {/* Fake timestamp for visual flair, real backend logs have their own timestamp */}
+                    {new Date().toISOString().split('T')[1].substring(0,8)}
+                  </span>
+                  {log.text}
+                </div>
+              );
+            })}
             <div ref={logsEndRef} />
           </div>
         </div>
