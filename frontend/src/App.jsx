@@ -349,7 +349,10 @@ function DashboardView() {
 }
 
 function TugasLiveView({ accounts, isPreview, API_BASE }) {
-  const [streamKeyMode, setStreamKeyMode] = useState('Otomatis (API v3)');
+  const [streamKeyMode, setStreamKeyMode] = useState('Manual Input Key'); // Default ke manual untuk saat ini
+  const [manualStreamKey, setManualStreamKey] = useState(''); // State untuk menangkap Stream Key pengguna
+  const [isStarting, setIsStarting] = useState(false); // State loading saat memanggil FFmpeg
+
   const [videoMode, setVideoMode] = useState('Satu Video (Looping)');
   const [selectedVideos, setSelectedVideos] = useState([]);
   const [isVideoDropdownOpen, setIsVideoDropdownOpen] = useState(false);
@@ -403,6 +406,43 @@ function TugasLiveView({ accounts, isPreview, API_BASE }) {
     }
   };
 
+  // FUNGSI UTAMA: MENYALAKAN FFMPEG KE BACKEND
+  const handleStartLive = async () => {
+    if (selectedVideos.length === 0) return alert('⚠️ Pilih minimal 1 video atau playlist dari Manajemen Media!');
+    
+    let keyToUse = manualStreamKey;
+    if (streamKeyMode === 'Otomatis (API v3)') {
+        return alert('⏳ Mode Otomatis (API v3) sedang dalam integrasi final. \n\n👉 Silakan ubah Dropdown "Stream Key Mode" ke "Manual Input Key" dan masukkan Stream Key Anda.');
+    }
+
+    if (!keyToUse) return alert('⚠️ Stream Key tidak boleh kosong!');
+
+    if (isPreview) return alert('🖥️ Simulasi Tampilan: Perintah FFmpeg dikirim ke server!');
+
+    setIsStarting(true);
+    try {
+        const res = await fetch(`${API_BASE}/api/stream/start`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                streamKey: keyToUse,
+                videoPath: selectedVideos[0], // Mengirim video/playlist terpilih
+                isLoop: videoMode === 'Satu Video (Looping)'
+            })
+        });
+        const data = await res.json();
+        if (data.success) {
+            alert(`✅ ${data.message}`);
+        } else {
+            alert(`❌ Gagal: ${data.message}`);
+        }
+    } catch (e) {
+        alert('❌ Gagal terhubung ke server untuk memulai stream.');
+    } finally {
+        setIsStarting(false);
+    }
+  };
+
   const inputClassName = "w-full bg-gray-50 dark:bg-slate-900/50 border border-gray-300 dark:border-slate-600/60 rounded-lg px-4 py-2.5 outline-none focus:border-emerald-500 dark:focus:border-emerald-400 focus:ring-1 focus:ring-emerald-500/50 dark:focus:ring-emerald-400/50 text-sm transition-all dark:text-slate-200 dark:placeholder-slate-500";
   const labelClassName = "block text-sm font-semibold mb-1.5 text-gray-700 dark:text-slate-300";
 
@@ -444,8 +484,8 @@ function TugasLiveView({ accounts, isPreview, API_BASE }) {
                      value={streamKeyMode}
                      onChange={(e) => setStreamKeyMode(e.target.value)}
                    >
-                    <option value="Otomatis (API v3)">Otomatis (API v3)</option>
                     <option value="Manual Input Key">Manual Input Key</option>
+                    <option value="Otomatis (API v3)">Otomatis (API v3)</option>
                   </select>
                 </div>
               </div>
@@ -569,10 +609,17 @@ function TugasLiveView({ accounts, isPreview, API_BASE }) {
                 </p>
               </div>
 
+              {/* TAMPILAN MANUAL INPUT KEY */}
               {streamKeyMode === 'Manual Input Key' && (
                 <div className="animate-in fade-in slide-in-from-top-2 duration-300 pt-2 border-t border-gray-200 dark:border-slate-700/60">
                   <label className="block text-sm font-bold mb-1.5 text-red-600 dark:text-rose-400">Masukkan Stream Key (Manual)</label>
-                  <input type="password" placeholder="xxxx-xxxx-xxxx-xxxx-xxxx" className={`${inputClassName} border-red-300 dark:border-rose-500/50 focus:border-red-500 dark:focus:border-rose-500 focus:ring-red-500/50 dark:focus:ring-rose-500/50 font-mono`} />
+                  <input 
+                    type="password" 
+                    placeholder="xxxx-xxxx-xxxx-xxxx-xxxx" 
+                    value={manualStreamKey}
+                    onChange={(e) => setManualStreamKey(e.target.value)}
+                    className={`${inputClassName} border-red-300 dark:border-rose-500/50 focus:border-red-500 dark:focus:border-rose-500 focus:ring-red-500/50 dark:focus:ring-rose-500/50 font-mono`} 
+                  />
                 </div>
               )}
             </div>
@@ -864,7 +911,7 @@ function TugasLiveView({ accounts, isPreview, API_BASE }) {
            </div>
            <div>
              <p className="text-xs text-gray-500 dark:text-slate-400 font-medium mb-0.5">Status Tugas Live</p>
-             <p className="text-sm font-bold text-blue-600 dark:text-blue-400">Draft (Belum Disimpan)</p>
+             <p className="text-sm font-bold text-blue-600 dark:text-blue-400">Siap Dieksekusi</p>
            </div>
          </div>
          
@@ -872,8 +919,12 @@ function TugasLiveView({ accounts, isPreview, API_BASE }) {
            <button className="flex-1 sm:flex-none px-6 py-2.5 rounded-xl border border-gray-300 dark:border-slate-600/60 hover:bg-gray-100 dark:hover:bg-slate-700/50 text-gray-700 dark:text-slate-200 font-semibold transition-colors text-sm">
              Simpan Draft
            </button>
-           <button className="flex-1 sm:flex-none px-8 py-2.5 bg-emerald-600 dark:bg-emerald-500 hover:bg-emerald-700 dark:hover:bg-emerald-600 text-white rounded-xl flex items-center justify-center gap-2 font-semibold transition-colors text-sm shadow-md hover:shadow-lg shadow-emerald-500/20 dark:shadow-emerald-500/20">
-             <PlayCircle className="w-5 h-5" /> Mulai Live Sekarang
+           <button 
+             onClick={handleStartLive}
+             disabled={isStarting}
+             className="flex-1 sm:flex-none px-8 py-2.5 bg-emerald-600 dark:bg-emerald-500 hover:bg-emerald-700 dark:hover:bg-emerald-600 text-white rounded-xl flex items-center justify-center gap-2 font-semibold transition-colors text-sm shadow-md hover:shadow-lg shadow-emerald-500/20 dark:shadow-emerald-500/20 disabled:opacity-50"
+           >
+             <PlayCircle className="w-5 h-5" /> {isStarting ? 'Memulai FFmpeg...' : 'Mulai Live Sekarang'}
            </button>
          </div>
       </div>
@@ -2122,9 +2173,7 @@ function LogView() {
   const logsEndRef = useRef(null);
 
   useEffect(() => {
-    // INFO UNTUK PRODUCTION:
-    // Logika setInterval untuk data dummy (FFmpeg output dll) telah dihapus
-    // Silakan hubungkan state `setLogs`, `setBitrateHistory`, dll dengan WebSocket dari Backend / VPS
+    // Logika WebSocket sementara dihilangkan untuk fokus backend
   }, []);
 
   useEffect(() => {
@@ -2134,10 +2183,9 @@ function LogView() {
   const createChartPath = () => {
     return bitrateHistory.map((val, i) => {
       const x = (i / 19) * 100;
-      // Safeguard agar chart tidak error jika nilai 0 atau negatif
       const normalizedVal = val === 0 ? 3000 : val;
       const y = 100 - (((normalizedVal - 3000) / 4000) * 100); 
-      return `${x},${Math.max(0, Math.min(100, y))}`; // Membatasi koordinat Y antara 0-100
+      return `${x},${Math.max(0, Math.min(100, y))}`; 
     }).join(' ');
   };
 
@@ -2200,6 +2248,7 @@ function LogView() {
             </div>
           </div>
           
+          {/* Chart Area */}
           <div className="flex-1 relative mt-2 w-full">
             <div className="absolute inset-0 flex flex-col justify-between opacity-10 dark:opacity-20 pointer-events-none">
               <div className="border-t border-gray-400 dark:border-slate-500 w-full"></div>
@@ -2214,8 +2263,18 @@ function LogView() {
                   <stop offset="100%" stopColor="currentColor" stopOpacity="0.0" />
                 </linearGradient>
               </defs>
-              <polyline points={`0,100 ${createChartPath()} 100,100`} fill="url(#gradientBitrate)" />
-              <polyline points={createChartPath()} fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
+              <polyline 
+                points={`0,100 ${createChartPath()} 100,100`} 
+                fill="url(#gradientBitrate)" 
+              />
+              <polyline 
+                points={createChartPath()} 
+                fill="none" 
+                stroke="currentColor" 
+                strokeWidth="2" 
+                strokeLinejoin="round" 
+                strokeLinecap="round" 
+              />
             </svg>
           </div>
           <div className="flex justify-between mt-2 text-[10px] text-gray-600 dark:text-slate-400 font-mono">
@@ -2273,10 +2332,6 @@ function LogView() {
     </div>
   );
 }
-
-/* =========================================
-   REUSABLE UI COMPONENTS
-   ========================================= */
 
 function StatCard({ title, value, icon: Icon, color, bgColor, className = "" }) {
   return (
@@ -2338,6 +2393,7 @@ function VideoFile({ name, size, onEdit, onDelete }) {
         </div>
       </div>
       
+      {/* Action Buttons */}
       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-gradient-to-l from-white dark:from-slate-800 via-white dark:via-slate-800 pl-4 pr-1">
         <button 
           onClick={(e) => { e.stopPropagation(); onEdit && onEdit(); }} 

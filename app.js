@@ -8,6 +8,7 @@ const multer = require('multer');
 const https = require('https');
 const http = require('http');
 const { URL } = require('url');
+const { exec, spawn } = require('child_process'); // Tambahkan 'spawn' untuk FFmpeg
 
 // Load .env file
 dotenv.config();
@@ -32,6 +33,12 @@ if (!fs.existsSync(MEDIA_DIR)) {
 const PLAYLIST_FILE = path.join(__dirname, 'playlists.json');
 if (!fs.existsSync(PLAYLIST_FILE)) {
     fs.writeFileSync(PLAYLIST_FILE, JSON.stringify([]));
+}
+
+// File Log untuk FFmpeg
+const LOG_FILE = path.join(__dirname, 'ffmpeg_stream.log');
+if (!fs.existsSync(LOG_FILE)) {
+    fs.writeFileSync(LOG_FILE, '=== LOG AKTIVITAS FFMPEG ===\n');
 }
 
 const storage = multer.diskStorage({
@@ -71,8 +78,6 @@ function getOAuth2Client() {
 }
 
 // --- FUNGSI DOWNLOADER PINTAR (NATIVE NODE.JS) ---
-
-// 1. Fungsi Khusus Menembus Google Drive (DIPERBARUI DENGAN DEEP HTML SCRAPE)
 function downloadGoogleDrive(fileId, destPath, callback) {
     const initialUrl = `https://drive.google.com/uc?export=download&id=${fileId}`;
     let globalCookies = {}; 
@@ -94,7 +99,6 @@ function downloadGoogleDrive(fileId, destPath, callback) {
         if (cookieString) options.headers['Cookie'] = cookieString;
 
         https.get(options, (res) => {
-            // Tangkap dan simpan semua Cookie dari Google agar tidak hilang
             if (res.headers['set-cookie']) {
                 res.headers['set-cookie'].forEach(c => {
                     const parts = c.split(';')[0].split('=');
@@ -105,7 +109,6 @@ function downloadGoogleDrive(fileId, destPath, callback) {
                 });
             }
 
-            // Jika ada pengalihan (Redirect)
             if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
                 let nextUrl = res.headers.location;
                 if (!nextUrl.startsWith('http')) {
@@ -113,11 +116,9 @@ function downloadGoogleDrive(fileId, destPath, callback) {
                 }
                 requestWithRedirects(nextUrl, isRetry);
             } 
-            // Jika berhasil masuk ke halaman
             else if (res.statusCode === 200) {
                 const contentType = res.headers['content-type'] || '';
                 
-                // Jika Google memberikan HTML peringatan Virus (Bukan Video)
                 if (contentType.includes('text/html')) {
                     if (isRetry) {
                         return callback(new Error("Gagal Bypass GDrive: Google masih memblokir unduhan. File mungkin dibatasi (Restricted)."));
@@ -126,19 +127,16 @@ function downloadGoogleDrive(fileId, destPath, callback) {
                     let body = '';
                     res.on('data', chunk => body += chunk);
                     res.on('end', () => {
-                        // DEEP SCRAPE: Cari link "Download anyway" di dalam HTML
                         const linkMatch = body.match(/href="([^"]*confirm=[^"]*)"/i) || body.match(/href='([^']*confirm=[^']*)'/i);
                         
                         if (linkMatch && linkMatch[1]) {
-                            let confirmUrl = linkMatch[1].replace(/&amp;/g, '&'); // Rapihkan format URL
+                            let confirmUrl = linkMatch[1].replace(/&amp;/g, '&'); 
                             if (!confirmUrl.startsWith('http')) {
                                 confirmUrl = `https://${parsedUrl.hostname}${confirmUrl.startsWith('/') ? '' : '/'}${confirmUrl}`;
                             }
-                            // Eksekusi link rahasia tersebut
                             return requestWithRedirects(confirmUrl, true);
                         }
 
-                        // Jika link tidak ketemu, cari lewat Cookie
                         let confirmToken = '';
                         const warningKey = Object.keys(globalCookies).find(k => k.startsWith('download_warning'));
                         if (warningKey) confirmToken = globalCookies[warningKey];
@@ -149,13 +147,11 @@ function downloadGoogleDrive(fileId, destPath, callback) {
                             return requestWithRedirects(confirmUrl, true);
                         }
 
-                        // Fallback brute-force terakhir
                         const sep = reqUrl.includes('?') ? '&' : '?';
                         const fallbackUrl = `${reqUrl}${sep}confirm=t`;
                         requestWithRedirects(fallbackUrl, true);
                     });
                 } else {
-                    // BERHASIL! Mendapatkan data mentah video (Bukan HTML)
                     const fileStream = fs.createWriteStream(destPath);
                     res.pipe(fileStream);
                     fileStream.on('finish', () => {
@@ -178,7 +174,6 @@ function downloadGoogleDrive(fileId, destPath, callback) {
     requestWithRedirects(initialUrl, false);
 }
 
-// 2. Fungsi Download Standar (Untuk link selain Google Drive)
 function downloadStandardUrl(urlStr, destPath, callback, redirectCount = 0) {
     if (redirectCount > 5) return callback(new Error('Terlalu banyak redirect. Link tidak valid.'));
     const client = urlStr.startsWith('https') ? https : http;
@@ -216,6 +211,82 @@ app.get('/api/status', (req, res) => {
     res.json({ status: 'running', message: 'Backend VStream Aktif' });
 });
 
+// --- ENGINE FFMPEG (MEMULAI LIVE) ---
+const activeStreams = new Map(); // Menyimpan data stream yang sedang jalan
+
+app.post('/api/stream/start', (req, res) => {
+    const { streamKey, videoPath, isLoop } = req.body;
+
+    if (!streamKey || !videoPath) {
+        return res.status(400).json({ success: false, message: 'Stream Key dan File Video tidak boleh kosong!' });
+    }
+
+    const fullVideoPath = path.join(MEDIA_DIR, videoPath);
+    if (!fs.existsSync(fullVideoPath)) {
+        return res.status(404).json({ success: false, message: `File video '${videoPath}' tidak ditemukan di server.` });
+    }
+
+    const streamId = `live_${Date.now()}`;
+    const timestamp = new Date().toISOString();
+
+    // Tulis ke file log
+    fs.appendFileSync(LOG_FILE, `\n[${timestamp}] [SYSTEM] Menerima tugas Live baru (${streamId}). Video: ${videoPath}\n`);
+
+    // Susun perintah FFmpeg untuk YouTube RTMP
+    const ffmpegArgs = ['-re']; // Baca input dalam kecepatan real-time (1x)
+    
+    if (isLoop) {
+        ffmpegArgs.push('-stream_loop', '-1'); // Mengulang video tanpa batas (Looping)
+    }
+
+    ffmpegArgs.push(
+        '-i', fullVideoPath,
+        '-c:v', 'libx264',
+        '-preset', 'veryfast',      // Keseimbangan CPU dan Kualitas
+        '-b:v', '3000k',            // Bitrate Video (Standard 1080p ringan)
+        '-maxrate', '3000k',
+        '-bufsize', '6000k',
+        '-pix_fmt', 'yuv420p',
+        '-g', '60',                 // Keyframe tiap 2 detik (asumsi 30fps)
+        '-c:a', 'aac',
+        '-b:a', '128k',             // Bitrate Audio standar
+        '-ar', '44100',
+        '-f', 'flv',
+        `rtmp://a.rtmp.youtube.com/live2/${streamKey}` // Tujuan server YouTube
+    );
+
+    // Eksekusi Mesin FFmpeg
+    const ffmpegProcess = spawn('ffmpeg', ffmpegArgs);
+    activeStreams.set(streamId, ffmpegProcess);
+
+    ffmpegProcess.stderr.on('data', (data) => {
+        // FFmpeg mengeluarkan log progress pada stderr
+        const logData = data.toString();
+        fs.appendFileSync(LOG_FILE, logData);
+    });
+
+    ffmpegProcess.on('close', (code) => {
+        activeStreams.delete(streamId);
+        fs.appendFileSync(LOG_FILE, `\n[${new Date().toISOString()}] [SYSTEM] Proses FFmpeg ${streamId} Terhenti (Kode Keluar: ${code})\n`);
+    });
+
+    res.json({ success: true, message: 'Mesin FFmpeg berhasil diaktifkan! Cek menu Log untuk melihat status pengiriman ke YouTube.', streamId });
+});
+
+// Endpoint untuk menghentikan Live
+app.post('/api/stream/stop', (req, res) => {
+    const { streamId } = req.body;
+    const process = activeStreams.get(streamId);
+    if (process) {
+        process.kill('SIGKILL');
+        activeStreams.delete(streamId);
+        res.json({ success: true, message: 'Streaming berhasil dihentikan paksa.' });
+    } else {
+        res.status(404).json({ success: false, message: 'Stream tidak ditemukan atau sudah berhenti.' });
+    }
+});
+
+
 app.post('/api/media/upload', uploadMedia.array('files'), (req, res) => {
     const count = req.files ? req.files.length : 0;
     res.json({ success: true, message: `${count} file berhasil diunggah ke VPS.` });
@@ -241,7 +312,6 @@ app.delete('/api/media/:filename', (req, res) => {
     res.json({ success: true });
 });
 
-// --- JALUR IMPORT URL TERBARU (NATIVE NODE.JS) ---
 app.post('/api/media/import-url', (req, res) => {
     let { url } = req.body;
     if (!url) return res.status(400).json({ success: false, message: 'URL tidak valid' });
@@ -258,7 +328,6 @@ app.post('/api/media/import-url', (req, res) => {
     
     const dest = path.join(MEDIA_DIR, filename);
 
-    // Fungsi pengecekan sukses
     const handleSuccess = (err) => {
         if (err) {
             if (fs.existsSync(dest)) fs.unlinkSync(dest);
@@ -267,7 +336,6 @@ app.post('/api/media/import-url', (req, res) => {
         
         if (fs.existsSync(dest)) {
             const stats = fs.statSync(dest);
-            // Tambahan pengaman: Pastikan file yang terunduh lebih dari 10KB
             if (stats.size < 10 * 1024) { 
                 fs.unlinkSync(dest); 
                 return res.status(400).json({ 
@@ -281,17 +349,13 @@ app.post('/api/media/import-url', (req, res) => {
         }
     };
 
-    // Eksekusi Pilihan Download
     if (gdriveMatch && gdriveMatch[1]) {
-        // Jika Link Google Drive, gunakan Downloader Khusus GDrive
         downloadGoogleDrive(gdriveMatch[1], dest, handleSuccess);
     } else {
-        // Jika Link Biasa, gunakan Downloader Standar
         downloadStandardUrl(url, dest, handleSuccess);
     }
 });
 
-// --- MANAJEMEN PLAYLIST ---
 app.get('/api/playlists', (req, res) => {
     try {
         const data = JSON.parse(fs.readFileSync(PLAYLIST_FILE));
