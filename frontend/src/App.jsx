@@ -156,7 +156,6 @@ export default function App() {
    ========================================= */
 
 function DashboardView() {
-  // Dikosongkan untuk production
   const [streams, setStreams] = useState([]);
   const [selectedIds, setSelectedIds] = useState([]);
 
@@ -182,10 +181,8 @@ function DashboardView() {
 
   return (
     <div className="space-y-3">
-      
       {/* BARIS ATAS: Stats */}
       <div className="grid grid-cols-2 gap-3">
-        
         {/* Streaming Aktif */}
         <div className="bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700/60 p-2.5 shadow-sm flex items-center justify-between hover:border-emerald-200 dark:hover:border-emerald-500/40 transition-colors">
           <div className="flex items-center gap-2.5">
@@ -217,7 +214,6 @@ function DashboardView() {
             STANDBY
           </span>
         </div>
-
       </div>
 
       {/* BARIS BAWAH: Server Resources */}
@@ -373,8 +369,7 @@ function TugasLiveView() {
     Minggu: { active: false, start: '09:00', end: '20:00' }
   });
 
-  // Dikosongkan untuk production
-  const availableVideos = [];
+  const availableVideos = []; // Dikosongkan untuk production
 
   const handleVideoSelection = (video) => {
     if (videoMode === 'Satu Video (Looping)') {
@@ -394,12 +389,10 @@ function TugasLiveView() {
 
   return (
     <div className="flex flex-col gap-6">
-      
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         
         {/* KOLOM KIRI (7/12) */}
         <div className="lg:col-span-7 flex flex-col gap-6">
-          
           {/* CARD 1: Sumber Media & Stream */}
           <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700/60 p-5 md:p-6 shadow-sm">
             <h3 className="text-lg font-bold flex items-center gap-2 border-b border-gray-100 dark:border-slate-700/60 pb-4 mb-5 text-gray-800 dark:text-slate-100">
@@ -1298,40 +1291,214 @@ function AnalyticsView() {
 }
 
 function SettingsView() {
+  // States Notif & Chatbot
   const [notifPlatform, setNotifPlatform] = useState('telegram');
-  const [notifEnabled, setNotifEnabled] = useState(false); // Default false for production
+  const [notifEnabled, setNotifEnabled] = useState(false); 
   const [chatbotEnabled, setChatbotEnabled] = useState(false);
-
-  // Dikosongkan untuk production
   const [scheduledMessages, setScheduledMessages] = useState([]);
 
+  // States Autentikasi Manual
+  const [accountName, setAccountName] = useState('');
+  const [authUrl, setAuthUrl] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+
+  // States Kredensial Google API
+  const [clientId, setClientId] = useState('');
+  const [clientSecret, setClientSecret] = useState('');
+  const [isSavingCreds, setIsSavingCreds] = useState(false);
+
+  // States Manajemen JSON
+  const [apiKeys, setApiKeys] = useState([]);
+  const [isUploading, setIsUploading] = useState(false);
+
+  const inputClassName = "w-full bg-gray-50 dark:bg-slate-900/50 border border-gray-300 dark:border-slate-600/60 rounded-lg px-4 py-2.5 outline-none focus:border-emerald-500 dark:focus:border-emerald-400 font-mono text-sm dark:text-slate-200 transition-colors";
+
+  // URL Base dinamis untuk environment preview Sandbox
+  const API_BASE = (window.location.protocol === 'blob:' || window.location.origin === 'null') ? 'http://localhost:7678' : '';
+
+  useEffect(() => { 
+    fetchApiKeys(); 
+  }, []);
+
+  const fetchApiKeys = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/settings/api-keys`);
+      const data = await res.json();
+      setApiKeys(Array.isArray(data) ? data : []);
+    } catch (e) { 
+      console.error('Gagal mengambil daftar API keys:', e); 
+    }
+  };
+
+  // Handler Kredensial API
+  const handleSaveGoogleCredentials = async () => {
+    if (!clientId || !clientSecret) {
+      alert('Client ID dan Client Secret harus diisi!');
+      return;
+    }
+    setIsSavingCreds(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/settings/google-credentials`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ clientId, clientSecret })
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert('Berhasil: ' + data.message);
+        setClientId('');
+        setClientSecret('');
+      } else {
+        alert('Gagal: ' + data.message);
+      }
+    } catch (err) {
+      alert('Terjadi kesalahan koneksi ke server.');
+    } finally {
+      setIsSavingCreds(false);
+    }
+  };
+
+  // Handler Autentikasi
+  const handleLoginGoogle = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/url`);
+      const data = await res.json();
+      if (data.url) {
+        window.open(data.url, '_blank');
+      } else if (data.error) {
+        alert('Error: ' + data.error);
+      }
+    } catch (err) {
+      alert('Gagal mengambil URL login dari server.');
+    }
+  };
+
+  const handleSaveAccount = async () => {
+    if (!accountName || !authUrl) {
+      alert('Nama akun dan URL lengkap harus diisi!');
+      return;
+    }
+    setIsSaving(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/save`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accountName, authUrl })
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert('Berhasil: ' + data.message);
+        setAccountName('');
+        setAuthUrl('');
+      } else {
+        alert('Gagal: ' + data.message);
+      }
+    } catch (err) {
+      alert('Terjadi kesalahan koneksi ke server.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Handler Manajemen API (Upload JSON)
+  const handleFileUpload = async (e) => {
+    const files = e.target.files;
+    if (files.length === 0) return;
+    setIsUploading(true);
+    const formData = new FormData();
+    for (let file of files) formData.append('files', file);
+
+    try {
+      await fetch(`${API_BASE}/api/settings/upload-json`, { method: 'POST', body: formData });
+      fetchApiKeys();
+      alert('File JSON berhasil diunggah.');
+    } catch (e) { 
+      alert('Gagal mengunggah file JSON.'); 
+    } finally { 
+      setIsUploading(false); 
+    }
+  };
+
+  const deleteKey = async (id) => {
+    if (!confirm('Anda yakin ingin menghapus API Key ini?')) return;
+    try {
+      await fetch(`${API_BASE}/api/settings/api-key/${id}`, { method: 'DELETE' });
+      fetchApiKeys();
+    } catch (e) {
+      alert('Gagal menghapus API key.');
+    }
+  };
+
+  // Handlers Chatbot
   const addScheduledMessage = () => {
     setScheduledMessages([...scheduledMessages, { id: Date.now(), hour: 0, minute: 0, text: "" }]);
   };
-
   const updateScheduledMessage = (id, field, value) => {
     setScheduledMessages(scheduledMessages.map(msg => msg.id === id ? { ...msg, [field]: value } : msg));
   };
-
   const removeScheduledMessage = (id) => {
     setScheduledMessages(scheduledMessages.filter(msg => msg.id !== id));
   };
 
-  const inputClassName = "w-full bg-gray-50 dark:bg-slate-900/50 border border-gray-300 dark:border-slate-600/60 rounded-lg px-4 py-2.5 outline-none focus:border-emerald-500 dark:focus:border-emerald-400 font-mono text-sm dark:text-slate-200 transition-colors";
-
   return (
     <div className="max-w-4xl space-y-6 pb-10">
       
+      {/* CARD 0: SETUP KREDENSIAL GOOGLE API */}
+      <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700/60 p-6 shadow-sm">
+        <div className="border-b border-gray-200 dark:border-slate-700/60 pb-4 mb-4">
+          <h3 className="text-lg font-bold text-gray-800 dark:text-slate-100 flex items-center gap-2">
+            <Sliders className="w-5 h-5 text-emerald-500" />
+            Setup Kredensial Google API
+          </h3>
+        </div>
+        <p className="text-sm text-gray-500 dark:text-slate-400 mb-5">
+          Masukkan Client ID dan Client Secret dari Google Cloud Console. Anda cukup menyimpannya sekali saja di sini. Data akan disimpan aman di server.
+        </p>
+
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Client ID</label>
+            <input 
+              type="text" 
+              value={clientId}
+              onChange={(e) => setClientId(e.target.value)}
+              placeholder="Contoh: 123456789-xxxxxx.apps.googleusercontent.com" 
+              className={inputClassName}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Client Secret</label>
+            <input 
+              type="password" 
+              value={clientSecret}
+              onChange={(e) => setClientSecret(e.target.value)}
+              placeholder="Contoh: GOCSPX-xxxxxx_xxxxxxxxxx" 
+              className={inputClassName}
+            />
+          </div>
+          <div className="pt-2">
+            <button 
+              onClick={handleSaveGoogleCredentials}
+              disabled={isSavingCreds}
+              className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors text-sm shadow-sm disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {isSavingCreds ? 'Menyimpan...' : 'Simpan Kredensial API'}
+            </button>
+          </div>
+        </div>
+      </div>
+
       {/* CARD 1: AUTENTIKASI MANUAL */}
       <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700/60 p-6 shadow-sm">
         <div className="border-b border-gray-200 dark:border-slate-700/60 pb-4 mb-4">
-          <h3 className="text-lg font-bold text-gray-800 dark:text-slate-100">
+          <h3 className="text-lg font-bold text-gray-800 dark:text-slate-100 flex items-center gap-2">
+            <Radio className="w-5 h-5 text-emerald-500" /> 
             Autentikasi Manual (Metode Localhost)
           </h3>
         </div>
         
         <p className="text-sm text-gray-600 dark:text-slate-300 mb-4 bg-yellow-50 dark:bg-amber-900/20 p-3 rounded-lg border border-yellow-100 dark:border-amber-800/30">
-          Google memerlukan verifikasi manual karena aplikasi berjalan di VPS (tanpa browser).
+          Google memerlukan verifikasi manual karena aplikasi berjalan di VPS (tanpa browser). Pastikan Kredensial Google di atas sudah disimpan sebelum login.
         </p>
 
         <ol className="list-decimal list-inside text-sm text-gray-700 dark:text-slate-300 space-y-2 mb-6 ml-2">
@@ -1344,7 +1511,10 @@ function SettingsView() {
         </ol>
 
         <div className="flex justify-center mb-8">
-          <button className="flex items-center gap-3 px-6 py-2.5 border-2 border-gray-200 dark:border-slate-600/60 text-gray-700 dark:text-slate-200 font-medium rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors shadow-sm">
+          <button 
+            onClick={handleLoginGoogle}
+            className="flex items-center gap-3 px-6 py-2.5 border-2 border-gray-200 dark:border-slate-600/60 text-gray-700 dark:text-slate-200 font-medium rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors shadow-sm"
+          >
             <svg className="w-5 h-5" viewBox="0 0 24 24">
               <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
               <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
@@ -1362,6 +1532,8 @@ function SettingsView() {
             </label>
             <input 
               type="text" 
+              value={accountName}
+              onChange={(e) => setAccountName(e.target.value)}
               placeholder="Contoh: ChannelGaming01" 
               className={inputClassName}
             />
@@ -1372,6 +1544,8 @@ function SettingsView() {
             </label>
             <textarea 
               rows="4" 
+              value={authUrl}
+              onChange={(e) => setAuthUrl(e.target.value)}
               className="w-full bg-white dark:bg-slate-900/50 border border-gray-300 dark:border-slate-600/60 rounded-md px-4 py-3 outline-none focus:border-emerald-500 dark:focus:border-emerald-400 font-mono text-xs break-all text-gray-600 dark:text-slate-300 shadow-sm transition-colors placeholder:text-gray-400 dark:placeholder:text-slate-600" 
               placeholder="http://localhost/?state=ppVwnH...&code=4/0A...&scope=https://www.googleapis.com/auth/youtube..."
             ></textarea>
@@ -1382,8 +1556,12 @@ function SettingsView() {
         </div>
 
         <div className="mt-6">
-          <button className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-600 dark:hover:bg-emerald-700 text-white font-bold rounded-lg transition-colors shadow-md flex items-center justify-center gap-2">
-            Simpan Akun
+          <button 
+            onClick={handleSaveAccount}
+            disabled={isSaving}
+            className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-600 dark:hover:bg-emerald-700 text-white font-bold rounded-lg transition-colors shadow-md flex items-center justify-center gap-2 disabled:opacity-50"
+          >
+            {isSaving ? 'Memproses...' : 'Simpan Akun'}
           </button>
         </div>
       </div>
@@ -1391,23 +1569,37 @@ function SettingsView() {
       {/* CARD 2: MANAJEMEN API JSON */}
       <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700/60 p-6 shadow-sm">
         <div className="flex items-center gap-3 mb-4 border-b border-gray-200 dark:border-slate-700/60 pb-4">
-          <Sliders className="w-6 h-6 text-gray-500 dark:text-slate-400" />
+          <Upload className="w-6 h-6 text-gray-500 dark:text-slate-400" />
           <h3 className="text-lg font-semibold dark:text-slate-100">Manajemen API v3 (Rotasi JSON)</h3>
         </div>
         <p className="text-sm text-gray-500 dark:text-slate-400 mb-6">
           Upload file JSON dari Google Cloud Console untuk menghindari limit harian (Quota Exceeded). Sistem akan otomatis mengganti token API (Auto Rotate) saat limit tercapai.
         </p>
 
-        <div className="border-2 border-dashed border-gray-300 dark:border-slate-600/60 rounded-lg p-8 text-center hover:bg-gray-50 dark:hover:bg-slate-700/30 transition-colors cursor-pointer mb-6">
+        <label className="block border-2 border-dashed border-gray-300 dark:border-slate-600/60 rounded-lg p-8 text-center hover:bg-gray-50 dark:hover:bg-slate-700/30 transition-colors cursor-pointer mb-6">
           <Upload className="w-8 h-8 text-gray-400 dark:text-slate-500 mx-auto mb-2" />
-          <p className="text-sm font-medium dark:text-slate-200">Drag & Drop file client_secret.json di sini</p>
+          <p className="text-sm font-medium dark:text-slate-200">{isUploading ? 'Sedang Mengunggah...' : 'Drag & Drop file client_secret.json di sini'}</p>
           <p className="text-xs text-gray-500 dark:text-slate-400">Mendukung upload banyak file sekaligus</p>
-        </div>
+          <input type="file" multiple accept=".json" className="hidden" onChange={handleFileUpload} />
+        </label>
 
         <div className="space-y-3">
-          <h4 className="font-medium text-sm dark:text-slate-200">Status API Key Aktif</h4>
-          <div className="text-sm text-gray-500 dark:text-slate-400 p-4 text-center border border-gray-100 dark:border-slate-700/60 rounded-lg">
-            Belum ada konfigurasi API yang ditambahkan.
+          <h4 className="font-medium text-sm dark:text-slate-200">Status API Key Aktif ({apiKeys.length})</h4>
+          <div className="space-y-2">
+            {apiKeys.map(key => (
+              <div key={key.id} className="flex justify-between items-center p-3 bg-gray-50 dark:bg-slate-900 rounded-lg border border-gray-100 dark:border-slate-700">
+                <div className="overflow-hidden">
+                  <p className="text-xs font-bold dark:text-slate-200 truncate">{key.name}</p>
+                  <p className="text-[10px] text-gray-500 truncate">{key.clientId}</p>
+                </div>
+                <button onClick={() => deleteKey(key.id)} className="text-red-500 hover:text-red-700 p-2"><Trash2 size={16} /></button>
+              </div>
+            ))}
+            {apiKeys.length === 0 && (
+              <div className="text-sm text-gray-500 dark:text-slate-400 p-4 text-center border border-gray-100 dark:border-slate-700/60 rounded-lg">
+                Belum ada konfigurasi API JSON yang ditambahkan.
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -1598,9 +1790,7 @@ function LogView() {
   const logsEndRef = useRef(null);
 
   useEffect(() => {
-    // INFO UNTUK PRODUCTION:
-    // Logika setInterval untuk data dummy (FFmpeg output dll) telah dihapus
-    // Silakan hubungkan state `setLogs`, `setBitrateHistory`, dll dengan WebSocket dari Backend / VPS
+    // Logika WebSocket untuk production
   }, []);
 
   useEffect(() => {
@@ -1610,10 +1800,9 @@ function LogView() {
   const createChartPath = () => {
     return bitrateHistory.map((val, i) => {
       const x = (i / 19) * 100;
-      // Safeguard agar chart tidak error jika nilai 0 atau negatif
       const normalizedVal = val === 0 ? 3000 : val;
       const y = 100 - (((normalizedVal - 3000) / 4000) * 100); 
-      return `${x},${Math.max(0, Math.min(100, y))}`; // Membatasi koordinat Y antara 0-100
+      return `${x},${Math.max(0, Math.min(100, y))}`;
     }).join(' ');
   };
 
@@ -1676,16 +1865,13 @@ function LogView() {
             </div>
           </div>
           
-          {/* Chart Area */}
           <div className="flex-1 relative mt-2 w-full">
-            {/* Grid Lines */}
             <div className="absolute inset-0 flex flex-col justify-between opacity-10 dark:opacity-20 pointer-events-none">
               <div className="border-t border-gray-400 dark:border-slate-500 w-full"></div>
               <div className="border-t border-gray-400 dark:border-slate-500 w-full"></div>
               <div className="border-t border-gray-400 dark:border-slate-500 w-full"></div>
               <div className="border-t border-gray-400 dark:border-slate-500 w-full"></div>
             </div>
-            {/* SVG Line */}
             <svg className="w-full h-full text-green-500 dark:text-emerald-400 drop-shadow-[0_0_8px_rgba(34,197,94,0.6)] dark:drop-shadow-[0_0_8px_rgba(52,211,153,0.4)] opacity-50" viewBox="0 0 100 100" preserveAspectRatio="none">
               <defs>
                 <linearGradient id="gradientBitrate" x1="0%" y1="0%" x2="0%" y2="100%">
@@ -1693,18 +1879,8 @@ function LogView() {
                   <stop offset="100%" stopColor="currentColor" stopOpacity="0.0" />
                 </linearGradient>
               </defs>
-              <polyline 
-                points={`0,100 ${createChartPath()} 100,100`} 
-                fill="url(#gradientBitrate)" 
-              />
-              <polyline 
-                points={createChartPath()} 
-                fill="none" 
-                stroke="currentColor" 
-                strokeWidth="2" 
-                strokeLinejoin="round" 
-                strokeLinecap="round" 
-              />
+              <polyline points={`0,100 ${createChartPath()} 100,100`} fill="url(#gradientBitrate)" />
+              <polyline points={createChartPath()} fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
             </svg>
           </div>
           <div className="flex justify-between mt-2 text-[10px] text-gray-600 dark:text-slate-400 font-mono">
@@ -1717,10 +1893,8 @@ function LogView() {
 
       {/* KANAN: REMOTE TERMINAL CONSOLE */}
       <div className="lg:w-2/3 bg-[#0a0a0a] dark:bg-[#020617] rounded-xl border border-gray-800 dark:border-slate-800 flex flex-col font-mono text-sm shadow-[0_8px_30px_rgb(0,0,0,0.4)] overflow-hidden h-full relative">
-        {/* Decorative Grid Background */}
         <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMSIgY3k9IjEiIHI9IjEiIGZpbGw9InJnYmEoMjU1LD,I1NSwyNTUsMC4wMykiLz48L3N2Zz4=')] opacity-50 dark:opacity-20 pointer-events-none"></div>
 
-        {/* Terminal Header */}
         <div className="bg-[#1a1a1a] dark:bg-[#0f172a] px-4 py-2.5 border-b border-gray-800 dark:border-slate-800 flex justify-between items-center z-10">
           <div className="flex items-center gap-3 text-gray-400 dark:text-slate-400 text-xs">
             <TerminalSquare className="w-4 h-4" />
@@ -1733,7 +1907,6 @@ function LogView() {
           </div>
         </div>
 
-        {/* Terminal Body */}
         <div className="p-4 overflow-y-auto flex-1 z-10 custom-scrollbar">
           <div className="space-y-1.5 text-[13px] leading-relaxed">
             {logs.length === 0 ? (
@@ -1794,7 +1967,6 @@ function ProgressBar({ label, percentage, color, valueText, subText }) {
       <div className="w-full rounded-full h-1.5 bg-gray-100 dark:bg-slate-700/50 overflow-hidden">
         <div className={`h-full rounded-full ${color} transition-all duration-500`} style={{ width: `${percentage}%` }}></div>
       </div>
-      {/* Teks tambahan di bawah bar, atau spasi tak terlihat agar semua tinggi elemen rata */}
       <div className={`mt-1.5 text-[9px] text-gray-400 dark:text-slate-500 font-medium text-right leading-none ${subText ? 'opacity-100' : 'opacity-0 select-none'}`}>
         {subText || '-'}
       </div>
@@ -1831,7 +2003,6 @@ function VideoFile({ name, size, onEdit, onDelete }) {
         </div>
       </div>
       
-      {/* Action Buttons */}
       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-gradient-to-l from-white dark:from-slate-800 via-white dark:via-slate-800 pl-4 pr-1">
         <button 
           onClick={(e) => { e.stopPropagation(); onEdit && onEdit(); }} 
