@@ -72,31 +72,46 @@ function getOAuth2Client() {
 
 // --- FUNGSI DOWNLOADER PINTAR (NATIVE NODE.JS) ---
 
-// 1. Fungsi Khusus Menembus Google Drive
+// 1. Fungsi Khusus Menembus Google Drive (DIPERBARUI DENGAN COOKIE PERSISTEN)
 function downloadGoogleDrive(fileId, destPath, callback) {
     const initialUrl = `https://drive.google.com/uc?export=download&id=${fileId}`;
+    let globalCookies = {}; // Simpan cookie agar persisten lintas request
     
-    function requestWithRedirects(reqUrl, cookies, isRetry) {
+    function requestWithRedirects(reqUrl, isRetry) {
         const parsedUrl = new URL(reqUrl);
+        const cookieString = Object.keys(globalCookies).map(k => `${k}=${globalCookies[k]}`).join('; ');
+
         const options = {
             hostname: parsedUrl.hostname,
             path: parsedUrl.pathname + parsedUrl.search,
             headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64 AppleWebKit/537.36)',
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
             }
         };
-        if (cookies) options.headers['Cookie'] = cookies;
+        
+        // Bawa cookie di setiap request
+        if (cookieString) options.headers['Cookie'] = cookieString;
 
         https.get(options, (res) => {
-            let setCookie = res.headers['set-cookie'];
-            let newCookies = cookies;
-            if (setCookie) {
-                newCookies = setCookie.map(c => c.split(';')[0]).join('; ');
+            // Tangkap dan simpan Cookie dari Google
+            if (res.headers['set-cookie']) {
+                res.headers['set-cookie'].forEach(c => {
+                    const parts = c.split(';')[0].split('=');
+                    if (parts.length >= 2) {
+                        const key = parts.shift();
+                        globalCookies[key] = parts.join('=');
+                    }
+                });
             }
 
             if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
                 // Ikuti Redirect
-                requestWithRedirects(res.headers.location, newCookies, isRetry);
+                let nextUrl = res.headers.location;
+                if (!nextUrl.startsWith('http')) {
+                    nextUrl = `https://${parsedUrl.hostname}${nextUrl}`;
+                }
+                requestWithRedirects(nextUrl, isRetry);
             } else if (res.statusCode === 200) {
                 const contentType = res.headers['content-type'] || '';
                 
@@ -105,15 +120,26 @@ function downloadGoogleDrive(fileId, destPath, callback) {
                     let body = '';
                     res.on('data', chunk => body += chunk);
                     res.on('end', () => {
-                        // Ekstrak Token Rahasia dari HTML
-                        const match = body.match(/confirm=([a-zA-Z0-9_-]+)/);
-                        if (match && match[1]) {
-                            const confirmToken = match[1];
-                            const confirmUrl = `https://drive.google.com/uc?export=download&id=${fileId}&confirm=${confirmToken}`;
-                            // Request ulang file aslinya dengan Token & Cookie
-                            requestWithRedirects(confirmUrl, newCookies, true);
+                        let confirmToken = '';
+                        // Cari token di dalam URL
+                        const matchUrl = body.match(/confirm=([a-zA-Z0-9_-]+)/);
+                        
+                        if (matchUrl && matchUrl[1]) {
+                            confirmToken = matchUrl[1];
                         } else {
-                            callback(new Error("Gagal Bypass GDrive: Token konfirmasi tidak ditemukan."));
+                            // Cari token di dalam Cookie download_warning
+                            const warningKey = Object.keys(globalCookies).find(k => k.startsWith('download_warning'));
+                            if (warningKey) confirmToken = globalCookies[warningKey];
+                        }
+
+                        if (confirmToken) {
+                            const confirmUrl = `https://drive.google.com/uc?export=download&id=${fileId}&confirm=${confirmToken}`;
+                            // Request ulang dengan Token & Cookie lengkap
+                            requestWithRedirects(confirmUrl, true);
+                        } else {
+                            // Fallback brute-force
+                            const fallbackUrl = `https://drive.google.com/uc?export=download&id=${fileId}&confirm=t`;
+                            requestWithRedirects(fallbackUrl, true);
                         }
                     });
                 } else {
@@ -137,7 +163,7 @@ function downloadGoogleDrive(fileId, destPath, callback) {
         });
     }
 
-    requestWithRedirects(initialUrl, null, false);
+    requestWithRedirects(initialUrl, false);
 }
 
 // 2. Fungsi Download Standar (Untuk link selain Google Drive)
@@ -229,11 +255,12 @@ app.post('/api/media/import-url', (req, res) => {
         
         if (fs.existsSync(dest)) {
             const stats = fs.statSync(dest);
-            if (stats.size < 100 * 1024) { 
+            // Pengecekan ukuran: jika kurang dari 50KB, itu halaman error HTML
+            if (stats.size < 50 * 1024) { 
                 fs.unlinkSync(dest); 
                 return res.status(400).json({ 
                     success: false, 
-                    message: 'Gagal: File terlalu kecil (0MB). Pastikan link Google Drive Anda disetting ke "Siapa saja yang memiliki link" (Public).' 
+                    message: 'Gagal menembus proteksi Google Drive (File 0MB). Pastikan link Google Drive Anda "Public" (Siapa saja yang memiliki link).' 
                 });
             }
             res.json({ success: true, message: `Berhasil! File video utuh tersimpan sebagai ${filename}` });
