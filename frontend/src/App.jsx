@@ -146,8 +146,8 @@ export default function App() {
 
         <main className="flex-1 overflow-y-auto p-4 md:p-6 relative z-10 w-full mx-auto">
           {activeTab === 'dashboard' && <DashboardView />}
-          {activeTab === 'tugas-live' && <TugasLiveView accounts={accounts} />}
-          {activeTab === 'media' && <MediaView />}
+          {activeTab === 'tugas-live' && <TugasLiveView accounts={accounts} isPreview={isPreview} API_BASE={API_BASE} />}
+          {activeTab === 'media' && <MediaView isPreview={isPreview} API_BASE={API_BASE} />}
           {activeTab === 'analytics' && <AnalyticsView accounts={accounts} />}
           {activeTab === 'pengaturan' && <SettingsView accounts={accounts} fetchAccounts={fetchAccounts} isPreview={isPreview} API_BASE={API_BASE} />}
           {activeTab === 'log' && <LogView />}
@@ -348,7 +348,7 @@ function DashboardView() {
   );
 }
 
-function TugasLiveView({ accounts }) {
+function TugasLiveView({ accounts, isPreview, API_BASE }) {
   const [streamKeyMode, setStreamKeyMode] = useState('Otomatis (API v3)');
   const [videoMode, setVideoMode] = useState('Satu Video (Looping)');
   const [selectedVideos, setSelectedVideos] = useState([]);
@@ -367,7 +367,17 @@ function TugasLiveView({ accounts }) {
     Minggu: { active: false, start: '09:00', end: '20:00' }
   });
 
-  const availableVideos = [];
+  const [availableVideos, setAvailableVideos] = useState([]);
+
+  useEffect(() => {
+    if (isPreview) return;
+    fetch(`${API_BASE}/api/media`)
+      .then(res => res.json())
+      .then(data => {
+        if(Array.isArray(data)) setAvailableVideos(data.map(d => d.name));
+      })
+      .catch(e => console.log(e));
+  }, [API_BASE, isPreview]);
 
   const handleVideoSelection = (video) => {
     if (videoMode === 'Satu Video (Looping)') {
@@ -821,7 +831,7 @@ function TugasLiveView({ accounts }) {
   );
 }
 
-function MediaView() {
+function MediaView({ isPreview, API_BASE }) {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadText, setUploadText] = useState('');
@@ -834,6 +844,73 @@ function MediaView() {
   const [editingFile, setEditingFile] = useState(null);
   const [editFileName, setEditFileName] = useState('');
   const [fileToDelete, setFileToDelete] = useState(null);
+  
+  const fileInputRef = useRef(null);
+
+  const fetchMedia = async () => {
+    if (isPreview) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/media`);
+      const data = await res.json();
+      setMediaFiles(Array.isArray(data) ? data : []);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  useEffect(() => {
+    fetchMedia();
+  }, [API_BASE, isPreview]);
+
+  const handleActualUpload = async (e) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    
+    if (isPreview) {
+      alert('Simulasi (Layar Preview): File video/media berhasil dipilih.');
+      return;
+    }
+
+    setIsUploading(true);
+    setUploadText('Mengunggah ke VPS...');
+    setUploadProgress(10);
+
+    const formData = new FormData();
+    for (let i = 0; i < files.length; i++) {
+      formData.append('files', files[i]);
+    }
+
+    const progressInterval = setInterval(() => {
+      setUploadProgress(prev => Math.min(prev + 10, 90));
+    }, 500);
+
+    try {
+      const res = await fetch(`${API_BASE}/api/media/upload`, {
+        method: 'POST',
+        body: formData
+      });
+      const data = await res.json();
+      
+      if(data.success) {
+        setUploadProgress(100);
+        setTimeout(() => {
+           alert(data.message);
+           setIsUploading(false);
+           setUploadProgress(0);
+           fetchMedia(); // Refresh daftar media
+        }, 500);
+      } else {
+        throw new Error(data.message);
+      }
+    } catch (err) {
+      alert('Gagal mengunggah file.');
+      setIsUploading(false);
+      setUploadProgress(0);
+    } finally {
+      clearInterval(progressInterval);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
 
   const handleSaveEdit = () => {
     if (!editFileName.trim()) return;
@@ -844,29 +921,20 @@ function MediaView() {
     setEditFileName('');
   };
 
-  const confirmDeleteFile = () => {
-    setMediaFiles(mediaFiles.filter(f => f.id !== fileToDelete.id));
-    setFileToDelete(null);
-  };
-
-  const handleSimulateProgress = (type) => {
-    if (isUploading) return;
-    setIsUploading(true);
-    setUploadProgress(0);
-    setUploadText(type === 'drive' ? 'Mengunduh dari Google Drive...' : 'Mengunggah dari Penyimpanan Lokal...');
+  const confirmDeleteFile = async () => {
+    if (isPreview) {
+      setMediaFiles(mediaFiles.filter(f => f.id !== fileToDelete.id));
+      setFileToDelete(null);
+      return;
+    }
     
-    let progress = 0;
-    const interval = setInterval(() => {
-      progress += Math.floor(Math.random() * 15) + 5;
-      if (progress >= 100) {
-        progress = 100;
-        clearInterval(interval);
-        setTimeout(() => {
-          setIsUploading(false);
-        }, 1000);
-      }
-      setUploadProgress(progress);
-    }, 500);
+    try {
+      await fetch(`${API_BASE}/api/media/${fileToDelete.name}`, { method: 'DELETE' });
+      fetchMedia();
+      setFileToDelete(null);
+    } catch(e) {
+      alert('Gagal menghapus file.');
+    }
   };
 
   const toggleVideoForPlaylist = (vid) => {
@@ -885,17 +953,27 @@ function MediaView() {
           Media
         </h3>
         <div className="flex gap-2">
+          {/* Tombol Import Drive saat ini masih sekadar fungsi dummy/informasi. Di fokuskan ke Upload Lokal dulu. */}
           <button 
-            onClick={() => handleSimulateProgress('drive')}
+            onClick={() => alert("Fitur Import URL/Drive akan tersedia di update mendatang. Silakan gunakan Upload Lokal.")}
             className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700/60 hover:border-blue-300 hover:text-blue-600 dark:hover:border-blue-500/50 dark:hover:text-blue-400 text-gray-600 dark:text-slate-300 rounded-md flex items-center gap-1.5 text-[11px] font-bold tracking-wide uppercase transition-colors shadow-sm"
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${isUploading && uploadText.includes('Drive') ? 'animate-spin' : ''}`} /> Import Drive
+            <RefreshCw className={`w-3.5 h-3.5`} /> Import URL / Drive
           </button>
+          
+          <input 
+             type="file" 
+             multiple 
+             accept="video/mp4,video/mkv,image/*" 
+             className="hidden" 
+             ref={fileInputRef} 
+             onChange={handleActualUpload} 
+          />
           <button 
-            onClick={() => handleSimulateProgress('local')}
+            onClick={() => fileInputRef.current?.click()}
             className="px-3 py-1.5 bg-gray-900 dark:bg-slate-100 text-white dark:text-slate-900 rounded-md flex items-center gap-1.5 text-[11px] font-bold tracking-wide uppercase hover:opacity-90 transition-opacity shadow-sm"
           >
-            <Upload className="w-3.5 h-3.5" /> Upload File
+            <Upload className="w-3.5 h-3.5" /> Upload Lokal
           </button>
         </div>
       </div>
@@ -914,7 +992,7 @@ function MediaView() {
         <div className="w-60 flex flex-col border-r border-gray-100 dark:border-slate-700/60 bg-gray-50/30 dark:bg-slate-900/30 shrink-0">
           <div className="p-3 flex-1 overflow-y-auto space-y-0.5 custom-scrollbar">
             <div className="text-[9px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-widest px-2 pb-2 pt-1">Direktori Penyimpanan</div>
-            <FolderItem name="Video Berita Utama" count={0} active />
+            <FolderItem name="Video Berita Utama" count={mediaFiles.length} active />
             <FolderItem name="Klip Hiburan" count={0} />
             <FolderItem name="Folder Thumbnail" count={0} />
             <FolderItem name="Playlist Looping" count={0} />
@@ -939,7 +1017,8 @@ function MediaView() {
             {mediaFiles.length === 0 ? (
               <div className="col-span-full flex flex-col items-center justify-center text-gray-400 dark:text-slate-500 h-40 border border-dashed border-gray-200 dark:border-slate-700 rounded-lg bg-gray-50/50 dark:bg-slate-900/20">
                 <FolderOpen className="w-8 h-8 mb-2 opacity-50" />
-                <span className="text-sm">Folder kosong</span>
+                <span className="text-sm">Folder Media Kosong</span>
+                <p className="text-xs mt-1">Klik tombol Upload Lokal di atas untuk menambahkan video.</p>
               </div>
             ) : (
               mediaFiles.map((file) => (
@@ -1675,7 +1754,7 @@ function SettingsView({ accounts, fetchAccounts, isPreview, API_BASE }) {
         </div>
       </div>
 
-      {/* CARD 4: YOUTUBE CHATBOT */}
+      {/* CARD 4: FITUR BARU - YOUTUBE CHATBOT */}
       <div className="bg-gradient-to-br from-white to-emerald-50/30 dark:from-slate-800 dark:to-emerald-900/10 rounded-xl border border-gray-200 dark:border-slate-700/60 p-6 shadow-sm">
         <div className="flex items-center justify-between mb-4 border-b border-gray-200 dark:border-slate-700/60 pb-4">
           <div className="flex items-center gap-3">
@@ -1694,6 +1773,8 @@ function SettingsView({ accounts, fetchAccounts, isPreview, API_BASE }) {
         </div>
 
         <div className={`space-y-6 transition-opacity ${chatbotEnabled ? 'opacity-100' : 'opacity-40 pointer-events-none'}`}>
+          
+          {/* Pesan Terjadwal (Timeline) */}
           <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700/60 rounded-xl p-4 shadow-sm">
             <div className="flex justify-between items-center mb-3">
               <h4 className="text-sm font-semibold flex items-center gap-2 dark:text-slate-200">
@@ -1752,6 +1833,7 @@ function SettingsView({ accounts, fetchAccounts, isPreview, API_BASE }) {
             </div>
           </div>
 
+          {/* Auto Reply (Sapaan) */}
           <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700/60 rounded-xl p-4 shadow-sm">
             <div className="flex justify-between items-center mb-3">
               <h4 className="text-sm font-semibold flex items-center gap-2 dark:text-slate-200">
@@ -1766,8 +1848,10 @@ function SettingsView({ accounts, fetchAccounts, isPreview, API_BASE }) {
               </div>
             </div>
           </div>
+          
         </div>
       </div>
+      
     </div>
   );
 }
@@ -1777,16 +1861,26 @@ function LogView() {
   const [bitrateHistory, setBitrateHistory] = useState(Array(20).fill(0));
   const [currentFps, setCurrentFps] = useState(0);
   const [droppedFrames, setDroppedFrames] = useState(0);
+  
   const logsEndRef = useRef(null);
 
-  useEffect(() => { logsEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [logs]);
+  useEffect(() => {
+    // INFO UNTUK PRODUCTION:
+    // Logika setInterval untuk data dummy (FFmpeg output dll) telah dihapus
+    // Silakan hubungkan state `setLogs`, `setBitrateHistory`, dll dengan WebSocket dari Backend / VPS
+  }, []);
+
+  useEffect(() => {
+    logsEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [logs]);
 
   const createChartPath = () => {
     return bitrateHistory.map((val, i) => {
       const x = (i / 19) * 100;
+      // Safeguard agar chart tidak error jika nilai 0 atau negatif
       const normalizedVal = val === 0 ? 3000 : val;
       const y = 100 - (((normalizedVal - 3000) / 4000) * 100); 
-      return `${x},${Math.max(0, Math.min(100, y))}`;
+      return `${x},${Math.max(0, Math.min(100, y))}`; // Membatasi koordinat Y antara 0-100
     }).join(' ');
   };
 
@@ -1795,26 +1889,47 @@ function LogView() {
 
   return (
     <div className="flex flex-col lg:flex-row gap-6 h-[calc(100vh-8rem)]">
+      
+      {/* KIRI: ADVANCED STREAM HEALTH MONITOR (OBS STYLE) */}
       <div className="lg:w-1/3 flex flex-col gap-4 overflow-y-auto pr-2 custom-scrollbar">
         <h3 className="text-lg font-bold flex items-center gap-2 mb-2 dark:text-slate-100">
           <Activity className="w-5 h-5 text-emerald-500 dark:text-emerald-400" /> Stream Health
         </h3>
+
+        {/* Info Cards */}
         <div className="grid grid-cols-2 gap-3">
-          <div className="bg-gray-900 dark:bg-slate-800 text-white p-4 rounded-xl border border-gray-800 dark:border-slate-700/60">
-            <div className="flex items-center gap-1.5 text-xs text-gray-400 dark:text-slate-400 font-bold uppercase tracking-wider mb-1"><Wifi className="w-3 h-3" /> Bitrate</div>
-            <div className={`text-2xl font-black font-mono tracking-tighter ${bitrateColor}`}>{currentBitrate} <span className="text-xs font-normal text-gray-500 dark:text-slate-500">kbps</span></div>
+          <div className="bg-gray-900 dark:bg-slate-800 text-white p-4 rounded-xl border border-gray-800 dark:border-slate-700/60 shadow-[inset_0_2px_10px_rgba(0,0,0,0.5)] dark:shadow-none">
+            <div className="flex items-center gap-1.5 text-xs text-gray-400 dark:text-slate-400 font-bold uppercase tracking-wider mb-1">
+              <Wifi className="w-3 h-3" /> Bitrate
+            </div>
+            <div className={`text-2xl font-black font-mono tracking-tighter ${bitrateColor} drop-shadow-[0_0_8px_rgba(currentColor,0.5)] dark:drop-shadow-none`}>
+              {currentBitrate} <span className="text-xs font-normal text-gray-500 dark:text-slate-500">kbps</span>
+            </div>
           </div>
-          <div className="bg-gray-900 dark:bg-slate-800 text-white p-4 rounded-xl border border-gray-800 dark:border-slate-700/60">
-            <div className="flex items-center gap-1.5 text-xs text-gray-400 dark:text-slate-400 font-bold uppercase tracking-wider mb-1"><Monitor className="w-3 h-3" /> FPS</div>
-            <div className={`text-2xl font-black font-mono tracking-tighter ${currentFps >= 60 ? 'text-green-400 dark:text-emerald-400' : 'text-gray-500 dark:text-slate-500'}`}>{currentFps} <span className="text-xs font-normal text-gray-500 dark:text-slate-500">/ 60</span></div>
+          <div className="bg-gray-900 dark:bg-slate-800 text-white p-4 rounded-xl border border-gray-800 dark:border-slate-700/60 shadow-[inset_0_2px_10px_rgba(0,0,0,0.5)] dark:shadow-none">
+            <div className="flex items-center gap-1.5 text-xs text-gray-400 dark:text-slate-400 font-bold uppercase tracking-wider mb-1">
+              <Monitor className="w-3 h-3" /> FPS
+            </div>
+            <div className={`text-2xl font-black font-mono tracking-tighter ${currentFps >= 60 ? 'text-green-400 dark:text-emerald-400' : currentFps > 0 ? 'text-yellow-400 dark:text-amber-400' : 'text-gray-500 dark:text-slate-500'}`}>
+              {currentFps} <span className="text-xs font-normal text-gray-500 dark:text-slate-500">/ 60</span>
+            </div>
           </div>
-          <div className="bg-gray-900 dark:bg-slate-800 text-white p-4 rounded-xl border border-gray-800 dark:border-slate-700/60">
-            <div className="flex items-center gap-1.5 text-xs text-gray-400 dark:text-slate-400 font-bold uppercase tracking-wider mb-1"><Zap className="w-3 h-3" /> Drops</div>
-            <div className={`text-2xl font-black font-mono tracking-tighter ${droppedFrames > 0 ? 'text-orange-500' : 'text-gray-500 dark:text-slate-500'}`}>{droppedFrames} <span className="text-xs font-normal text-gray-500 dark:text-slate-500">(0.00%)</span></div>
+          <div className="bg-gray-900 dark:bg-slate-800 text-white p-4 rounded-xl border border-gray-800 dark:border-slate-700/60 shadow-[inset_0_2px_10px_rgba(0,0,0,0.5)] dark:shadow-none">
+            <div className="flex items-center gap-1.5 text-xs text-gray-400 dark:text-slate-400 font-bold uppercase tracking-wider mb-1">
+              <Zap className="w-3 h-3" /> Frame Drops
+            </div>
+            <div className={`text-2xl font-black font-mono tracking-tighter ${droppedFrames > 0 ? 'text-orange-500 dark:text-amber-500' : 'text-gray-500 dark:text-slate-500'}`}>
+              {droppedFrames} <span className="text-xs font-normal text-gray-500 dark:text-slate-500">(0.00%)</span>
+            </div>
           </div>
-          <div className="bg-gray-900 dark:bg-slate-800 text-white p-4 rounded-xl border border-gray-800 dark:border-slate-700/60">
-            <div className="flex items-center gap-1.5 text-xs text-gray-400 dark:text-slate-400 font-bold uppercase tracking-wider mb-1"><Cpu className="w-3 h-3" /> Encoder</div>
-            <div className="text-sm font-black font-mono mt-1 text-gray-500 dark:text-slate-500">Menunggu...</div>
+          <div className="bg-gray-900 dark:bg-slate-800 text-white p-4 rounded-xl border border-gray-800 dark:border-slate-700/60 shadow-[inset_0_2px_10px_rgba(0,0,0,0.5)] dark:shadow-none">
+            <div className="flex items-center gap-1.5 text-xs text-gray-400 dark:text-slate-400 font-bold uppercase tracking-wider mb-1">
+              <Cpu className="w-3 h-3" /> Encoder
+            </div>
+            <div className="text-sm font-black font-mono mt-1 text-gray-500 dark:text-slate-500">
+              Menunggu...
+            </div>
+            <div className="text-xs text-gray-500 dark:text-slate-500 mt-1">CPU: 0.0%</div>
           </div>
         </div>
 
@@ -1832,7 +1947,7 @@ function LogView() {
             <div className="absolute inset-0 flex flex-col justify-between opacity-10 dark:opacity-20 pointer-events-none">
               <div className="border-t border-gray-400 dark:border-slate-500 w-full"></div>
               <div className="border-t border-gray-400 dark:border-slate-500 w-full"></div>
-              <div className="border-t border-gray-400 dark:border-slate-500 w-full"></div>
+              <div className="border-t border-gray-400 dark:border-slate-400 w-full"></div>
               <div className="border-t border-gray-400 dark:border-slate-500 w-full"></div>
             </div>
             <svg className="w-full h-full text-green-500 dark:text-emerald-400 drop-shadow-[0_0_8px_rgba(34,197,94,0.6)] dark:drop-shadow-[0_0_8px_rgba(52,211,153,0.4)] opacity-50" viewBox="0 0 100 100" preserveAspectRatio="none">
@@ -1854,6 +1969,7 @@ function LogView() {
         </div>
       </div>
 
+      {/* KANAN: REMOTE TERMINAL CONSOLE */}
       <div className="lg:w-2/3 bg-[#0a0a0a] dark:bg-[#020617] rounded-xl border border-gray-800 dark:border-slate-800 flex flex-col font-mono text-sm shadow-[0_8px_30px_rgb(0,0,0,0.4)] overflow-hidden h-full relative">
         <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMSIgY3k9IjEiIHI9IjEiIGZpbGw9InJnYmEoMjU1LD,I1NSwyNTUsMC4wMykiLz48L3N2Zz4=')] opacity-50 dark:opacity-20 pointer-events-none"></div>
 
@@ -1901,11 +2017,34 @@ function LogView() {
   );
 }
 
+/* =========================================
+   REUSABLE UI COMPONENTS
+   ========================================= */
+
+function StatCard({ title, value, icon: Icon, color, bgColor, className = "" }) {
+  return (
+    <div className={`bg-white dark:bg-slate-800 p-5 rounded-xl border border-gray-200 dark:border-slate-700/60 shadow-sm transition-all flex items-center gap-4 ${className}`}>
+      <div className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 ${bgColor}`}>
+        <Icon className={`w-5 h-5 ${color}`} />
+      </div>
+      <div>
+        <p className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider mb-0.5">{title}</p>
+        <p className="text-2xl font-bold text-gray-900 dark:text-slate-100 leading-none">{value}</p>
+      </div>
+    </div>
+  );
+}
+
 function ProgressBar({ label, percentage, color, valueText, subText }) {
   return (
     <div className="flex flex-col justify-end w-full">
-      <div className="flex justify-between items-end mb-1.5"><span className="text-[10px] font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider">{label}</span><span className="text-[10px] font-mono font-bold text-gray-700 dark:text-slate-300">{valueText || `${percentage}%`}</span></div>
-      <div className="w-full rounded-full h-1.5 bg-gray-100 dark:bg-slate-700/50 overflow-hidden"><div className={`h-full rounded-full ${color}`} style={{ width: `${percentage}%` }}></div></div>
+      <div className="flex justify-between items-end mb-1.5">
+        <span className="text-[10px] font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider">{label}</span>
+        <span className="text-[10px] font-mono font-bold text-gray-700 dark:text-slate-300">{valueText || `${percentage}%`}</span>
+      </div>
+      <div className="w-full rounded-full h-1.5 bg-gray-100 dark:bg-slate-700/50 overflow-hidden">
+        <div className={`h-full rounded-full ${color} transition-all duration-500`} style={{ width: `${percentage}%` }}></div>
+      </div>
       <div className={`mt-1.5 text-[9px] text-gray-400 dark:text-slate-500 font-medium text-right leading-none ${subText ? 'opacity-100' : 'opacity-0 select-none'}`}>
         {subText || '-'}
       </div>
@@ -1916,20 +2055,47 @@ function ProgressBar({ label, percentage, color, valueText, subText }) {
 function FolderItem({ name, count, active }) {
   return (
     <div className={`flex items-center justify-between px-3 py-2 rounded-md cursor-pointer transition-colors ${active ? 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-medium border border-emerald-100 dark:border-emerald-500/20' : 'text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-700/50 border border-transparent'}`}>
-      <div className="flex items-center gap-2.5 overflow-hidden"><FolderOpen className={`w-3.5 h-3.5 shrink-0 ${active ? 'text-emerald-500 dark:text-emerald-400' : 'text-gray-400 dark:text-slate-500'}`} /><span className="text-[11px] truncate">{name}</span></div>
-      <span className={`text-[9px] px-1.5 py-0.5 rounded-sm font-mono ${active ? 'bg-white dark:bg-slate-800 text-emerald-500 dark:text-emerald-400 shadow-sm' : 'bg-gray-100 dark:bg-slate-700/50 text-gray-500 dark:text-slate-400'}`}>{count}</span>
+      <div className="flex items-center gap-2.5 overflow-hidden">
+        <FolderOpen className={`w-3.5 h-3.5 shrink-0 ${active ? 'text-emerald-500 dark:text-emerald-400' : 'text-gray-400 dark:text-slate-500'}`} />
+        <span className="text-[11px] truncate">{name}</span>
+      </div>
+      <span className={`text-[9px] px-1.5 py-0.5 rounded-sm font-mono ${active ? 'bg-white dark:bg-slate-800 text-emerald-500 dark:text-emerald-400 shadow-sm' : 'bg-gray-100 dark:bg-slate-700/50 text-gray-500 dark:text-slate-400'}`}>
+        {count}
+      </span>
     </div>
   );
 }
 
 function VideoFile({ name, size, onEdit, onDelete }) {
   const isImage = name.toLowerCase().endsWith('.jpg') || name.toLowerCase().endsWith('.png') || name.toLowerCase().endsWith('.jpeg');
+
   return (
-    <div className="group flex items-center justify-between p-2.5 bg-white dark:bg-slate-800 hover:bg-gray-50 dark:hover:bg-slate-700/50 border border-gray-100 dark:border-slate-700/60 rounded-lg transition-all cursor-pointer shadow-sm">
-      <div className="flex items-center gap-3 overflow-hidden flex-1"><div className={`w-8 h-8 rounded-md flex items-center justify-center shrink-0 ${isImage ? 'bg-purple-50 text-purple-600' : 'bg-blue-50 text-blue-600'}`}>{isImage ? <Image className="w-4 h-4" /> : <Video className="w-4 h-4" />}</div><div className="overflow-hidden"><p className="text-[13px] font-semibold text-gray-800 dark:text-slate-200 truncate pr-2">{name}</p><p className="text-[10px] font-mono text-gray-400 dark:text-slate-500 mt-0.5">{size}</p></div></div>
+    <div className="group flex items-center justify-between p-2.5 bg-white dark:bg-slate-800 hover:bg-gray-50 dark:hover:bg-slate-700/50 border border-gray-100 dark:border-slate-700/60 hover:border-gray-200 dark:hover:border-slate-600/60 rounded-lg transition-all cursor-pointer shadow-sm hover:shadow dark:hover:shadow-black/20">
+      <div className="flex items-center gap-3 overflow-hidden flex-1">
+        <div className={`w-8 h-8 rounded-md flex items-center justify-center shrink-0 ${isImage ? 'bg-purple-50 text-purple-600 dark:bg-purple-500/10 dark:text-purple-400' : 'bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400'}`}>
+          {isImage ? <Image className="w-4 h-4" /> : <Video className="w-4 h-4" />}
+        </div>
+        <div className="overflow-hidden">
+          <p className="text-[13px] font-semibold text-gray-800 dark:text-slate-200 truncate pr-2" title={name}>{name}</p>
+          <p className="text-[10px] font-mono text-gray-400 dark:text-slate-500 mt-0.5">{size}</p>
+        </div>
+      </div>
+      
       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-gradient-to-l from-white dark:from-slate-800 via-white dark:via-slate-800 pl-4 pr-1">
-        <button onClick={(e) => { e.stopPropagation(); onEdit && onEdit(); }} className="p-1.5 text-gray-400 hover:text-blue-500 hover:bg-blue-50 rounded-md transition-colors"><Edit className="w-3.5 h-3.5" /></button>
-        <button onClick={(e) => { e.stopPropagation(); onDelete && onDelete(); }} className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors"><Trash2 className="w-3.5 h-3.5" /></button>
+        <button 
+          onClick={(e) => { e.stopPropagation(); onEdit && onEdit(); }} 
+          className="p-1.5 text-gray-400 dark:text-slate-400 hover:text-blue-500 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-500/10 rounded-md transition-colors"
+          title="Edit"
+        >
+          <Edit className="w-3.5 h-3.5" />
+        </button>
+        <button 
+          onClick={(e) => { e.stopPropagation(); onDelete && onDelete(); }} 
+          className="p-1.5 text-gray-400 dark:text-slate-400 hover:text-red-500 dark:hover:text-rose-400 hover:bg-red-50 dark:hover:bg-rose-500/10 rounded-md transition-colors"
+          title="Hapus"
+        >
+          <Trash2 className="w-3.5 h-3.5" />
+        </button>
       </div>
     </div>
   );
@@ -1937,16 +2103,35 @@ function VideoFile({ name, size, onEdit, onDelete }) {
 
 function TableRowMenu({ onDelete }) {
   const [isOpen, setIsOpen] = useState(false);
+
   return (
     <div className="relative">
-      <button onClick={() => setIsOpen(!isOpen)} onBlur={() => setTimeout(() => setIsOpen(false), 200)} className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 dark:bg-slate-700/50 text-gray-700 dark:text-slate-300 rounded-lg text-sm font-medium"><Settings className="w-4 h-4" /> Menu</button>
+      <button 
+        onClick={() => setIsOpen(!isOpen)} 
+        onBlur={() => setTimeout(() => setIsOpen(false), 200)}
+        className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 dark:bg-slate-700/50 hover:bg-gray-200 dark:hover:bg-slate-700 text-gray-700 dark:text-slate-300 rounded-lg text-sm font-medium transition-colors"
+      >
+        <Settings className="w-4 h-4" /> Menu
+      </button>
+      
       {isOpen && (
-        <div className="absolute right-0 top-full mt-1 w-48 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700/60 rounded-xl shadow-lg z-50 py-2">
-          <button className="w-full text-left px-4 py-2 text-sm flex items-center gap-2 text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-700/50"><Edit className="w-4 h-4" /> Edit Metadata</button>
-          <button className="w-full text-left px-4 py-2 text-sm flex items-center gap-2 text-green-600 dark:text-emerald-400 hover:bg-gray-50 dark:hover:bg-slate-700/50"><PlayCircle className="w-4 h-4" /> Play Live</button>
-          <button className="w-full text-left px-4 py-2 text-sm flex items-center gap-2 text-yellow-600 dark:text-amber-400 hover:bg-gray-50 dark:hover:bg-slate-700/50"><StopCircle className="w-4 h-4" /> Stop Live</button>
+        <div className="absolute right-0 top-full mt-1 w-48 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700/60 rounded-xl shadow-lg dark:shadow-black/30 z-50 py-2">
+          <button className="w-full text-left px-4 py-2 text-sm flex items-center gap-2 text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
+            <Edit className="w-4 h-4" /> Edit Metadata
+          </button>
+          <button className="w-full text-left px-4 py-2 text-sm flex items-center gap-2 text-green-600 dark:text-emerald-400 hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
+            <PlayCircle className="w-4 h-4" /> Play Live
+          </button>
+          <button className="w-full text-left px-4 py-2 text-sm flex items-center gap-2 text-yellow-600 dark:text-amber-400 hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
+            <StopCircle className="w-4 h-4" /> Stop Live
+          </button>
           <div className="h-px bg-gray-200 dark:bg-slate-700/60 my-1"></div>
-          <button onClick={onDelete} className="w-full text-left px-4 py-2 text-sm flex items-center gap-2 text-red-600 dark:text-rose-400 hover:bg-red-50 dark:hover:bg-rose-500/10"><Trash2 className="w-4 h-4" /> Hapus Live</button>
+          <button 
+            onClick={onDelete}
+            className="w-full text-left px-4 py-2 text-sm flex items-center gap-2 text-red-600 dark:text-rose-400 hover:bg-red-50 dark:hover:bg-rose-500/10 transition-colors"
+          >
+            <Trash2 className="w-4 h-4" /> Hapus Live
+          </button>
         </div>
       )}
     </div>
