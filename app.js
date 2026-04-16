@@ -117,6 +117,7 @@ app.delete('/api/settings/api-key/:id', (req, res) => {
 });
 
 // --- FITUR BARU: MENGAMBIL DAFTAR AKUN CHANNEL YANG TERSAMBUNG ---
+// (Ini fitur yang tertinggal sebelumnya, yang memunculkan daftar dropdown!)
 app.get('/api/settings/accounts', (req, res) => {
     try {
         // Cari semua file yang berawalan token_ dan berakhiran .json
