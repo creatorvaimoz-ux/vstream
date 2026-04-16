@@ -371,6 +371,25 @@ function TugasLiveView() {
 
   const availableVideos = []; // Dikosongkan untuk production
 
+  // State untuk menyimpan daftar channel yang berhasil di-login
+  const [accounts, setAccounts] = useState([]);
+  const isPreview = window.location.protocol === 'blob:' || window.location.origin === 'null';
+  const API_BASE = isPreview ? 'http://localhost:7678' : '';
+
+  useEffect(() => {
+    const fetchAccounts = async () => {
+      if (isPreview) return;
+      try {
+        const res = await fetch(`${API_BASE}/api/settings/accounts`);
+        const data = await res.json();
+        setAccounts(Array.isArray(data) ? data : []);
+      } catch(e) {
+        console.error(e);
+      }
+    };
+    fetchAccounts();
+  }, []);
+
   const handleVideoSelection = (video) => {
     if (videoMode === 'Satu Video (Looping)') {
       setSelectedVideos([video]);
@@ -535,6 +554,9 @@ function TugasLiveView() {
                   <label className={labelClassName}>Pilih Channel</label>
                   <select className={inputClassName}>
                     <option value="">-- Pilih Channel Aktif --</option>
+                    {accounts.map(acc => (
+                      <option key={acc.id} value={acc.id}>{acc.name}</option>
+                    ))}
                   </select>
                 </div>
                 <div>
@@ -1301,6 +1323,7 @@ function SettingsView() {
   const [accountName, setAccountName] = useState('');
   const [authUrl, setAuthUrl] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [accounts, setAccounts] = useState([]); // State untuk daftar akun YouTube
 
   // States Kredensial Google API
   const [clientId, setClientId] = useState('');
@@ -1313,14 +1336,17 @@ function SettingsView() {
 
   const inputClassName = "w-full bg-gray-50 dark:bg-slate-900/50 border border-gray-300 dark:border-slate-600/60 rounded-lg px-4 py-2.5 outline-none focus:border-emerald-500 dark:focus:border-emerald-400 font-mono text-sm dark:text-slate-200 transition-colors";
 
-  // URL Base dinamis untuk environment preview Sandbox
-  const API_BASE = (window.location.protocol === 'blob:' || window.location.origin === 'null') ? 'http://localhost:7678' : '';
+  // Mendeteksi apakah aplikasi sedang dibuka dari layar Preview (Canvas/Sandbox)
+  const isPreview = window.location.protocol === 'blob:' || window.location.origin === 'null';
+  const API_BASE = isPreview ? 'http://localhost:7678' : '';
 
   useEffect(() => { 
     fetchApiKeys(); 
+    fetchAccounts();
   }, []);
 
   const fetchApiKeys = async () => {
+    if (isPreview) return; // Mencegah fetch error di layar preview
     try {
       const res = await fetch(`${API_BASE}/api/settings/api-keys`);
       const data = await res.json();
@@ -1330,12 +1356,28 @@ function SettingsView() {
     }
   };
 
+  const fetchAccounts = async () => {
+    if (isPreview) return; // Mencegah fetch error di layar preview
+    try {
+      const res = await fetch(`${API_BASE}/api/settings/accounts`);
+      const data = await res.json();
+      setAccounts(Array.isArray(data) ? data : []);
+    } catch (e) { 
+      console.error('Gagal mengambil daftar Akun:', e); 
+    }
+  };
+
   // Handler Kredensial API
   const handleSaveGoogleCredentials = async () => {
     if (!clientId || !clientSecret) {
       alert('Client ID dan Client Secret harus diisi!');
       return;
     }
+    if (isPreview) {
+      alert('Simulasi (Layar Preview): Kredensial Google berhasil divalidasi. (Fitur ini akan benar-benar tersimpan jika dijalankan dari VPS/Localhost).');
+      return;
+    }
+    
     setIsSavingCreds(true);
     try {
       const res = await fetch(`${API_BASE}/api/settings/google-credentials`, {
@@ -1360,6 +1402,11 @@ function SettingsView() {
 
   // Handler Autentikasi
   const handleLoginGoogle = async () => {
+    if (isPreview) {
+      alert('Fitur otentikasi Google hanya dapat dijalankan di VPS atau Localhost. Silakan build kode ini dan buka di browser asli Anda.');
+      return;
+    }
+    
     try {
       const res = await fetch(`${API_BASE}/api/auth/url`);
       const data = await res.json();
@@ -1378,6 +1425,11 @@ function SettingsView() {
       alert('Nama akun dan URL lengkap harus diisi!');
       return;
     }
+    if (isPreview) {
+      alert('Simulasi (Layar Preview): Akun berhasil ditambahkan. (Berjalan normal saat di VPS).');
+      return;
+    }
+
     setIsSaving(true);
     try {
       const res = await fetch(`${API_BASE}/api/auth/save`, {
@@ -1390,6 +1442,7 @@ function SettingsView() {
         alert('Berhasil: ' + data.message);
         setAccountName('');
         setAuthUrl('');
+        fetchAccounts(); // Update daftar akun setelah berhasil simpan
       } else {
         alert('Gagal: ' + data.message);
       }
@@ -1400,10 +1453,27 @@ function SettingsView() {
     }
   };
 
+  const deleteAccount = async (id) => {
+    if (isPreview) return;
+    if (!confirm('Anda yakin ingin menghapus sambungan akun ini?')) return;
+    try {
+      await fetch(`${API_BASE}/api/settings/account/${id}`, { method: 'DELETE' });
+      fetchAccounts();
+    } catch (e) {
+      alert('Gagal menghapus akun.');
+    }
+  };
+
   // Handler Manajemen API (Upload JSON)
   const handleFileUpload = async (e) => {
     const files = e.target.files;
     if (files.length === 0) return;
+    
+    if (isPreview) {
+      alert('Simulasi (Layar Preview): File client_secret.json diterima.');
+      return;
+    }
+
     setIsUploading(true);
     const formData = new FormData();
     for (let file of files) formData.append('files', file);
@@ -1420,6 +1490,7 @@ function SettingsView() {
   };
 
   const deleteKey = async (id) => {
+    if (isPreview) return; // Mencegah eksekusi di preview
     if (!confirm('Anda yakin ingin menghapus API Key ini?')) return;
     try {
       await fetch(`${API_BASE}/api/settings/api-key/${id}`, { method: 'DELETE' });
@@ -1564,6 +1635,34 @@ function SettingsView() {
             {isSaving ? 'Memproses...' : 'Simpan Akun'}
           </button>
         </div>
+
+        {/* --- DAFTAR AKUN YANG TERSAMBUNG --- */}
+        <div className="mt-8 border-t border-gray-200 dark:border-slate-700/60 pt-6">
+          <h4 className="font-semibold text-sm dark:text-slate-200 mb-3 flex items-center gap-2">
+            <Users className="w-4 h-4 text-emerald-500" /> Daftar Akun Tersambung ({accounts.length})
+          </h4>
+          <div className="space-y-2">
+            {accounts.map(acc => (
+              <div key={acc.id} className="flex justify-between items-center p-3 bg-gray-50 dark:bg-slate-900/50 rounded-lg border border-gray-100 dark:border-slate-700">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-red-100 dark:bg-red-500/15 flex items-center justify-center text-red-600 dark:text-red-400">
+                    <PlayCircle className="w-4 h-4" />
+                  </div>
+                  <p className="text-sm font-bold text-gray-800 dark:text-slate-200">{acc.name}</p>
+                </div>
+                <button onClick={() => deleteAccount(acc.id)} className="text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 p-2 rounded-md transition-colors">
+                  <Trash2 size={16} />
+                </button>
+              </div>
+            ))}
+            {accounts.length === 0 && (
+              <div className="text-sm text-gray-500 dark:text-slate-400 p-4 text-center border border-dashed border-gray-300 dark:border-slate-700/60 rounded-lg">
+                Belum ada akun YouTube yang tersambung. Selesaikan proses login di atas.
+              </div>
+            )}
+          </div>
+        </div>
+
       </div>
 
       {/* CARD 2: MANAJEMEN API JSON */}
@@ -1790,7 +1889,9 @@ function LogView() {
   const logsEndRef = useRef(null);
 
   useEffect(() => {
-    // Logika WebSocket untuk production
+    // INFO UNTUK PRODUCTION:
+    // Logika setInterval untuk data dummy (FFmpeg output dll) telah dihapus
+    // Silakan hubungkan state `setLogs`, `setBitrateHistory`, dll dengan WebSocket dari Backend / VPS
   }, []);
 
   useEffect(() => {
@@ -1800,9 +1901,10 @@ function LogView() {
   const createChartPath = () => {
     return bitrateHistory.map((val, i) => {
       const x = (i / 19) * 100;
+      // Safeguard agar chart tidak error jika nilai 0 atau negatif
       const normalizedVal = val === 0 ? 3000 : val;
       const y = 100 - (((normalizedVal - 3000) / 4000) * 100); 
-      return `${x},${Math.max(0, Math.min(100, y))}`;
+      return `${x},${Math.max(0, Math.min(100, y))}`; // Membatasi koordinat Y antara 0-100
     }).join(' ');
   };
 
@@ -1865,13 +1967,16 @@ function LogView() {
             </div>
           </div>
           
+          {/* Chart Area */}
           <div className="flex-1 relative mt-2 w-full">
+            {/* Grid Lines */}
             <div className="absolute inset-0 flex flex-col justify-between opacity-10 dark:opacity-20 pointer-events-none">
               <div className="border-t border-gray-400 dark:border-slate-500 w-full"></div>
               <div className="border-t border-gray-400 dark:border-slate-500 w-full"></div>
               <div className="border-t border-gray-400 dark:border-slate-500 w-full"></div>
               <div className="border-t border-gray-400 dark:border-slate-500 w-full"></div>
             </div>
+            {/* SVG Line */}
             <svg className="w-full h-full text-green-500 dark:text-emerald-400 drop-shadow-[0_0_8px_rgba(34,197,94,0.6)] dark:drop-shadow-[0_0_8px_rgba(52,211,153,0.4)] opacity-50" viewBox="0 0 100 100" preserveAspectRatio="none">
               <defs>
                 <linearGradient id="gradientBitrate" x1="0%" y1="0%" x2="0%" y2="100%">
@@ -1879,8 +1984,18 @@ function LogView() {
                   <stop offset="100%" stopColor="currentColor" stopOpacity="0.0" />
                 </linearGradient>
               </defs>
-              <polyline points={`0,100 ${createChartPath()} 100,100`} fill="url(#gradientBitrate)" />
-              <polyline points={createChartPath()} fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
+              <polyline 
+                points={`0,100 ${createChartPath()} 100,100`} 
+                fill="url(#gradientBitrate)" 
+              />
+              <polyline 
+                points={createChartPath()} 
+                fill="none" 
+                stroke="currentColor" 
+                strokeWidth="2" 
+                strokeLinejoin="round" 
+                strokeLinecap="round" 
+              />
             </svg>
           </div>
           <div className="flex justify-between mt-2 text-[10px] text-gray-600 dark:text-slate-400 font-mono">
@@ -1893,8 +2008,10 @@ function LogView() {
 
       {/* KANAN: REMOTE TERMINAL CONSOLE */}
       <div className="lg:w-2/3 bg-[#0a0a0a] dark:bg-[#020617] rounded-xl border border-gray-800 dark:border-slate-800 flex flex-col font-mono text-sm shadow-[0_8px_30px_rgb(0,0,0,0.4)] overflow-hidden h-full relative">
+        {/* Decorative Grid Background */}
         <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMSIgY3k9IjEiIHI9IjEiIGZpbGw9InJnYmEoMjU1LD,I1NSwyNTUsMC4wMykiLz48L3N2Zz4=')] opacity-50 dark:opacity-20 pointer-events-none"></div>
 
+        {/* Terminal Header */}
         <div className="bg-[#1a1a1a] dark:bg-[#0f172a] px-4 py-2.5 border-b border-gray-800 dark:border-slate-800 flex justify-between items-center z-10">
           <div className="flex items-center gap-3 text-gray-400 dark:text-slate-400 text-xs">
             <TerminalSquare className="w-4 h-4" />
@@ -1907,6 +2024,7 @@ function LogView() {
           </div>
         </div>
 
+        {/* Terminal Body */}
         <div className="p-4 overflow-y-auto flex-1 z-10 custom-scrollbar">
           <div className="space-y-1.5 text-[13px] leading-relaxed">
             {logs.length === 0 ? (
@@ -1967,6 +2085,7 @@ function ProgressBar({ label, percentage, color, valueText, subText }) {
       <div className="w-full rounded-full h-1.5 bg-gray-100 dark:bg-slate-700/50 overflow-hidden">
         <div className={`h-full rounded-full ${color} transition-all duration-500`} style={{ width: `${percentage}%` }}></div>
       </div>
+      {/* Teks tambahan di bawah bar, atau spasi tak terlihat agar semua tinggi elemen rata */}
       <div className={`mt-1.5 text-[9px] text-gray-400 dark:text-slate-500 font-medium text-right leading-none ${subText ? 'opacity-100' : 'opacity-0 select-none'}`}>
         {subText || '-'}
       </div>
@@ -2003,6 +2122,7 @@ function VideoFile({ name, size, onEdit, onDelete }) {
         </div>
       </div>
       
+      {/* Action Buttons */}
       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-gradient-to-l from-white dark:from-slate-800 via-white dark:via-slate-800 pl-4 pr-1">
         <button 
           onClick={(e) => { e.stopPropagation(); onEdit && onEdit(); }} 
