@@ -170,16 +170,16 @@ function downloadStandardUrl(urlStr, destPath, callback, redirectCount = 0) {
 const activeStreams = new Map();
 
 function startStreamInternal(task) {
-    if (activeStreams.has(task.id)) return false; 
+    if (activeStreams.has(task.id)) return false; // Sudah jalan
 
     const fullVideoPath = path.join(MEDIA_DIR, task.videoPath);
     if (!fs.existsSync(fullVideoPath)) {
-        fs.appendFileSync(LOG_FILE, `\n[SYSTEM] Gagal memulai ${task.taskName}: Video tidak ditemukan.\n`);
+        fs.appendFileSync(LOG_FILE, `\n[SYSTEM ERROR] Gagal memulai ${task.taskName}: File video tidak ditemukan di server.\n`);
         return false;
     }
 
     const timestamp = new Date().toISOString();
-    fs.appendFileSync(LOG_FILE, `\n[${timestamp}] [SYSTEM] Menerima tugas Live: ${task.taskName}\n`);
+    fs.appendFileSync(LOG_FILE, `\n[${timestamp}] [SYSTEM] Memulai proses Live untuk tugas: ${task.taskName}\n`);
 
     // Pastikan tidak ada spasi tersembunyi di stream key
     const cleanStreamKey = task.streamKey.trim();
@@ -198,10 +198,27 @@ function startStreamInternal(task) {
     const ffmpegProcess = spawn('ffmpeg', ffmpegArgs);
     activeStreams.set(task.id, ffmpegProcess);
 
-    ffmpegProcess.stderr.on('data', (data) => fs.appendFileSync(LOG_FILE, data.toString()));
+    // Tangkap log output dari FFmpeg
+    ffmpegProcess.stderr.on('data', (data) => {
+        fs.appendFileSync(LOG_FILE, data.toString());
+    });
+
+    // PENDETEKSI ERROR CRITICAL (Contoh: FFmpeg crash/tidak jalan)
+    ffmpegProcess.on('error', (err) => {
+        fs.appendFileSync(LOG_FILE, `\n[CRITICAL ERROR] Gagal mengeksekusi FFmpeg: ${err.message}. Pastikan FFmpeg sudah diinstal di VPS (sudo apt install ffmpeg).\n`);
+        activeStreams.delete(task.id);
+        
+        try {
+            let tasks = JSON.parse(fs.readFileSync(TASKS_FILE));
+            let t = tasks.find(x => x.id === task.id);
+            if (t) { t.status = 'Error'; fs.writeFileSync(TASKS_FILE, JSON.stringify(tasks, null, 2)); }
+        } catch(e) {}
+    });
+
+    // Deteksi jika FFmpeg berhenti/crash di tengah jalan
     ffmpegProcess.on('close', (code) => {
         activeStreams.delete(task.id);
-        fs.appendFileSync(LOG_FILE, `\n[${new Date().toISOString()}] [SYSTEM] FFmpeg ${task.taskName} Terhenti (Code: ${code})\n`);
+        fs.appendFileSync(LOG_FILE, `\n[${new Date().toISOString()}] [SYSTEM] FFmpeg Terhenti (Kode Keluar: ${code})\n`);
         
         try {
             let tasks = JSON.parse(fs.readFileSync(TASKS_FILE));
@@ -214,6 +231,7 @@ function startStreamInternal(task) {
 }
 
 // --- CRON JOB (PENJADWAL OTOMATIS) ---
+// Cek database setiap 60 detik
 setInterval(() => {
     try {
         const tasks = JSON.parse(fs.readFileSync(TASKS_FILE));
