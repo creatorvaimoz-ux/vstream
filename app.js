@@ -6,6 +6,8 @@ const { exec } = require('child_process');
 const { google } = require('googleapis');
 const fs = require('fs');
 const multer = require('multer');
+const https = require('https');
+const http = require('http');
 
 // Load .env file
 dotenv.config();
@@ -22,6 +24,19 @@ if (!fs.existsSync(SECRETS_DIR)) {
     fs.mkdirSync(SECRETS_DIR, { recursive: true });
 }
 
+// Direktori untuk Media Video
+const MEDIA_DIR = path.join(__dirname, 'public/uploads');
+if (!fs.existsSync(MEDIA_DIR)) {
+    fs.mkdirSync(MEDIA_DIR, { recursive: true });
+}
+
+// File Database untuk Playlist
+const PLAYLIST_FILE = path.join(__dirname, 'playlists.json');
+if (!fs.existsSync(PLAYLIST_FILE)) {
+    fs.writeFileSync(PLAYLIST_FILE, JSON.stringify([]));
+}
+
+// Storage untuk JSON API
 const storage = multer.diskStorage({
     destination: (req, file, cb) => cb(null, SECRETS_DIR),
     filename: (req, file, cb) => {
@@ -31,6 +46,18 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
+// Storage khusus untuk Video/Media
+const mediaStorage = multer.diskStorage({
+    destination: (req, file, cb) => cb(null, MEDIA_DIR),
+    filename: (req, file, cb) => {
+        // Hilangkan spasi pada nama file
+        const safeName = file.originalname.replace(/\s+/g, '_');
+        cb(null, safeName);
+    }
+});
+const uploadMedia = multer({ storage: mediaStorage });
+
+
 // --- FUNGSI GOOGLE OAUTH ---
 let cachedCredentials = null;
 const CREDENTIALS_FILE = path.join(__dirname, 'google_credentials.json');
@@ -38,25 +65,12 @@ const CREDENTIALS_FILE = path.join(__dirname, 'google_credentials.json');
 function getOAuth2Client() {
     let clientId, clientSecret;
 
-    // 1. Coba cari file JSON di folder api_secrets (Dari fitur upload JSON)
-    const files = fs.readdirSync(SECRETS_DIR).filter(f => f.endsWith('.json'));
-    if (files.length > 0) {
-        const data = JSON.parse(fs.readFileSync(path.join(SECRETS_DIR, files[0])));
-        const creds = data.web || data.installed;
-        if (creds) {
-            clientId = creds.client_id;
-            clientSecret = creds.client_secret;
-        }
-    } 
-    
-    // 2. Fallback ke google_credentials.json (Input manual UI)
-    if (!clientId && fs.existsSync(CREDENTIALS_FILE)) {
+    if (fs.existsSync(CREDENTIALS_FILE)) {
         const data = JSON.parse(fs.readFileSync(CREDENTIALS_FILE));
         clientId = data.clientId;
         clientSecret = data.clientSecret;
     }
 
-    // 3. Fallback ke .env
     if (!clientId && process.env.GOOGLE_CLIENT_ID) {
         clientId = process.env.GOOGLE_CLIENT_ID;
         clientSecret = process.env.GOOGLE_CLIENT_SECRET;
@@ -67,12 +81,118 @@ function getOAuth2Client() {
     return new google.auth.OAuth2(clientId, clientSecret, 'http://localhost');
 }
 
+
 // --- API ROUTES ---
 
 // [Status]
 app.get('/api/status', (req, res) => {
     res.json({ status: 'running', message: 'Backend VStream Aktif' });
 });
+
+// --- MANAJEMEN MEDIA ---
+app.post('/api/media/upload', uploadMedia.array('files'), (req, res) => {
+    const count = req.files ? req.files.length : 0;
+    res.json({ success: true, message: `${count} file berhasil diunggah ke VPS.` });
+});
+
+app.get('/api/media', (req, res) => {
+    try {
+        const files = fs.readdirSync(MEDIA_DIR);
+        const list = files.map(f => {
+            const stats = fs.statSync(path.join(MEDIA_DIR, f));
+            const sizeMB = (stats.size / (1024 * 1024)).toFixed(2) + ' MB';
+            return { id: f, name: f, size: sizeMB };
+        });
+        res.json(list);
+    } catch (error) {
+        res.json([]);
+    }
+});
+
+app.delete('/api/media/:filename', (req, res) => {
+    const filePath = path.join(MEDIA_DIR, req.params.filename);
+    if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+    res.json({ success: true });
+});
+
+// --- JALUR BARU: IMPORT DARI URL (DIUPGRADE LEBIH PINTAR) ---
+app.post('/api/media/import-url', (req, res) => {
+    const { url } = req.body;
+    if (!url) return res.status(400).json({ success: false, message: 'URL tidak valid' });
+
+    // Mengekstrak nama file dari URL atau memberikan nama default
+    let filename = url.substring(url.lastIndexOf('/') + 1).split('?')[0];
+    if (!filename || filename.indexOf('.') === -1) {
+        filename = `import_${Date.now()}.mp4`; 
+    }
+    filename = filename.replace(/[^a-zA-Z0-9.-]/g, '_'); // Bersihkan nama
+    
+    const dest = path.join(MEDIA_DIR, filename);
+
+    // Menggunakan curl agar lebih kebal redirect, aman dari blokir, dan menyamar sebagai browser
+    const command = `curl -L -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" -o "${dest}" "${url}"`;
+    
+    exec(command, (error, stdout, stderr) => {
+        if (error) {
+            if (fs.existsSync(dest)) fs.unlinkSync(dest);
+            return res.status(500).json({ success: false, message: 'Gagal mendownload: ' + error.message });
+        }
+
+        // Validasi Ekstra: Pastikan file yang terunduh ukurannya masuk akal (> 100KB)
+        // Jika kurang dari 100KB, hampir dipastikan itu adalah halaman HTML penolakan, bukan video.
+        if (fs.existsSync(dest)) {
+            const stats = fs.statSync(dest);
+            if (stats.size < 100 * 1024) { 
+                fs.unlinkSync(dest); // Hapus file sampah
+                return res.status(400).json({ 
+                    success: false, 
+                    message: 'Gagal: URL tersebut tidak mengarah langsung ke video, melainkan ke halaman web (mendapat file 0 MB / HTML).' 
+                });
+            }
+            res.json({ success: true, message: `File berhasil diimpor sebagai ${filename}` });
+        } else {
+            res.status(500).json({ success: false, message: 'Gagal menyimpan file.' });
+        }
+    });
+});
+
+// --- MANAJEMEN PLAYLIST ---
+app.get('/api/playlists', (req, res) => {
+    try {
+        const data = JSON.parse(fs.readFileSync(PLAYLIST_FILE));
+        res.json(data);
+    } catch (e) {
+        res.json([]);
+    }
+});
+
+app.post('/api/playlists', (req, res) => {
+    const { name, videos } = req.body;
+    if (!name || !videos) return res.status(400).json({ success: false, message: 'Data tidak lengkap' });
+
+    try {
+        const playlists = JSON.parse(fs.readFileSync(PLAYLIST_FILE));
+        const newPlaylist = { id: Date.now().toString(), name, videos, count: videos.length };
+        playlists.push(newPlaylist);
+        fs.writeFileSync(PLAYLIST_FILE, JSON.stringify(playlists, null, 2));
+        
+        res.json({ success: true, message: 'Playlist berhasil disimpan!' });
+    } catch (e) {
+        res.status(500).json({ success: false, message: e.message });
+    }
+});
+
+app.delete('/api/playlists/:id', (req, res) => {
+    try {
+        let playlists = JSON.parse(fs.readFileSync(PLAYLIST_FILE));
+        playlists = playlists.filter(p => p.id !== req.params.id);
+        fs.writeFileSync(PLAYLIST_FILE, JSON.stringify(playlists, null, 2));
+        res.json({ success: true });
+    } catch (e) {
+        res.status(500).json({ success: false, message: e.message });
+    }
+});
+
 
 // [Input Manual Client ID & Secret]
 app.post('/api/settings/google-credentials', (req, res) => {
@@ -85,52 +205,16 @@ app.post('/api/settings/google-credentials', (req, res) => {
     res.json({ success: true, message: 'Kredensial Google API berhasil disimpan di server!' });
 });
 
-// [Upload JSON API v3]
-app.post('/api/settings/upload-json', upload.array('files'), (req, res) => {
-    res.json({ success: true, message: `${req.files.length} file JSON berhasil diunggah.` });
-});
-
-// [Get API Keys]
-app.get('/api/settings/api-keys', (req, res) => {
-    try {
-        const files = fs.readdirSync(SECRETS_DIR).filter(f => f.endsWith('.json'));
-        const list = files.map(f => {
-            const content = JSON.parse(fs.readFileSync(path.join(SECRETS_DIR, f)));
-            const creds = content.web || content.installed;
-            return { 
-                id: f, 
-                name: f.split('-').slice(1).join('-') || f, 
-                clientId: creds ? creds.client_id : 'Invalid JSON' 
-            };
-        });
-        res.json(list);
-    } catch (error) {
-        res.json([]);
-    }
-});
-
-// [Delete API Key]
-app.delete('/api/settings/api-key/:id', (req, res) => {
-    const filePath = path.join(SECRETS_DIR, req.params.id);
-    if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
-    res.json({ success: true });
-});
-
-// --- FITUR BARU: MENGAMBIL DAFTAR AKUN CHANNEL YANG TERSAMBUNG ---
-// (Menambahkan console log untuk monitoring)
+// [Mengambil Daftar Akun YouTube]
 app.get('/api/settings/accounts', (req, res) => {
     try {
-        console.log("Meminta daftar akun YouTube yang tersambung...");
-        // Cari semua file yang berawalan token_ dan berakhiran .json
         const files = fs.readdirSync(__dirname).filter(f => f.startsWith('token_') && f.endsWith('.json'));
         const accounts = files.map(f => {
             let name = f.replace('token_', '').replace('.json', '');
             return { id: f, name: name.replace(/_/g, ' ') };
         });
-        console.log("Daftar akun ditemukan:", accounts);
         res.json(accounts);
     } catch (error) {
-        console.error("Error membaca daftar akun:", error);
         res.json([]);
     }
 });
@@ -174,19 +258,10 @@ app.post('/api/auth/save', async (req, res) => {
 
         const { tokens } = await oauth2Client.getToken(code);
         fs.writeFileSync(path.join(__dirname, `token_${accountName.replace(/\s+/g, '_')}.json`), JSON.stringify(tokens, null, 2));
-        console.log(`Token disimpan untuk akun: ${accountName}`);
         res.json({ success: true, message: `Akun ${accountName} tersambung!` });
     } catch (e) { 
-        console.error("Gagal simpan token:", e);
         res.status(500).json({ success: false, message: e.message }); 
     }
-});
-
-// [Mulai Stream]
-app.post('/api/stream/start', (req, res) => {
-    const { streamKey, videoFile } = req.body;
-    console.log("Menerima request stream:", streamKey, videoFile);
-    res.json({ success: true, message: 'Proses Live Dimulai (Simulasi)' });
 });
 
 // --- SERVE FRONTEND ---
