@@ -14,7 +14,7 @@ export default function App() {
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [accounts, setAccounts] = useState([]); // STATE GLOBAL UNTUK AKUN YOUTUBE
+  const [accounts, setAccounts] = useState([]);
 
   const toggleTheme = () => setIsDarkMode(!isDarkMode);
 
@@ -27,11 +27,9 @@ export default function App() {
     { id: 'log', label: 'Log', icon: ScrollText },
   ];
 
-  // Mendeteksi apakah aplikasi sedang dibuka dari layar Preview
   const isPreview = window.location.protocol === 'blob:' || window.location.origin === 'null';
   const API_BASE = isPreview ? 'http://localhost:7678' : '';
 
-  // Mengambil daftar akun secara Global saat aplikasi pertama kali dibuka
   const fetchAccounts = async () => {
     if (isPreview) return;
     try {
@@ -51,12 +49,8 @@ export default function App() {
     <div className={`min-h-screen flex flex-col ${isDarkMode ? 'dark' : ''}`}>
       <div className="flex flex-col w-full h-screen bg-gray-50 dark:bg-slate-900 text-gray-900 dark:text-slate-100 transition-colors duration-300 overflow-hidden relative">
         
-        {/* Top Navbar */}
         <header className="shrink-0 bg-white dark:bg-slate-800 relative z-50 flex flex-col shadow-sm dark:shadow-black/20">
-          
-          {/* Top Row: Logo & Actions */}
           <div className="h-16 flex items-center justify-between px-4 md:px-6 border-b border-gray-200 dark:border-slate-700/60">
-            {/* Logo & Brand */}
             <div className="flex items-center gap-3 shrink-0">
               <div className="w-8 h-8 bg-emerald-500 dark:bg-emerald-500 rounded-lg flex items-center justify-center shrink-0 shadow-sm shadow-emerald-500/20">
                 <PlayCircle className="text-white w-5 h-5" />
@@ -67,7 +61,6 @@ export default function App() {
               </div>
             </div>
 
-            {/* Right Actions */}
             <div className="flex items-center gap-2 sm:gap-4 shrink-0">
               <div className="hidden lg:flex items-center gap-1.5 text-xs bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 px-2.5 py-1.5 rounded-full border border-emerald-200 dark:border-emerald-800/50 font-medium">
                 <div className="w-2 h-2 rounded-full bg-emerald-500 dark:bg-emerald-400 animate-pulse"></div>
@@ -83,7 +76,6 @@ export default function App() {
                 <Users className="w-4 h-4 dark:text-slate-300" />
               </div>
               
-              {/* Mobile Menu Toggle */}
               <button 
                 className="md:hidden p-2 -mr-2 text-gray-500 hover:bg-gray-100 dark:text-slate-400 dark:hover:bg-slate-700/50 rounded-lg transition-colors"
                 onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
@@ -93,7 +85,6 @@ export default function App() {
             </div>
           </div>
 
-          {/* Bottom Row: Desktop Navigation */}
           <div className="hidden md:block border-b border-gray-200 dark:border-slate-700/60 bg-white dark:bg-slate-800/90 px-4 md:px-6">
             <nav className="flex items-center gap-2 overflow-x-auto py-2">
               {menuItems.map((item) => {
@@ -118,7 +109,6 @@ export default function App() {
           </div>
         </header>
 
-        {/* Mobile Navigation Dropdown */}
         {isMobileMenuOpen && (
           <div className="md:hidden absolute top-16 left-0 right-0 z-40 bg-white dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700/60 shadow-lg">
             <nav className="flex flex-col p-4 space-y-1">
@@ -147,7 +137,6 @@ export default function App() {
           </div>
         )}
         
-        {/* Mobile Overlay for Dropdown */}
         {isMobileMenuOpen && (
            <div 
              className="md:hidden absolute inset-0 top-16 z-30 bg-slate-900/50 backdrop-blur-sm"
@@ -155,7 +144,6 @@ export default function App() {
            ></div>
         )}
 
-        {/* Dynamic Content Area */}
         <main className="flex-1 overflow-y-auto p-4 md:p-6 relative z-10 w-full mx-auto">
           {activeTab === 'dashboard' && <DashboardView />}
           {activeTab === 'tugas-live' && <TugasLiveView accounts={accounts} />}
@@ -169,10 +157,6 @@ export default function App() {
     </div>
   );
 }
-
-/* =========================================
-   VIEW COMPONENTS
-   ========================================= */
 
 function DashboardView() {
   const [streams, setStreams] = useState([]);
@@ -200,9 +184,7 @@ function DashboardView() {
 
   return (
     <div className="space-y-3">
-      {/* BARIS ATAS: Stats */}
       <div className="grid grid-cols-2 gap-3">
-        {/* Streaming Aktif */}
         <div className="bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700/60 p-2.5 shadow-sm flex items-center justify-between hover:border-emerald-200 dark:hover:border-emerald-500/40 transition-colors">
           <div className="flex items-center gap-2.5">
             <div className="w-7 h-7 rounded-md flex items-center justify-center bg-emerald-50 dark:bg-emerald-500/15">
@@ -218,7 +200,6 @@ function DashboardView() {
           </span>
         </div>
 
-        {/* Live Terjadwal */}
         <div className="bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700/60 p-2.5 shadow-sm flex items-center justify-between hover:border-blue-200 dark:hover:border-blue-500/40 transition-colors">
           <div className="flex items-center gap-2.5">
             <div className="w-7 h-7 rounded-md flex items-center justify-center bg-blue-50 dark:bg-blue-500/15">
@@ -235,7 +216,6 @@ function DashboardView() {
         </div>
       </div>
 
-      {/* BARIS BAWAH: Server Resources */}
       <div className="bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700/60 shadow-sm p-3 flex flex-col md:flex-row md:items-center gap-4">
         <div className="flex items-center justify-between md:flex-col md:items-start md:justify-center md:border-r md:border-gray-100 md:dark:border-slate-700/50 md:pr-4 shrink-0">
           <h3 className="text-[10px] font-bold text-gray-800 dark:text-slate-200 flex items-center gap-1 uppercase tracking-widest">
@@ -260,7 +240,6 @@ function DashboardView() {
         </div>
       </div>
 
-      {/* Active Streams Table */}
       <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700/60 shadow-sm overflow-hidden">
         <div className="flex justify-between items-center p-5 border-b border-gray-200 dark:border-slate-700/60 bg-gray-50/50 dark:bg-slate-800/50">
           <h3 className="text-base font-semibold text-gray-900 dark:text-slate-100 flex items-center gap-2">
@@ -388,7 +367,7 @@ function TugasLiveView({ accounts }) {
     Minggu: { active: false, start: '09:00', end: '20:00' }
   });
 
-  const availableVideos = []; // Dikosongkan untuk production
+  const availableVideos = [];
 
   const handleVideoSelection = (video) => {
     if (videoMode === 'Satu Video (Looping)') {
@@ -409,10 +388,7 @@ function TugasLiveView({ accounts }) {
   return (
     <div className="flex flex-col gap-6">
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        
-        {/* KOLOM KIRI (7/12) */}
         <div className="lg:col-span-7 flex flex-col gap-6">
-          {/* CARD 1: Sumber Media & Stream */}
           <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700/60 p-5 md:p-6 shadow-sm">
             <h3 className="text-lg font-bold flex items-center gap-2 border-b border-gray-100 dark:border-slate-700/60 pb-4 mb-5 text-gray-800 dark:text-slate-100">
               <PlayCircle className="w-5 h-5 text-emerald-500 dark:text-emerald-400" /> Pengaturan Stream Utama
@@ -453,7 +429,6 @@ function TugasLiveView({ accounts }) {
                 </div>
               </div>
               
-              {/* Area Pemilihan Video Interaktif */}
               <div className="relative">
                 <label className={labelClassName}>Pilih Video dari Manajemen Media</label>
                 
@@ -542,7 +517,6 @@ function TugasLiveView({ accounts }) {
             </div>
           </div>
 
-          {/* CARD 2: Metadata YouTube */}
           <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700/60 p-5 md:p-6 shadow-sm">
             <h3 className="text-lg font-bold flex items-center gap-2 border-b border-gray-100 dark:border-slate-700/60 pb-4 mb-5 text-gray-800 dark:text-slate-100">
               <LayoutDashboard className="w-5 h-5 text-emerald-500 dark:text-emerald-400" /> Metadata YouTube Studio
@@ -554,8 +528,7 @@ function TugasLiveView({ accounts }) {
                   <label className={labelClassName}>Pilih Channel</label>
                   <select className={inputClassName}>
                     <option value="">-- Pilih Channel Aktif --</option>
-                    {/* DATA AKUN MUNCUL DI SINI */}
-                    {accounts.map(acc => (
+                    {accounts?.map(acc => (
                       <option key={acc.id} value={acc.id}>{acc.name}</option>
                     ))}
                   </select>
@@ -588,7 +561,6 @@ function TugasLiveView({ accounts }) {
                 <input type="text" placeholder="berita, live stream, update" className={`${inputClassName} font-mono`} />
               </div>
 
-              {/* Sub-section: Aturan Publikasi */}
               <div className="mt-2 bg-gray-50 dark:bg-slate-900/40 p-4 rounded-xl border border-gray-200 dark:border-slate-700/50">
                 <h4 className="text-sm font-bold text-gray-800 dark:text-slate-200 mb-4 flex items-center gap-2">
                   <Settings className="w-4 h-4 text-gray-500 dark:text-slate-400" /> Aturan Publikasi & Visibilitas
@@ -629,16 +601,12 @@ function TugasLiveView({ accounts }) {
           </div>
         </div>
 
-        {/* KOLOM KANAN (5/12) */}
         <div className="lg:col-span-5 flex flex-col gap-6">
-          
-          {/* CARD 3: Jadwal Live */}
           <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700/60 p-5 md:p-6 shadow-sm">
             <h3 className="text-lg font-bold flex items-center gap-2 border-b border-gray-100 dark:border-slate-700/60 pb-4 mb-5 text-gray-800 dark:text-slate-100">
               <Calendar className="w-5 h-5 text-blue-500 dark:text-blue-400" /> Jadwal Live
             </h3>
             
-            {/* Segmented Control untuk Mode Jadwal */}
             <div className="flex flex-wrap bg-gray-100 dark:bg-slate-900/60 p-1 rounded-xl gap-1 mb-5">
               {['manual', 'sekali', 'harian', 'smart-weekly'].map((mode) => (
                 <button
@@ -737,7 +705,6 @@ function TugasLiveView({ accounts }) {
             )}
           </div>
 
-          {/* CARD 4: Encoder & Kualitas */}
           <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700/60 p-5 md:p-6 shadow-sm">
             <h3 className="text-lg font-bold flex items-center gap-2 border-b border-gray-100 dark:border-slate-700/60 pb-4 mb-5 text-gray-800 dark:text-slate-100">
               <Cpu className="w-5 h-5 text-purple-500 dark:text-purple-400" /> Encoder & Output
@@ -769,13 +736,11 @@ function TugasLiveView({ accounts }) {
             </div>
           </div>
 
-          {/* CARD 5: Thumbnail */}
           <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700/60 p-5 md:p-6 shadow-sm flex flex-col">
             <h3 className="text-lg font-bold flex items-center gap-2 border-b border-gray-100 dark:border-slate-700/60 pb-4 mb-5 text-gray-800 dark:text-slate-100">
               <Image className="w-5 h-5 text-emerald-500 dark:text-emerald-400" /> Pengaturan Thumbnail
             </h3>
             
-            {/* Segmented Control untuk Thumbnail */}
             <div className="flex bg-gray-100 dark:bg-slate-900/60 p-1 rounded-xl gap-1 mb-5 w-full max-w-sm">
               {['single', 'random'].map((mode) => (
                 <button
@@ -801,7 +766,6 @@ function TugasLiveView({ accounts }) {
             </div>
           </div>
 
-          {/* CARD 6: Auto-Restart & Fallback */}
           <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700/60 p-5 md:p-6 shadow-sm">
             <div className="flex items-center justify-between mb-2">
                <div className="flex items-center gap-3">
@@ -832,9 +796,6 @@ function TugasLiveView({ accounts }) {
         </div>
       </div>
 
-      {/* =========================================
-          ACTION FOOTER
-          ========================================= */}
       <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700/60 p-5 md:p-6 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4 mt-2">
          <div className="flex items-center gap-4 w-full sm:w-auto">
            <div className="w-10 h-10 rounded-full bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center shrink-0">
@@ -864,9 +825,11 @@ function MediaView() {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadText, setUploadText] = useState('');
+  
   const [showPlaylistModal, setShowPlaylistModal] = useState(false);
   const [newPlaylistName, setNewPlaylistName] = useState('');
   const [selectedPlaylistVideos, setSelectedPlaylistVideos] = useState([]);
+
   const [mediaFiles, setMediaFiles] = useState([]);
   const [editingFile, setEditingFile] = useState(null);
   const [editFileName, setEditFileName] = useState('');
@@ -898,7 +861,9 @@ function MediaView() {
       if (progress >= 100) {
         progress = 100;
         clearInterval(interval);
-        setTimeout(() => setIsUploading(false), 1000);
+        setTimeout(() => {
+          setIsUploading(false);
+        }, 1000);
       }
       setUploadProgress(progress);
     }, 500);
@@ -914,8 +879,6 @@ function MediaView() {
 
   return (
     <div className="h-[calc(100vh-8rem)] flex flex-col bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700/60 shadow-sm overflow-hidden relative">
-      
-      {/* Minimalist Header */}
       <div className="flex justify-between items-center px-5 py-3.5 border-b border-gray-100 dark:border-slate-700/60 bg-gray-50/50 dark:bg-slate-800/50 shrink-0">
         <h3 className="text-sm font-bold text-gray-800 dark:text-slate-100 flex items-center gap-2">
           <Film className="w-4 h-4 text-gray-400 dark:text-slate-500" />
@@ -937,7 +900,6 @@ function MediaView() {
         </div>
       </div>
 
-      {/* Progress Bar */}
       {isUploading && (
         <div className="px-5 py-2 bg-blue-50/50 dark:bg-blue-900/20 border-b border-blue-100 dark:border-blue-800/30 flex items-center gap-4 shrink-0">
           <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-widest w-48 truncate">{uploadText}</span>
@@ -949,7 +911,6 @@ function MediaView() {
       )}
 
       <div className="flex flex-1 overflow-hidden">
-        {/* Sidebar Directories */}
         <div className="w-60 flex flex-col border-r border-gray-100 dark:border-slate-700/60 bg-gray-50/30 dark:bg-slate-900/30 shrink-0">
           <div className="p-3 flex-1 overflow-y-auto space-y-0.5 custom-scrollbar">
             <div className="text-[9px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-widest px-2 pb-2 pt-1">Direktori Penyimpanan</div>
@@ -973,7 +934,6 @@ function MediaView() {
           </div>
         </div>
 
-        {/* Files Area */}
         <div className="flex-1 bg-white dark:bg-slate-800 p-5 overflow-y-auto relative custom-scrollbar">
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
             {mediaFiles.length === 0 ? (
@@ -999,7 +959,160 @@ function MediaView() {
         </div>
       </div>
 
-      {/* Modal Edit dan Konfirmasi Dikosongkan agar lebih ringkas (sama seperti kode sebelumnya) */}
+      {showPlaylistModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-lg shadow-2xl shadow-black/40 overflow-hidden border border-gray-200 dark:border-slate-700 flex flex-col max-h-[90vh]">
+            <div className="px-6 py-4 border-b border-gray-200 dark:border-slate-700/60 flex justify-between items-center bg-gray-50 dark:bg-slate-800/80">
+              <h3 className="text-lg font-bold dark:text-slate-100">Buat Playlist Baru</h3>
+              <button 
+                onClick={() => setShowPlaylistModal(false)}
+                className="text-gray-400 dark:text-slate-400 hover:text-emerald-500 dark:hover:text-emerald-400 transition-colors"
+              >
+                <XCircle className="w-6 h-6" />
+              </button>
+            </div>
+            
+            <div className="p-6 overflow-y-auto flex-1 space-y-5 custom-scrollbar">
+              <div>
+                <label className="block text-sm font-medium mb-1.5 dark:text-slate-300">Nama Playlist</label>
+                <input 
+                  type="text" 
+                  value={newPlaylistName}
+                  onChange={(e) => setNewPlaylistName(e.target.value)}
+                  placeholder="Misal: Playlist Berita Malam" 
+                  className="w-full bg-gray-50 dark:bg-slate-900/50 border border-gray-300 dark:border-slate-600/60 rounded-lg px-4 py-2.5 outline-none focus:border-emerald-500 dark:focus:border-emerald-400 dark:text-slate-200" 
+                />
+              </div>
+
+              <div>
+                <div className="flex justify-between items-center mb-2">
+                  <label className="block text-sm font-medium dark:text-slate-300">Pilih Video untuk Playlist</label>
+                  <span className="text-xs bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300 px-2 py-1 rounded-md font-medium">
+                    {selectedPlaylistVideos.length} Terpilih
+                  </span>
+                </div>
+                <div className="border border-gray-200 dark:border-slate-700/60 rounded-xl overflow-hidden">
+                  <div className="bg-gray-50 dark:bg-slate-900/30 px-4 py-2 border-b border-gray-200 dark:border-slate-700/60 text-xs font-medium text-gray-500 dark:text-slate-400">
+                    Daftar Video di Media (Bisa dipilih banyak)
+                  </div>
+                  <div className="max-h-48 overflow-y-auto p-2 space-y-1 custom-scrollbar">
+                    {mediaFiles.length === 0 ? (
+                      <div className="text-center py-4 text-xs text-gray-500 dark:text-slate-400">Belum ada video tersedia.</div>
+                    ) : (
+                      mediaFiles.filter(f => f.name.toLowerCase().endsWith('.mp4')).map((file) => {
+                        const isSelected = selectedPlaylistVideos.includes(file.name);
+                        return (
+                          <label 
+                            key={file.id} 
+                            className={`flex items-center gap-3 p-2.5 rounded-lg cursor-pointer transition-colors border ${isSelected ? 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/20' : 'border-transparent hover:bg-gray-100 dark:hover:bg-slate-700/40'}`}
+                          >
+                            <input 
+                              type="checkbox" 
+                              checked={isSelected}
+                              onChange={() => toggleVideoForPlaylist(file.name)}
+                              className="w-4 h-4 text-emerald-600 dark:text-emerald-500 focus:ring-emerald-500 dark:focus:ring-emerald-500 cursor-pointer rounded-sm bg-white dark:bg-slate-900 border-gray-300 dark:border-slate-600"
+                            />
+                            <Video className={`w-4 h-4 ${isSelected ? 'text-emerald-500 dark:text-emerald-400' : 'text-gray-400 dark:text-slate-500'}`} />
+                            <span className={`text-sm flex-1 truncate ${isSelected ? 'font-medium text-emerald-700 dark:text-emerald-300' : 'text-gray-700 dark:text-slate-300'}`}>
+                              {file.name}
+                            </span>
+                          </label>
+                        )
+                      })
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="px-6 py-4 border-t border-gray-200 dark:border-slate-700/60 bg-gray-50 dark:bg-slate-800/80 flex justify-end gap-3">
+              <button 
+                onClick={() => setShowPlaylistModal(false)}
+                className="px-4 py-2 rounded-lg border border-gray-300 dark:border-slate-600/60 text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700/50 transition-colors text-sm font-medium"
+              >
+                Batal
+              </button>
+              <button 
+                className="px-4 py-2 bg-emerald-600 dark:bg-emerald-500 hover:bg-emerald-700 dark:hover:bg-emerald-600 text-white rounded-lg text-sm font-medium transition-colors shadow-sm"
+                onClick={() => {
+                  setShowPlaylistModal(false);
+                  setNewPlaylistName('');
+                  setSelectedPlaylistVideos([]);
+                }}
+              >
+                Simpan Playlist
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {editingFile && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+          <div className="bg-white dark:bg-slate-800 rounded-xl w-full max-w-md shadow-2xl shadow-black/40 overflow-hidden border border-gray-200 dark:border-slate-700">
+            <div className="px-6 py-4 border-b border-gray-200 dark:border-slate-700/60 flex justify-between items-center bg-gray-50 dark:bg-slate-800/80">
+              <h3 className="text-lg font-bold dark:text-slate-100">Edit Metadata File</h3>
+              <button 
+                onClick={() => setEditingFile(null)}
+                className="text-gray-400 dark:text-slate-400 hover:text-emerald-500 dark:hover:text-emerald-400 transition-colors"
+              >
+                <XCircle className="w-6 h-6" />
+              </button>
+            </div>
+            <div className="p-6">
+              <label className="block text-sm font-medium mb-2 dark:text-slate-300">Nama File Baru</label>
+              <input 
+                type="text" 
+                value={editFileName}
+                onChange={(e) => setEditFileName(e.target.value)}
+                className="w-full bg-gray-50 dark:bg-slate-900/50 border border-gray-300 dark:border-slate-600/60 rounded-lg px-4 py-2.5 outline-none focus:border-emerald-500 dark:focus:border-emerald-400 font-mono text-sm dark:text-slate-200" 
+              />
+            </div>
+            <div className="px-6 py-4 border-t border-gray-200 dark:border-slate-700/60 bg-gray-50 dark:bg-slate-800/80 flex justify-end gap-3">
+              <button 
+                onClick={() => setEditingFile(null)}
+                className="px-4 py-2 rounded-lg border border-gray-300 dark:border-slate-600/60 text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700/50 transition-colors text-sm font-medium"
+              >
+                Batal
+              </button>
+              <button 
+                onClick={handleSaveEdit}
+                className="px-4 py-2 bg-emerald-600 dark:bg-emerald-500 hover:bg-emerald-700 dark:hover:bg-emerald-600 text-white rounded-lg text-sm font-medium transition-colors shadow-sm"
+              >
+                Simpan Perubahan
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {fileToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+          <div className="bg-white dark:bg-slate-800 rounded-xl w-full max-w-sm shadow-2xl shadow-black/40 overflow-hidden border border-gray-200 dark:border-slate-700 p-6 text-center">
+            <div className="w-16 h-16 bg-red-100 dark:bg-rose-500/15 text-red-600 dark:text-rose-400 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Trash2 className="w-8 h-8" />
+            </div>
+            <h3 className="text-lg font-bold mb-2 dark:text-slate-100">Hapus Media?</h3>
+            <p className="text-sm text-gray-500 dark:text-slate-400 mb-6 break-all">
+              File <strong className="dark:text-slate-200">{fileToDelete.name}</strong> akan dihapus permanen dari folder ini.
+            </p>
+            <div className="flex gap-3 justify-center">
+              <button 
+                onClick={() => setFileToDelete(null)}
+                className="px-4 py-2 rounded-lg border border-gray-300 dark:border-slate-600/60 text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700/50 transition-colors text-sm font-medium"
+              >
+                Batal
+              </button>
+              <button 
+                onClick={confirmDeleteFile}
+                className="px-4 py-2 bg-red-600 dark:bg-rose-500 hover:bg-red-700 dark:hover:bg-rose-600 text-white rounded-lg text-sm font-medium transition-colors shadow-sm"
+              >
+                Ya, Hapus
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1009,13 +1122,11 @@ function AnalyticsView({ accounts }) {
 
   return (
     <div className="space-y-6">
-      {/* Header Controls */}
       <div className="flex flex-wrap justify-between items-center bg-white dark:bg-slate-800 rounded-xl p-4 border border-gray-200 dark:border-slate-700/60 gap-4 shadow-sm">
          <div className="flex flex-wrap gap-4">
-           {/* INI YANG SEBELUMNYA STATIS, SEKARANG SUDAH DINAMIS */}
            <select className="bg-gray-50 dark:bg-slate-900/50 border border-gray-300 dark:border-slate-600/60 rounded-lg px-4 py-2 outline-none text-sm font-medium focus:border-emerald-500 dark:focus:border-emerald-400 dark:text-slate-200">
               <option value="all">Semua Channel (Keseluruhan)</option>
-              {accounts.map(acc => (
+              {accounts?.map(acc => (
                 <option key={acc.id} value={acc.id}>{acc.name}</option>
               ))}
            </select>
@@ -1031,7 +1142,6 @@ function AnalyticsView({ accounts }) {
          </div>
       </div>
 
-      {/* 4 Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <div className="bg-white dark:bg-slate-800 p-5 rounded-xl border border-gray-200 dark:border-slate-700/60 shadow-sm relative overflow-hidden">
           <div className="flex justify-between items-start mb-2">
@@ -1095,7 +1205,6 @@ function AnalyticsView({ accounts }) {
       </div>
       
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Main Chart Area (CCV) */}
         <div className="lg:col-span-2 bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700/60 p-6 shadow-sm flex flex-col">
           <div className="flex justify-between items-center mb-6">
             <h3 className="text-lg font-semibold dark:text-slate-100">Grafik Penonton Bersamaan (CCV)</h3>
@@ -1117,7 +1226,6 @@ function AnalyticsView({ accounts }) {
           </div>
         </div>
 
-        {/* Top Streams Table */}
         <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700/60 p-6 shadow-sm flex flex-col">
           <h3 className="text-lg font-semibold mb-4 dark:text-slate-100">Performa Live Tertinggi</h3>
           
@@ -1184,7 +1292,7 @@ function SettingsView({ accounts, fetchAccounts, isPreview, API_BASE }) {
       } catch (e) { }
     };
     fetchApiKeys(); 
-  }, []);
+  }, [API_BASE, isPreview]);
 
   const handleSaveGoogleCredentials = async () => {
     if (!clientId || !clientSecret) return alert('Client ID dan Client Secret harus diisi!');
@@ -1245,8 +1353,56 @@ function SettingsView({ accounts, fetchAccounts, isPreview, API_BASE }) {
     } catch (e) { alert('Gagal menghapus akun.'); }
   };
 
+  const handleFileUpload = async (e) => {
+    const files = e.target.files;
+    if (files.length === 0) return;
+    
+    if (isPreview) {
+      alert('Simulasi (Layar Preview): File client_secret.json diterima.');
+      return;
+    }
+
+    setIsUploading(true);
+    const formData = new FormData();
+    for (let file of files) formData.append('files', file);
+
+    try {
+      await fetch(`${API_BASE}/api/settings/upload-json`, { method: 'POST', body: formData });
+      const res = await fetch(`${API_BASE}/api/settings/api-keys`);
+      const data = await res.json();
+      setApiKeys(Array.isArray(data) ? data : []);
+      alert('File JSON berhasil diunggah.');
+    } catch (e) { 
+      alert('Gagal mengunggah file JSON.'); 
+    } finally { 
+      setIsUploading(false); 
+    }
+  };
+
+  const deleteKey = async (id) => {
+    if (isPreview) return;
+    if (!confirm('Anda yakin ingin menghapus API Key ini?')) return;
+    try {
+      await fetch(`${API_BASE}/api/settings/api-key/${id}`, { method: 'DELETE' });
+      const res = await fetch(`${API_BASE}/api/settings/api-keys`);
+      const data = await res.json();
+      setApiKeys(Array.isArray(data) ? data : []);
+    } catch (e) { alert('Gagal menghapus API key.'); }
+  };
+
+  const addScheduledMessage = () => {
+    setScheduledMessages([...scheduledMessages, { id: Date.now(), hour: 0, minute: 0, text: "" }]);
+  };
+  const updateScheduledMessage = (id, field, value) => {
+    setScheduledMessages(scheduledMessages.map(msg => msg.id === id ? { ...msg, [field]: value } : msg));
+  };
+  const removeScheduledMessage = (id) => {
+    setScheduledMessages(scheduledMessages.filter(msg => msg.id !== id));
+  };
+
   return (
     <div className="max-w-4xl space-y-6 pb-10">
+      
       {/* CARD 0: SETUP KREDENSIAL GOOGLE API */}
       <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700/60 p-6 shadow-sm">
         <div className="border-b border-gray-200 dark:border-slate-700/60 pb-4 mb-4">
@@ -1255,6 +1411,17 @@ function SettingsView({ accounts, fetchAccounts, isPreview, API_BASE }) {
             Setup Kredensial Google API
           </h3>
         </div>
+
+        {accounts?.length > 0 && (
+          <div className="mb-5 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800/30 rounded-xl p-4 flex items-start gap-3">
+            <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm text-emerald-800 dark:text-emerald-300 font-bold">Kredensial Valid & Aktif</p>
+              <p className="text-xs text-emerald-600 dark:text-emerald-400/90 mt-1">Sistem telah terhubung dengan <strong>{accounts.length} Channel YouTube</strong>. API siap digunakan untuk Live Streaming.</p>
+            </div>
+          </div>
+        )}
+
         <p className="text-sm text-gray-500 dark:text-slate-400 mb-5">
           Masukkan Client ID dan Client Secret dari Google Cloud Console. Anda cukup menyimpannya sekali saja di sini. Data akan disimpan aman di server.
         </p>
@@ -1290,6 +1457,51 @@ function SettingsView({ accounts, fetchAccounts, isPreview, API_BASE }) {
             </button>
           </div>
         </div>
+      </div>
+
+      {/* CARD 0.5: DAFTAR CHANNEL YOUTUBE TERHUBUNG */}
+      <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700/60 p-6 shadow-sm">
+        <div className="flex justify-between items-center border-b border-gray-200 dark:border-slate-700/60 pb-4 mb-5">
+          <h3 className="text-lg font-bold text-gray-800 dark:text-slate-100 flex items-center gap-2">
+            <PlayCircle className="w-5 h-5 text-red-500" />
+            Channel YouTube Terhubung
+          </h3>
+          {accounts?.length > 0 && (
+            <span className="bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400 text-xs font-bold px-3 py-1 rounded-full flex items-center gap-1.5 border border-emerald-200 dark:border-emerald-500/30">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+              {accounts.length} Channel Aktif
+            </span>
+          )}
+        </div>
+
+        {accounts?.length > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {accounts.map(acc => (
+              <div key={acc.id} className="flex justify-between items-center p-4 bg-gray-50 dark:bg-slate-900/50 rounded-xl border border-gray-200 dark:border-slate-700 hover:border-emerald-300 dark:hover:border-emerald-500/50 transition-all shadow-sm group">
+                <div className="flex items-center gap-3 overflow-hidden">
+                  <div className="w-10 h-10 rounded-full bg-red-100 dark:bg-red-500/15 flex items-center justify-center text-red-600 dark:text-red-400 shrink-0">
+                    <PlayCircle className="w-5 h-5" />
+                  </div>
+                  <div className="overflow-hidden">
+                    <p className="text-sm font-bold text-gray-800 dark:text-slate-200 truncate">{acc.name}</p>
+                    <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1 mt-0.5">
+                      <CheckCircle2 className="w-3 h-3" /> Siap digunakan
+                    </p>
+                  </div>
+                </div>
+                <button onClick={() => deleteAccount(acc.id)} className="text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 p-2 rounded-lg transition-colors sm:opacity-0 sm:group-hover:opacity-100" title="Putus Koneksi Akun">
+                  <Trash2 size={18} />
+                </button>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-sm text-gray-500 dark:text-slate-400 p-8 text-center border border-dashed border-gray-300 dark:border-slate-700/60 rounded-xl bg-gray-50/50 dark:bg-slate-900/20">
+            <Users className="w-10 h-10 mx-auto text-gray-400 mb-3 opacity-50" />
+            <p className="font-semibold text-gray-700 dark:text-slate-300 mb-1">Belum Ada Channel Terhubung</p>
+            <p className="text-xs">Gunakan form &quot;Autentikasi Manual&quot; di bawah untuk menambahkan channel YouTube Anda.</p>
+          </div>
+        )}
       </div>
 
       {/* CARD 1: AUTENTIKASI MANUAL */}
@@ -1348,36 +1560,214 @@ function SettingsView({ accounts, fetchAccounts, isPreview, API_BASE }) {
             {isSaving ? 'Memproses...' : 'Simpan Akun'}
           </button>
         </div>
+      </div>
 
-        {/* --- DAFTAR AKUN YANG TERSAMBUNG --- */}
-        <div className="mt-8 border-t border-gray-200 dark:border-slate-700/60 pt-6">
-          <h4 className="font-semibold text-sm dark:text-slate-200 mb-3 flex items-center gap-2">
-            <Users className="w-4 h-4 text-emerald-500" /> Daftar Akun Tersambung ({accounts.length})
-          </h4>
+      {/* CARD 2: MANAJEMEN API JSON */}
+      <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700/60 p-6 shadow-sm">
+        <div className="flex items-center gap-3 mb-4 border-b border-gray-200 dark:border-slate-700/60 pb-4">
+          <Upload className="w-6 h-6 text-gray-500 dark:text-slate-400" />
+          <h3 className="text-lg font-semibold dark:text-slate-100">Manajemen API v3 (Rotasi JSON)</h3>
+        </div>
+        <p className="text-sm text-gray-500 dark:text-slate-400 mb-6">
+          Upload file JSON dari Google Cloud Console untuk menghindari limit harian (Quota Exceeded). Sistem akan otomatis mengganti token API (Auto Rotate) saat limit tercapai.
+        </p>
+
+        <label className="block border-2 border-dashed border-gray-300 dark:border-slate-600/60 rounded-lg p-8 text-center hover:bg-gray-50 dark:hover:bg-slate-700/30 transition-colors cursor-pointer mb-6">
+          <Upload className="w-8 h-8 text-gray-400 dark:text-slate-500 mx-auto mb-2" />
+          <p className="text-sm font-medium dark:text-slate-200">{isUploading ? 'Sedang Mengunggah...' : 'Drag & Drop file client_secret.json di sini'}</p>
+          <p className="text-xs text-gray-500 dark:text-slate-400">Mendukung upload banyak file sekaligus</p>
+          <input type="file" multiple accept=".json" className="hidden" onChange={handleFileUpload} />
+        </label>
+
+        <div className="space-y-3">
+          <h4 className="font-medium text-sm dark:text-slate-200">Status API Key Aktif ({apiKeys.length})</h4>
           <div className="space-y-2">
-            {accounts.map(acc => (
-              <div key={acc.id} className="flex justify-between items-center p-3 bg-gray-50 dark:bg-slate-900/50 rounded-lg border border-gray-100 dark:border-slate-700">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-red-100 dark:bg-red-500/15 flex items-center justify-center text-red-600 dark:text-red-400">
-                    <PlayCircle className="w-4 h-4" />
-                  </div>
-                  <p className="text-sm font-bold text-gray-800 dark:text-slate-200">{acc.name}</p>
+            {apiKeys.map(key => (
+              <div key={key.id} className="flex justify-between items-center p-3 bg-gray-50 dark:bg-slate-900 rounded-lg border border-gray-100 dark:border-slate-700">
+                <div className="overflow-hidden">
+                  <p className="text-xs font-bold dark:text-slate-200 truncate">{key.name}</p>
+                  <p className="text-[10px] text-gray-500 truncate">{key.clientId}</p>
                 </div>
-                <button onClick={() => deleteAccount(acc.id)} className="text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 p-2 rounded-md transition-colors">
-                  <Trash2 size={16} />
-                </button>
+                <button onClick={() => deleteKey(key.id)} className="text-red-500 hover:text-red-700 p-2"><Trash2 size={16} /></button>
               </div>
             ))}
-            {accounts.length === 0 && (
-              <div className="text-sm text-gray-500 dark:text-slate-400 p-4 text-center border border-dashed border-gray-300 dark:border-slate-700/60 rounded-lg">
-                Belum ada akun YouTube yang tersambung. Selesaikan proses login di atas.
+            {apiKeys.length === 0 && (
+              <div className="text-sm text-gray-500 dark:text-slate-400 p-4 text-center border border-gray-100 dark:border-slate-700/60 rounded-lg">
+                Belum ada konfigurasi API JSON yang ditambahkan.
               </div>
             )}
           </div>
         </div>
       </div>
-      
-      {/* Sisa UI Pengaturan (API Key, Notifikasi, Chatbot) disingkat agar bersih */}
+
+      {/* CARD 3: NOTIFIKASI TELEGRAM/DISCORD */}
+      <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700/60 p-6 shadow-sm">
+        <div className="flex items-center justify-between mb-4 border-b border-gray-200 dark:border-slate-700/60 pb-4">
+          <div className="flex items-center gap-3">
+            <Bell className="w-6 h-6 text-blue-500 dark:text-blue-400" />
+            <h3 className="text-lg font-semibold dark:text-slate-100">Peringatan & Notifikasi Sistem</h3>
+          </div>
+          <label className="relative inline-flex items-center cursor-pointer">
+            <input type="checkbox" className="sr-only peer" checked={notifEnabled} onChange={() => setNotifEnabled(!notifEnabled)} />
+            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-600 peer-checked:bg-emerald-600 dark:peer-checked:bg-emerald-500"></div>
+          </label>
+        </div>
+        
+        <p className="text-sm text-gray-500 dark:text-slate-400 mb-5">
+          Kirim peringatan otomatis ke ponsel Anda jika terjadi kendala pada VPS atau Streaming.
+        </p>
+
+        <div className={`transition-opacity ${notifEnabled ? 'opacity-100' : 'opacity-40 pointer-events-none'}`}>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Platform Notifikasi</label>
+              <select 
+                value={notifPlatform}
+                onChange={(e) => setNotifPlatform(e.target.value)}
+                className="w-full bg-gray-50 dark:bg-slate-900/50 border border-gray-300 dark:border-slate-600/60 rounded-lg px-4 py-2.5 outline-none focus:border-emerald-500 dark:focus:border-emerald-400 dark:text-slate-200"
+              >
+                <option value="telegram">Telegram Bot</option>
+                <option value="discord">Discord Webhook</option>
+              </select>
+            </div>
+            
+            {notifPlatform === 'telegram' ? (
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Bot Token</label>
+                  <input type="password" placeholder="123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11" className={inputClassName} />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Chat ID (Target Group/User)</label>
+                  <input type="text" placeholder="-1001234567890" className={inputClassName} />
+                </div>
+              </div>
+            ) : (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Webhook URL</label>
+                <input type="url" placeholder="https://discord.com/api/webhooks/..." className={inputClassName} />
+              </div>
+            )}
+          </div>
+
+          <div className="bg-gray-50 dark:bg-slate-900/30 rounded-xl p-4 border border-gray-200 dark:border-slate-700/50">
+            <h4 className="text-sm font-semibold mb-3 dark:text-slate-200">Pemicu Peringatan (Triggers)</h4>
+            <div className="space-y-3">
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input type="checkbox" defaultChecked className="w-4 h-4 text-emerald-600 dark:text-emerald-500 rounded border-gray-300 dark:border-slate-600 focus:ring-emerald-500 bg-white dark:bg-slate-800" />
+                <span className="text-sm text-gray-700 dark:text-slate-300">Stream terputus (Error) atau OBS Fallback aktif</span>
+              </label>
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input type="checkbox" defaultChecked className="w-4 h-4 text-emerald-600 dark:text-emerald-500 rounded border-gray-300 dark:border-slate-600 focus:ring-emerald-500 bg-white dark:bg-slate-800" />
+                <span className="text-sm text-gray-700 dark:text-slate-300">Penggunaan CPU VPS melebihi 85%</span>
+              </label>
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input type="checkbox" defaultChecked className="w-4 h-4 text-emerald-600 dark:text-emerald-500 rounded border-gray-300 dark:border-slate-600 focus:ring-emerald-500 bg-white dark:bg-slate-800" />
+                <span className="text-sm text-gray-700 dark:text-slate-300">Limit Quota API Google / YouTube (Rotasi JSON terjadi)</span>
+              </label>
+            </div>
+            <div className="mt-4 pt-4 border-t border-gray-200 dark:border-slate-700/60 flex justify-end">
+              <button className="flex items-center gap-2 px-4 py-1.5 bg-gray-200 dark:bg-slate-700 hover:bg-gray-300 dark:hover:bg-slate-600 text-gray-800 dark:text-slate-200 text-xs font-medium rounded-lg transition-colors">
+                <Send className="w-3.5 h-3.5" /> Test Kirim Pesan
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* CARD 4: YOUTUBE CHATBOT */}
+      <div className="bg-gradient-to-br from-white to-emerald-50/30 dark:from-slate-800 dark:to-emerald-900/10 rounded-xl border border-gray-200 dark:border-slate-700/60 p-6 shadow-sm">
+        <div className="flex items-center justify-between mb-4 border-b border-gray-200 dark:border-slate-700/60 pb-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-500/15 flex items-center justify-center">
+              <Bot className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100">YouTube Chatbot Terintegrasi</h3>
+              <p className="text-xs text-gray-500 dark:text-slate-400">Bot otomatis untuk Live Chat</p>
+            </div>
+          </div>
+          <label className="relative inline-flex items-center cursor-pointer">
+            <input type="checkbox" className="sr-only peer" checked={chatbotEnabled} onChange={() => setChatbotEnabled(!chatbotEnabled)} />
+            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-600 peer-checked:bg-emerald-600 dark:peer-checked:bg-emerald-500"></div>
+          </label>
+        </div>
+
+        <div className={`space-y-6 transition-opacity ${chatbotEnabled ? 'opacity-100' : 'opacity-40 pointer-events-none'}`}>
+          <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700/60 rounded-xl p-4 shadow-sm">
+            <div className="flex justify-between items-center mb-3">
+              <h4 className="text-sm font-semibold flex items-center gap-2 dark:text-slate-200">
+                <Clock className="w-4 h-4 text-gray-500 dark:text-slate-400" /> Timeline Pesan Bot
+              </h4>
+              <button onClick={addScheduledMessage} className="text-xs text-emerald-600 dark:text-emerald-400 hover:underline font-medium">+ Tambah Jadwal</button>
+            </div>
+            
+            <div className="space-y-3">
+              {scheduledMessages.map((msg) => (
+                <div key={msg.id} className="flex items-start gap-3 bg-gray-50 dark:bg-slate-900/30 p-3 rounded-lg border border-gray-200 dark:border-slate-700/50">
+                  <div className="flex-1 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-bold uppercase text-gray-500 dark:text-slate-400">Kirim setelah stream berjalan:</span>
+                      <input 
+                        type="number" 
+                        min="0"
+                        value={msg.hour} 
+                        onChange={(e) => updateScheduledMessage(msg.id, 'hour', e.target.value)}
+                        className="w-14 bg-white dark:bg-slate-900/80 border border-gray-300 dark:border-slate-600/60 rounded-md px-2 py-1 text-sm outline-none focus:border-emerald-500 dark:focus:border-emerald-400 text-center dark:text-slate-200" 
+                      /> 
+                      <span className="text-xs text-gray-600 dark:text-slate-400 font-medium">Jam</span>
+                      <input 
+                        type="number" 
+                        min="0"
+                        max="59"
+                        value={msg.minute} 
+                        onChange={(e) => updateScheduledMessage(msg.id, 'minute', e.target.value)}
+                        className="w-14 bg-white dark:bg-slate-900/80 border border-gray-300 dark:border-slate-600/60 rounded-md px-2 py-1 text-sm outline-none focus:border-emerald-500 dark:focus:border-emerald-400 text-center dark:text-slate-200" 
+                      /> 
+                      <span className="text-xs text-gray-600 dark:text-slate-400 font-medium">Menit</span>
+                    </div>
+                    <textarea 
+                      rows="2" 
+                      value={msg.text}
+                      onChange={(e) => updateScheduledMessage(msg.id, 'text', e.target.value)}
+                      placeholder="Isi pesan bot..."
+                      className="w-full bg-white dark:bg-slate-900/80 border border-gray-300 dark:border-slate-600/60 rounded-md px-3 py-2 text-sm outline-none focus:border-emerald-500 dark:focus:border-emerald-400 resize-none dark:text-slate-200"
+                    ></textarea>
+                  </div>
+                  <button 
+                    onClick={() => removeScheduledMessage(msg.id)}
+                    className="mt-6 p-1.5 text-gray-400 dark:text-slate-500 hover:text-red-500 dark:hover:text-rose-400 transition-colors"
+                    title="Hapus Jadwal"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              ))}
+              
+              {scheduledMessages.length === 0 && (
+                <div className="text-center py-4 text-sm text-gray-500 dark:text-slate-500 border border-dashed border-gray-300 dark:border-slate-700/60 rounded-lg">
+                  Belum ada jadwal pesan. Klik &quot;+ Tambah Jadwal&quot;
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700/60 rounded-xl p-4 shadow-sm">
+            <div className="flex justify-between items-center mb-3">
+              <h4 className="text-sm font-semibold flex items-center gap-2 dark:text-slate-200">
+                <MessageCircle className="w-4 h-4 text-gray-500 dark:text-slate-400" /> Aturan Auto-Reply (Balasan Cepat)
+              </h4>
+              <button className="text-xs text-emerald-600 dark:text-emerald-400 hover:underline font-medium">+ Tambah Aturan</button>
+            </div>
+            
+            <div className="space-y-3">
+              <div className="text-center py-4 text-sm text-gray-500 dark:text-slate-500 border border-dashed border-gray-300 dark:border-slate-700/60 rounded-lg">
+                  Belum ada aturan auto-reply ditambahkan.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -1405,12 +1795,10 @@ function LogView() {
 
   return (
     <div className="flex flex-col lg:flex-row gap-6 h-[calc(100vh-8rem)]">
-      {/* KIRI: ADVANCED STREAM HEALTH MONITOR */}
       <div className="lg:w-1/3 flex flex-col gap-4 overflow-y-auto pr-2 custom-scrollbar">
         <h3 className="text-lg font-bold flex items-center gap-2 mb-2 dark:text-slate-100">
           <Activity className="w-5 h-5 text-emerald-500 dark:text-emerald-400" /> Stream Health
         </h3>
-        {/* Info Cards */}
         <div className="grid grid-cols-2 gap-3">
           <div className="bg-gray-900 dark:bg-slate-800 text-white p-4 rounded-xl border border-gray-800 dark:border-slate-700/60">
             <div className="flex items-center gap-1.5 text-xs text-gray-400 dark:text-slate-400 font-bold uppercase tracking-wider mb-1"><Wifi className="w-3 h-3" /> Bitrate</div>
@@ -1420,11 +1808,24 @@ function LogView() {
             <div className="flex items-center gap-1.5 text-xs text-gray-400 dark:text-slate-400 font-bold uppercase tracking-wider mb-1"><Monitor className="w-3 h-3" /> FPS</div>
             <div className={`text-2xl font-black font-mono tracking-tighter ${currentFps >= 60 ? 'text-green-400 dark:text-emerald-400' : 'text-gray-500 dark:text-slate-500'}`}>{currentFps} <span className="text-xs font-normal text-gray-500 dark:text-slate-500">/ 60</span></div>
           </div>
+          <div className="bg-gray-900 dark:bg-slate-800 text-white p-4 rounded-xl border border-gray-800 dark:border-slate-700/60">
+            <div className="flex items-center gap-1.5 text-xs text-gray-400 dark:text-slate-400 font-bold uppercase tracking-wider mb-1"><Zap className="w-3 h-3" /> Drops</div>
+            <div className={`text-2xl font-black font-mono tracking-tighter ${droppedFrames > 0 ? 'text-orange-500' : 'text-gray-500 dark:text-slate-500'}`}>{droppedFrames} <span className="text-xs font-normal text-gray-500 dark:text-slate-500">(0.00%)</span></div>
+          </div>
+          <div className="bg-gray-900 dark:bg-slate-800 text-white p-4 rounded-xl border border-gray-800 dark:border-slate-700/60">
+            <div className="flex items-center gap-1.5 text-xs text-gray-400 dark:text-slate-400 font-bold uppercase tracking-wider mb-1"><Cpu className="w-3 h-3" /> Encoder</div>
+            <div className="text-sm font-black font-mono mt-1 text-gray-500 dark:text-slate-500">Menunggu...</div>
+          </div>
         </div>
       </div>
 
-      {/* KANAN: TERMINAL */}
       <div className="lg:w-2/3 bg-[#0a0a0a] dark:bg-[#0f172a] rounded-xl border border-gray-800 dark:border-slate-800 flex flex-col font-mono text-sm shadow-[0_8px_30px_rgb(0,0,0,0.4)] overflow-hidden h-full">
+        <div className="bg-[#1a1a1a] dark:bg-[#0f172a] px-4 py-2.5 border-b border-gray-800 dark:border-slate-800 flex justify-between items-center z-10">
+          <div className="flex items-center gap-3 text-gray-400 dark:text-slate-400 text-xs">
+            <TerminalSquare className="w-4 h-4" />
+            <span className="font-bold tracking-wider">root@vps-vstream:~# tail -f /var/log/ffmpeg_stream.log</span>
+          </div>
+        </div>
         <div className="p-4 overflow-y-auto flex-1 z-10 custom-scrollbar text-[13px] leading-relaxed">
           <div className="text-gray-500 dark:text-slate-600 italic">Menunggu koneksi log dari server...</div>
         </div>
@@ -1433,7 +1834,6 @@ function LogView() {
   );
 }
 
-// Komponen Pembantu UI Disingkat agar file mudah disalin...
 function ProgressBar({ label, percentage, color, valueText, subText }) {
   return (
     <div className="flex flex-col justify-end w-full">
