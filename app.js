@@ -115,7 +115,7 @@ app.delete('/api/media/:filename', (req, res) => {
     res.json({ success: true });
 });
 
-// --- JALUR BARU: IMPORT DARI URL (DIPERBARUI DENGAN GDRIVE BYPASS) ---
+// --- JALUR BARU: IMPORT DARI URL (DIPERBARUI DENGAN WGET BYPASS) ---
 app.post('/api/media/import-url', (req, res) => {
     let { url } = req.body;
     if (!url) return res.status(400).json({ success: false, message: 'URL tidak valid' });
@@ -125,7 +125,7 @@ app.post('/api/media/import-url', (req, res) => {
 
     // Mengekstrak nama file dari URL asal
     let filename = url.substring(url.lastIndexOf('/') + 1).split('?')[0];
-    const gdriveMatch = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+    const gdriveMatch = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/) || url.match(/id=([a-zA-Z0-9_-]+)/);
     
     // Jika dari GDrive atau file tidak punya akhiran format (.mp4), berikan nama otomatis
     if (!filename || filename.indexOf('.') === -1 || gdriveMatch) {
@@ -134,25 +134,19 @@ app.post('/api/media/import-url', (req, res) => {
     filename = filename.replace(/[^a-zA-Z0-9.-]/g, '_'); // Bersihkan nama
     
     const dest = path.join(MEDIA_DIR, filename);
-
     let command = '';
 
-    // 2. GDRIVE AUTO-BYPASS (Menembus peringatan "Can't scan for viruses" untuk file besar)
+    // 2. GDRIVE WGET BYPASS (Sangat ampuh menembus peringatan virus GDrive untuk file besar)
     if (gdriveMatch && gdriveMatch[1]) {
         const fileId = gdriveMatch[1];
         // Skrip canggih: Ambil cookie, cari token 'confirm', lalu download pakai token tersebut
-        command = `curl -sc /tmp/cookie_${fileId}.txt "https://drive.google.com/uc?export=download&id=${fileId}" > /dev/null && CONFIRM=$(awk '/_warning_/ {print $NF}' /tmp/cookie_${fileId}.txt) && curl -Lb /tmp/cookie_${fileId}.txt "https://drive.google.com/uc?export=download&confirm=$CONFIRM&id=${fileId}" -o "${dest}" && rm -f /tmp/cookie_${fileId}.txt`;
+        command = `wget --quiet --load-cookies /tmp/cookie_${fileId}.txt "https://docs.google.com/uc?export=download&confirm=$(wget --quiet --save-cookies /tmp/cookie_${fileId}.txt --keep-session-cookies --no-check-certificate 'https://docs.google.com/uc?export=download&id=${fileId}' -O- | sed -rn 's/.*confirm=([0-9A-Za-z_]+).*/\\1\\n/p')&id=${fileId}" -O "${dest}" || rm -f /tmp/cookie_${fileId}.txt`;
     } else {
         // Download normal untuk direct link non-Google Drive
         command = `curl -L -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" -o "${dest}" "${url}"`;
     }
     
     exec(command, (error, stdout, stderr) => {
-        if (error) {
-            if (fs.existsSync(dest)) fs.unlinkSync(dest);
-            return res.status(500).json({ success: false, message: 'Gagal mendownload: ' + error.message });
-        }
-
         // Validasi Ekstra: Pastikan file yang terunduh ukurannya masuk akal (> 100KB)
         // Jika kurang dari 100KB, itu adalah halaman HTML penolakan (misal akses Private), bukan video.
         if (fs.existsSync(dest)) {
@@ -161,7 +155,7 @@ app.post('/api/media/import-url', (req, res) => {
                 fs.unlinkSync(dest); // Hapus file sampah HTML
                 return res.status(400).json({ 
                     success: false, 
-                    message: 'Gagal: File diblokir. Pastikan link Google Drive Anda disetting ke "Siapa saja yang memiliki link" (Public).' 
+                    message: 'Gagal: File diblokir Google Drive. Pastikan setting akses file GDrive adalah "Siapa saja yang memiliki link" (Public).' 
                 });
             }
             res.json({ success: true, message: `File berhasil diimpor sebagai ${filename}` });
