@@ -117,17 +117,20 @@ app.delete('/api/settings/api-key/:id', (req, res) => {
 });
 
 // --- FITUR BARU: MENGAMBIL DAFTAR AKUN CHANNEL YANG TERSAMBUNG ---
-// (Ini fitur yang tertinggal sebelumnya, yang memunculkan daftar dropdown!)
+// (Menambahkan console log untuk monitoring)
 app.get('/api/settings/accounts', (req, res) => {
     try {
+        console.log("Meminta daftar akun YouTube yang tersambung...");
         // Cari semua file yang berawalan token_ dan berakhiran .json
         const files = fs.readdirSync(__dirname).filter(f => f.startsWith('token_') && f.endsWith('.json'));
         const accounts = files.map(f => {
             let name = f.replace('token_', '').replace('.json', '');
             return { id: f, name: name.replace(/_/g, ' ') };
         });
+        console.log("Daftar akun ditemukan:", accounts);
         res.json(accounts);
     } catch (error) {
+        console.error("Error membaca daftar akun:", error);
         res.json([]);
     }
 });
@@ -171,8 +174,10 @@ app.post('/api/auth/save', async (req, res) => {
 
         const { tokens } = await oauth2Client.getToken(code);
         fs.writeFileSync(path.join(__dirname, `token_${accountName.replace(/\s+/g, '_')}.json`), JSON.stringify(tokens, null, 2));
+        console.log(`Token disimpan untuk akun: ${accountName}`);
         res.json({ success: true, message: `Akun ${accountName} tersambung!` });
     } catch (e) { 
+        console.error("Gagal simpan token:", e);
         res.status(500).json({ success: false, message: e.message }); 
     }
 });
