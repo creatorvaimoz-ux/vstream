@@ -1236,8 +1236,8 @@ function MediaView({ isPreview, API_BASE }) {
 
       {/* MODAL IMPORT URL */}
       {showImportUrlModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
-          <div className="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-md shadow-2xl shadow-black/40 overflow-hidden border border-gray-200 dark:border-slate-700 flex flex-col">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4" onClick={() => setShowImportUrlModal(false)}>
+          <div className="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-md shadow-2xl shadow-black/40 overflow-hidden border border-gray-200 dark:border-slate-700 flex flex-col" onClick={e => e.stopPropagation()}>
             <div className="px-6 py-4 border-b border-gray-200 dark:border-slate-700/60 flex justify-between items-center bg-gray-50 dark:bg-slate-800/80">
               <h3 className="text-lg font-bold dark:text-slate-100 flex items-center gap-2">
                  <LinkIcon className="w-5 h-5 text-blue-500" /> Import File dari URL
@@ -1249,15 +1249,23 @@ function MediaView({ isPreview, API_BASE }) {
             
             <div className="p-6">
               <label className="block text-sm font-medium mb-2 dark:text-slate-300">Direct Link (URL Langsung)</label>
-              <textarea 
-                rows="4"
-                value={importUrl}
-                onChange={(e) => setImportUrl(e.target.value)}
-                placeholder="https://contoh.com/video-anda.mp4" 
-                className="w-full bg-gray-50 dark:bg-slate-900/50 border border-gray-300 dark:border-slate-600/60 rounded-lg px-4 py-3 outline-none focus:border-blue-500 dark:focus:border-blue-400 dark:text-slate-200 resize-none font-mono text-xs" 
-              ></textarea>
+              <div className="relative">
+                <input 
+                  type="text" 
+                  value={importUrl}
+                  onChange={(e) => setImportUrl(e.target.value)}
+                  placeholder="Paste link Google Drive di sini..." 
+                  className="w-full bg-white dark:bg-slate-900/80 border border-gray-300 dark:border-slate-600/60 rounded-lg px-4 py-3 outline-none focus:border-blue-500 dark:focus:border-blue-400 dark:text-slate-200 font-mono text-sm pr-10 shadow-sm transition-all" 
+                  autoFocus
+                />
+                {importUrl && (
+                  <button onClick={() => setImportUrl('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-red-500 transition-colors">
+                    <XCircle className="w-5 h-5" />
+                  </button>
+                )}
+              </div>
               <div className="mt-3 text-[11px] text-gray-500 dark:text-slate-400 bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg border border-blue-100 dark:border-blue-800/30">
-                 <strong>Perhatian:</strong> Server VPS Anda akan mengunduh langsung dari tautan tersebut. Pastikan tautan langsung mengarah ke file video (contoh berakhiran .mp4) dan dapat diakses publik.
+                 <strong>Perhatian:</strong> Server VPS akan mengunduh langsung dari tautan tersebut. Pastikan file GDrive Anda disetting <strong>"Siapa saja memiliki link" (Public)</strong>.
               </div>
             </div>
 
@@ -1314,7 +1322,7 @@ function MediaView({ isPreview, API_BASE }) {
                 </div>
                 <div className="border border-gray-200 dark:border-slate-700/60 rounded-xl overflow-hidden">
                   <div className="bg-gray-50 dark:bg-slate-900/30 px-4 py-2 border-b border-gray-200 dark:border-slate-700/60 text-xs font-medium text-gray-500 dark:text-slate-400">
-                    Daftar Video di Media (Klik kotak untuk memilih)
+                    Daftar Video di Media (Bisa dipilih banyak)
                   </div>
                   <div className="max-h-48 overflow-y-auto p-2 space-y-1 custom-scrollbar">
                     {mediaFiles.length === 0 ? (
@@ -1358,6 +1366,46 @@ function MediaView({ isPreview, API_BASE }) {
                 onClick={handleSavePlaylist}
               >
                 Simpan Playlist
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Edit Media */}
+      {editingFile && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+          <div className="bg-white dark:bg-slate-800 rounded-xl w-full max-w-md shadow-2xl shadow-black/40 overflow-hidden border border-gray-200 dark:border-slate-700">
+            <div className="px-6 py-4 border-b border-gray-200 dark:border-slate-700/60 flex justify-between items-center bg-gray-50 dark:bg-slate-800/80">
+              <h3 className="text-lg font-bold dark:text-slate-100">Edit Metadata File</h3>
+              <button 
+                onClick={() => setEditingFile(null)}
+                className="text-gray-400 dark:text-slate-400 hover:text-emerald-500 dark:hover:text-emerald-400 transition-colors"
+              >
+                <XCircle className="w-6 h-6" />
+              </button>
+            </div>
+            <div className="p-6">
+              <label className="block text-sm font-medium mb-2 dark:text-slate-300">Nama File Baru</label>
+              <input 
+                type="text" 
+                value={editFileName}
+                onChange={(e) => setEditFileName(e.target.value)}
+                className="w-full bg-gray-50 dark:bg-slate-900/50 border border-gray-300 dark:border-slate-600/60 rounded-lg px-4 py-2.5 outline-none focus:border-emerald-500 dark:focus:border-emerald-400 font-mono text-sm dark:text-slate-200" 
+              />
+            </div>
+            <div className="px-6 py-4 border-t border-gray-200 dark:border-slate-700/60 bg-gray-50 dark:bg-slate-800/80 flex justify-end gap-3">
+              <button 
+                onClick={() => setEditingFile(null)}
+                className="px-4 py-2 rounded-lg border border-gray-300 dark:border-slate-600/60 text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700/50 transition-colors text-sm font-medium"
+              >
+                Batal
+              </button>
+              <button 
+                onClick={handleSaveEdit}
+                className="px-4 py-2 bg-emerald-600 dark:bg-emerald-500 hover:bg-emerald-700 dark:hover:bg-emerald-600 text-white rounded-lg text-sm font-medium transition-colors shadow-sm"
+              >
+                Simpan Perubahan
               </button>
             </div>
           </div>
@@ -2225,6 +2273,10 @@ function LogView() {
     </div>
   );
 }
+
+/* =========================================
+   REUSABLE UI COMPONENTS
+   ========================================= */
 
 function StatCard({ title, value, icon: Icon, color, bgColor, className = "" }) {
   return (
