@@ -2,12 +2,12 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const dotenv = require('dotenv');
-const { exec } = require('child_process');
 const { google } = require('googleapis');
 const fs = require('fs');
 const multer = require('multer');
 const https = require('https');
 const http = require('http');
+const { URL } = require('url');
 
 // Load .env file
 dotenv.config();
@@ -24,39 +24,32 @@ if (!fs.existsSync(SECRETS_DIR)) {
     fs.mkdirSync(SECRETS_DIR, { recursive: true });
 }
 
-// Direktori untuk Media Video
 const MEDIA_DIR = path.join(__dirname, 'public/uploads');
 if (!fs.existsSync(MEDIA_DIR)) {
     fs.mkdirSync(MEDIA_DIR, { recursive: true });
 }
 
-// File Database untuk Playlist
 const PLAYLIST_FILE = path.join(__dirname, 'playlists.json');
 if (!fs.existsSync(PLAYLIST_FILE)) {
     fs.writeFileSync(PLAYLIST_FILE, JSON.stringify([]));
 }
 
-// Storage untuk JSON API
 const storage = multer.diskStorage({
     destination: (req, file, cb) => cb(null, SECRETS_DIR),
     filename: (req, file, cb) => {
-        const uniqueName = Date.now() + '-' + file.originalname;
-        cb(null, uniqueName);
+        cb(null, Date.now() + '-' + file.originalname);
     }
 });
 const upload = multer({ storage });
 
-// Storage khusus untuk Video/Media
 const mediaStorage = multer.diskStorage({
     destination: (req, file, cb) => cb(null, MEDIA_DIR),
     filename: (req, file, cb) => {
-        // Hilangkan spasi pada nama file
         const safeName = file.originalname.replace(/\s+/g, '_');
         cb(null, safeName);
     }
 });
 const uploadMedia = multer({ storage: mediaStorage });
-
 
 // --- FUNGSI GOOGLE OAUTH ---
 let cachedCredentials = null;
@@ -64,32 +57,127 @@ const CREDENTIALS_FILE = path.join(__dirname, 'google_credentials.json');
 
 function getOAuth2Client() {
     let clientId, clientSecret;
-
     if (fs.existsSync(CREDENTIALS_FILE)) {
         const data = JSON.parse(fs.readFileSync(CREDENTIALS_FILE));
         clientId = data.clientId;
         clientSecret = data.clientSecret;
     }
-
     if (!clientId && process.env.GOOGLE_CLIENT_ID) {
         clientId = process.env.GOOGLE_CLIENT_ID;
         clientSecret = process.env.GOOGLE_CLIENT_SECRET;
     }
-
     if (!clientId || !clientSecret) return null;
-
     return new google.auth.OAuth2(clientId, clientSecret, 'http://localhost');
 }
 
+// --- FUNGSI DOWNLOADER PINTAR (NATIVE NODE.JS) ---
+
+// 1. Fungsi Khusus Menembus Google Drive
+function downloadGoogleDrive(fileId, destPath, callback) {
+    const initialUrl = `https://drive.google.com/uc?export=download&id=${fileId}`;
+    
+    function requestWithRedirects(reqUrl, cookies, isRetry) {
+        const parsedUrl = new URL(reqUrl);
+        const options = {
+            hostname: parsedUrl.hostname,
+            path: parsedUrl.pathname + parsedUrl.search,
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64 AppleWebKit/537.36)',
+            }
+        };
+        if (cookies) options.headers['Cookie'] = cookies;
+
+        https.get(options, (res) => {
+            let setCookie = res.headers['set-cookie'];
+            let newCookies = cookies;
+            if (setCookie) {
+                newCookies = setCookie.map(c => c.split(';')[0]).join('; ');
+            }
+
+            if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+                // Ikuti Redirect
+                requestWithRedirects(res.headers.location, newCookies, isRetry);
+            } else if (res.statusCode === 200) {
+                const contentType = res.headers['content-type'] || '';
+                
+                // Jika Google memberikan HTML peringatan Virus (Bukan Video)
+                if (contentType.includes('text/html') && !isRetry) {
+                    let body = '';
+                    res.on('data', chunk => body += chunk);
+                    res.on('end', () => {
+                        // Ekstrak Token Rahasia dari HTML
+                        const match = body.match(/confirm=([a-zA-Z0-9_-]+)/);
+                        if (match && match[1]) {
+                            const confirmToken = match[1];
+                            const confirmUrl = `https://drive.google.com/uc?export=download&id=${fileId}&confirm=${confirmToken}`;
+                            // Request ulang file aslinya dengan Token & Cookie
+                            requestWithRedirects(confirmUrl, newCookies, true);
+                        } else {
+                            callback(new Error("Gagal Bypass GDrive: Token konfirmasi tidak ditemukan."));
+                        }
+                    });
+                } else {
+                    // Berhasil mendapatkan file video aslinya
+                    const fileStream = fs.createWriteStream(destPath);
+                    res.pipe(fileStream);
+                    fileStream.on('finish', () => {
+                        fileStream.close();
+                        callback(null);
+                    });
+                    fileStream.on('error', (err) => {
+                        fs.unlink(destPath, () => {});
+                        callback(err);
+                    });
+                }
+            } else {
+                callback(new Error(`Ditolak server dengan status HTTP: ${res.statusCode}`));
+            }
+        }).on('error', (err) => {
+            callback(err);
+        });
+    }
+
+    requestWithRedirects(initialUrl, null, false);
+}
+
+// 2. Fungsi Download Standar (Untuk link selain Google Drive)
+function downloadStandardUrl(urlStr, destPath, callback, redirectCount = 0) {
+    if (redirectCount > 5) return callback(new Error('Terlalu banyak redirect. Link tidak valid.'));
+    const client = urlStr.startsWith('https') ? https : http;
+    
+    client.get(urlStr, { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' } }, (res) => {
+        if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+            let newUrl = res.headers.location;
+            if (!newUrl.startsWith('http')) {
+                const parsed = new URL(urlStr);
+                newUrl = `${parsed.protocol}//${parsed.host}${newUrl}`;
+            }
+            downloadStandardUrl(newUrl, destPath, callback, redirectCount + 1);
+        } else if (res.statusCode === 200) {
+            const fileStream = fs.createWriteStream(destPath);
+            res.pipe(fileStream);
+            fileStream.on('finish', () => {
+                fileStream.close();
+                callback(null);
+            });
+            fileStream.on('error', (err) => {
+                fs.unlink(destPath, () => {});
+                callback(err);
+            });
+        } else {
+            callback(new Error(`Gagal mendownload, Status HTTP: ${res.statusCode}`));
+        }
+    }).on('error', (err) => {
+        callback(err);
+    });
+}
 
 // --- API ROUTES ---
 
-// [Status]
 app.get('/api/status', (req, res) => {
     res.json({ status: 'running', message: 'Backend VStream Aktif' });
 });
 
-// --- MANAJEMEN MEDIA ---
 app.post('/api/media/upload', uploadMedia.array('files'), (req, res) => {
     const count = req.files ? req.files.length : 0;
     res.json({ success: true, message: `${count} file berhasil diunggah ke VPS.` });
@@ -115,54 +203,53 @@ app.delete('/api/media/:filename', (req, res) => {
     res.json({ success: true });
 });
 
-// --- JALUR BARU: IMPORT DARI URL (DIPERBARUI DENGAN WGET BYPASS) ---
+// --- JALUR IMPORT URL TERBARU (NATIVE NODE.JS) ---
 app.post('/api/media/import-url', (req, res) => {
     let { url } = req.body;
     if (!url) return res.status(400).json({ success: false, message: 'URL tidak valid' });
 
-    // 1. PEMBERSIH URL: Buang spasi dan Enter yang tidak sengaja ter-paste
     url = url.trim();
 
-    // Mengekstrak nama file dari URL asal
     let filename = url.substring(url.lastIndexOf('/') + 1).split('?')[0];
     const gdriveMatch = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/) || url.match(/id=([a-zA-Z0-9_-]+)/);
     
-    // Jika dari GDrive atau file tidak punya akhiran format (.mp4), berikan nama otomatis
     if (!filename || filename.indexOf('.') === -1 || gdriveMatch) {
         filename = `import_${Date.now()}.mp4`; 
     }
-    filename = filename.replace(/[^a-zA-Z0-9.-]/g, '_'); // Bersihkan nama
+    filename = filename.replace(/[^a-zA-Z0-9.-]/g, '_'); 
     
     const dest = path.join(MEDIA_DIR, filename);
-    let command = '';
 
-    // 2. GDRIVE WGET BYPASS (Sangat ampuh menembus peringatan virus GDrive untuk file besar)
-    if (gdriveMatch && gdriveMatch[1]) {
-        const fileId = gdriveMatch[1];
-        // Skrip canggih: Ambil cookie, cari token 'confirm', lalu download pakai token tersebut
-        command = `wget --quiet --load-cookies /tmp/cookie_${fileId}.txt "https://docs.google.com/uc?export=download&confirm=$(wget --quiet --save-cookies /tmp/cookie_${fileId}.txt --keep-session-cookies --no-check-certificate 'https://docs.google.com/uc?export=download&id=${fileId}' -O- | sed -rn 's/.*confirm=([0-9A-Za-z_]+).*/\\1\\n/p')&id=${fileId}" -O "${dest}" || rm -f /tmp/cookie_${fileId}.txt`;
-    } else {
-        // Download normal untuk direct link non-Google Drive
-        command = `curl -L -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" -o "${dest}" "${url}"`;
-    }
-    
-    exec(command, (error, stdout, stderr) => {
-        // Validasi Ekstra: Pastikan file yang terunduh ukurannya masuk akal (> 100KB)
-        // Jika kurang dari 100KB, itu adalah halaman HTML penolakan (misal akses Private), bukan video.
+    // Fungsi pengecekan sukses
+    const handleSuccess = (err) => {
+        if (err) {
+            if (fs.existsSync(dest)) fs.unlinkSync(dest);
+            return res.status(500).json({ success: false, message: err.message });
+        }
+        
         if (fs.existsSync(dest)) {
             const stats = fs.statSync(dest);
             if (stats.size < 100 * 1024) { 
-                fs.unlinkSync(dest); // Hapus file sampah HTML
+                fs.unlinkSync(dest); 
                 return res.status(400).json({ 
                     success: false, 
-                    message: 'Gagal: File diblokir Google Drive. Pastikan setting akses file GDrive adalah "Siapa saja yang memiliki link" (Public).' 
+                    message: 'Gagal: File terlalu kecil (0MB). Pastikan link Google Drive Anda disetting ke "Siapa saja yang memiliki link" (Public).' 
                 });
             }
-            res.json({ success: true, message: `File berhasil diimpor sebagai ${filename}` });
+            res.json({ success: true, message: `Berhasil! File video utuh tersimpan sebagai ${filename}` });
         } else {
             res.status(500).json({ success: false, message: 'Gagal menyimpan file di server.' });
         }
-    });
+    };
+
+    // Eksekusi Pilihan Download
+    if (gdriveMatch && gdriveMatch[1]) {
+        // Jika Link Google Drive, gunakan Downloader Khusus GDrive
+        downloadGoogleDrive(gdriveMatch[1], dest, handleSuccess);
+    } else {
+        // Jika Link Biasa, gunakan Downloader Standar
+        downloadStandardUrl(url, dest, handleSuccess);
+    }
 });
 
 // --- MANAJEMEN PLAYLIST ---
@@ -202,8 +289,6 @@ app.delete('/api/playlists/:id', (req, res) => {
     }
 });
 
-
-// [Input Manual Client ID & Secret]
 app.post('/api/settings/google-credentials', (req, res) => {
     const { clientId, clientSecret } = req.body;
     if (!clientId || !clientSecret) {
@@ -214,7 +299,6 @@ app.post('/api/settings/google-credentials', (req, res) => {
     res.json({ success: true, message: 'Kredensial Google API berhasil disimpan di server!' });
 });
 
-// [Mengambil Daftar Akun YouTube]
 app.get('/api/settings/accounts', (req, res) => {
     try {
         const files = fs.readdirSync(__dirname).filter(f => f.startsWith('token_') && f.endsWith('.json'));
@@ -234,7 +318,6 @@ app.delete('/api/settings/account/:id', (req, res) => {
     res.json({ success: true });
 });
 
-// [Generate Auth URL]
 app.get('/api/auth/url', (req, res) => {
     try {
         const oauth2Client = getOAuth2Client();
@@ -255,7 +338,6 @@ app.get('/api/auth/url', (req, res) => {
     }
 });
 
-// [Save Auth Token]
 app.post('/api/auth/save', async (req, res) => {
     const { accountName, authUrl } = req.body;
     try {
