@@ -72,10 +72,10 @@ function getOAuth2Client() {
 
 // --- FUNGSI DOWNLOADER PINTAR (NATIVE NODE.JS) ---
 
-// 1. Fungsi Khusus Menembus Google Drive (DIPERBARUI DENGAN COOKIE PERSISTEN)
+// 1. Fungsi Khusus Menembus Google Drive (DIPERBARUI DENGAN DEEP HTML SCRAPE)
 function downloadGoogleDrive(fileId, destPath, callback) {
     const initialUrl = `https://drive.google.com/uc?export=download&id=${fileId}`;
-    let globalCookies = {}; // Simpan cookie agar persisten lintas request
+    let globalCookies = {}; 
     
     function requestWithRedirects(reqUrl, isRetry) {
         const parsedUrl = new URL(reqUrl);
@@ -87,63 +87,75 @@ function downloadGoogleDrive(fileId, destPath, callback) {
             headers: {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
                 'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+                'Accept-Language': 'en-US,en;q=0.5',
             }
         };
         
-        // Bawa cookie di setiap request
         if (cookieString) options.headers['Cookie'] = cookieString;
 
         https.get(options, (res) => {
-            // Tangkap dan simpan Cookie dari Google
+            // Tangkap dan simpan semua Cookie dari Google agar tidak hilang
             if (res.headers['set-cookie']) {
                 res.headers['set-cookie'].forEach(c => {
                     const parts = c.split(';')[0].split('=');
                     if (parts.length >= 2) {
-                        const key = parts.shift();
-                        globalCookies[key] = parts.join('=');
+                        const key = parts.shift().trim();
+                        globalCookies[key] = parts.join('=').trim();
                     }
                 });
             }
 
+            // Jika ada pengalihan (Redirect)
             if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-                // Ikuti Redirect
                 let nextUrl = res.headers.location;
                 if (!nextUrl.startsWith('http')) {
                     nextUrl = `https://${parsedUrl.hostname}${nextUrl}`;
                 }
                 requestWithRedirects(nextUrl, isRetry);
-            } else if (res.statusCode === 200) {
+            } 
+            // Jika berhasil masuk ke halaman
+            else if (res.statusCode === 200) {
                 const contentType = res.headers['content-type'] || '';
                 
                 // Jika Google memberikan HTML peringatan Virus (Bukan Video)
-                if (contentType.includes('text/html') && !isRetry) {
+                if (contentType.includes('text/html')) {
+                    if (isRetry) {
+                        return callback(new Error("Gagal Bypass GDrive: Google masih memblokir unduhan. File mungkin dibatasi (Restricted)."));
+                    }
+                    
                     let body = '';
                     res.on('data', chunk => body += chunk);
                     res.on('end', () => {
-                        let confirmToken = '';
-                        // Cari token di dalam URL
-                        const matchUrl = body.match(/confirm=([a-zA-Z0-9_-]+)/);
+                        // DEEP SCRAPE: Cari link "Download anyway" di dalam HTML
+                        const linkMatch = body.match(/href="([^"]*confirm=[^"]*)"/i) || body.match(/href='([^']*confirm=[^']*)'/i);
                         
-                        if (matchUrl && matchUrl[1]) {
-                            confirmToken = matchUrl[1];
-                        } else {
-                            // Cari token di dalam Cookie download_warning
-                            const warningKey = Object.keys(globalCookies).find(k => k.startsWith('download_warning'));
-                            if (warningKey) confirmToken = globalCookies[warningKey];
+                        if (linkMatch && linkMatch[1]) {
+                            let confirmUrl = linkMatch[1].replace(/&amp;/g, '&'); // Rapihkan format URL
+                            if (!confirmUrl.startsWith('http')) {
+                                confirmUrl = `https://${parsedUrl.hostname}${confirmUrl.startsWith('/') ? '' : '/'}${confirmUrl}`;
+                            }
+                            // Eksekusi link rahasia tersebut
+                            return requestWithRedirects(confirmUrl, true);
                         }
 
+                        // Jika link tidak ketemu, cari lewat Cookie
+                        let confirmToken = '';
+                        const warningKey = Object.keys(globalCookies).find(k => k.startsWith('download_warning'));
+                        if (warningKey) confirmToken = globalCookies[warningKey];
+
                         if (confirmToken) {
-                            const confirmUrl = `https://drive.google.com/uc?export=download&id=${fileId}&confirm=${confirmToken}`;
-                            // Request ulang dengan Token & Cookie lengkap
-                            requestWithRedirects(confirmUrl, true);
-                        } else {
-                            // Fallback brute-force
-                            const fallbackUrl = `https://drive.google.com/uc?export=download&id=${fileId}&confirm=t`;
-                            requestWithRedirects(fallbackUrl, true);
+                            const sep = reqUrl.includes('?') ? '&' : '?';
+                            const confirmUrl = `${reqUrl}${sep}confirm=${confirmToken}`;
+                            return requestWithRedirects(confirmUrl, true);
                         }
+
+                        // Fallback brute-force terakhir
+                        const sep = reqUrl.includes('?') ? '&' : '?';
+                        const fallbackUrl = `${reqUrl}${sep}confirm=t`;
+                        requestWithRedirects(fallbackUrl, true);
                     });
                 } else {
-                    // Berhasil mendapatkan file video aslinya
+                    // BERHASIL! Mendapatkan data mentah video (Bukan HTML)
                     const fileStream = fs.createWriteStream(destPath);
                     res.pipe(fileStream);
                     fileStream.on('finish', () => {
@@ -255,12 +267,12 @@ app.post('/api/media/import-url', (req, res) => {
         
         if (fs.existsSync(dest)) {
             const stats = fs.statSync(dest);
-            // Pengecekan ukuran: jika kurang dari 50KB, itu halaman error HTML
-            if (stats.size < 50 * 1024) { 
+            // Tambahan pengaman: Pastikan file yang terunduh lebih dari 10KB
+            if (stats.size < 10 * 1024) { 
                 fs.unlinkSync(dest); 
                 return res.status(400).json({ 
                     success: false, 
-                    message: 'Gagal menembus proteksi Google Drive (File 0MB). Pastikan link Google Drive Anda "Public" (Siapa saja yang memiliki link).' 
+                    message: 'Gagal: File terlalu kecil. Pastikan link Google Drive Anda "Public" (Siapa saja yang memiliki link).' 
                 });
             }
             res.json({ success: true, message: `Berhasil! File video utuh tersimpan sebagai ${filename}` });
