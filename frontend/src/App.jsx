@@ -145,8 +145,8 @@ export default function App() {
         )}
 
         <main className="flex-1 overflow-y-auto p-4 md:p-6 relative z-10 w-full mx-auto">
-          {activeTab === 'dashboard' && <DashboardView />}
-          {activeTab === 'tugas-live' && <TugasLiveView accounts={accounts} isPreview={isPreview} API_BASE={API_BASE} />}
+          {activeTab === 'dashboard' && <DashboardView isPreview={isPreview} API_BASE={API_BASE} />}
+          {activeTab === 'tugas-live' && <TugasLiveView accounts={accounts} isPreview={isPreview} API_BASE={API_BASE} onNavigate={setActiveTab} />}
           {activeTab === 'media' && <MediaView isPreview={isPreview} API_BASE={API_BASE} />}
           {activeTab === 'analytics' && <AnalyticsView accounts={accounts} />}
           {activeTab === 'pengaturan' && <SettingsView accounts={accounts} fetchAccounts={fetchAccounts} isPreview={isPreview} API_BASE={API_BASE} />}
@@ -158,29 +158,51 @@ export default function App() {
   );
 }
 
-function DashboardView() {
-  const [streams, setStreams] = useState([]);
-  const [selectedIds, setSelectedIds] = useState([]);
+// -----------------------------------------------------------------------------
+// TAB 1: DASHBOARD
+// -----------------------------------------------------------------------------
+function DashboardView({ isPreview, API_BASE }) {
+  const [tasks, setTasks] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const handleSelectAll = (e) => {
-    if (e.target.checked) setSelectedIds(streams.map(s => s.id));
-    else setSelectedIds([]);
+  const fetchTasks = async () => {
+    if(isPreview) { setIsLoading(false); return; }
+    try {
+      const res = await fetch(`${API_BASE}/api/tasks`);
+      const data = await res.json();
+      setTasks(Array.isArray(data) ? data : []);
+    } catch(e) { console.error(e); }
+    setIsLoading(false);
   };
 
-  const handleSelectOne = (e, id) => {
-    if (e.target.checked) setSelectedIds([...selectedIds, id]);
-    else setSelectedIds(selectedIds.filter(itemId => itemId !== id));
+  useEffect(() => {
+    fetchTasks();
+    const interval = setInterval(fetchTasks, 10000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const handleDeleteTask = async (id) => {
+      if(!window.confirm('Hapus tugas live ini? Jika sedang berjalan, maka akan dihentikan paksa.')) return;
+      try {
+          await fetch(`${API_BASE}/api/tasks/${id}`, { method: 'DELETE' });
+          fetchTasks();
+      } catch(e) { alert('Gagal menghapus tugas.'); }
   };
 
-  const handleDeleteSelected = () => {
-    setStreams(streams.filter(s => !selectedIds.includes(s.id)));
-    setSelectedIds([]);
+  const handleStopStream = async (id) => {
+      if(!window.confirm('Hentikan stream FFmpeg yang sedang berjalan?')) return;
+      try {
+          await fetch(`${API_BASE}/api/stream/stop`, { 
+              method: 'POST', 
+              headers: {'Content-Type': 'application/json'},
+              body: JSON.stringify({ streamId: id })
+          });
+          fetchTasks();
+      } catch(e) { alert('Gagal menghentikan tugas.'); }
   };
 
-  const handleDeleteSingle = (id) => {
-    setStreams(streams.filter(s => s.id !== id));
-    setSelectedIds(selectedIds.filter(itemId => itemId !== id));
-  };
+  const liveTasks = tasks.filter(t => t.status === 'Live');
+  const scheduledTasks = tasks.filter(t => t.status === 'Terjadwal' || t.status === 'Draft');
 
   return (
     <div className="space-y-3">
@@ -192,7 +214,7 @@ function DashboardView() {
             </div>
             <div>
               <p className="text-[9px] font-bold text-gray-500 dark:text-slate-400 uppercase tracking-widest leading-none mb-1">Streaming Aktif</p>
-              <p className="text-base font-black text-gray-900 dark:text-slate-100 leading-none">{streams.filter(s => s.statusText === 'Live').length}</p>
+              <p className="text-base font-black text-gray-900 dark:text-slate-100 leading-none">{liveTasks.length}</p>
             </div>
           </div>
           <span className="text-[9px] font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1 bg-emerald-50 dark:bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-100 dark:border-emerald-500/20">
@@ -206,8 +228,8 @@ function DashboardView() {
               <Clock className="w-3.5 h-3.5 text-blue-500 dark:text-blue-400" />
             </div>
             <div>
-              <p className="text-[9px] font-bold text-gray-500 dark:text-slate-400 uppercase tracking-widest leading-none mb-1">Live Terjadwal</p>
-              <p className="text-base font-black text-gray-900 dark:text-slate-100 leading-none">0</p>
+              <p className="text-[9px] font-bold text-gray-500 dark:text-slate-400 uppercase tracking-widest leading-none mb-1">Tugas / Terjadwal</p>
+              <p className="text-base font-black text-gray-900 dark:text-slate-100 leading-none">{scheduledTasks.length}</p>
             </div>
           </div>
           <span className="text-[9px] font-bold text-blue-600 dark:text-blue-400 flex items-center gap-1 bg-blue-50 dark:bg-blue-500/10 px-1.5 py-0.5 rounded border border-blue-100 dark:border-blue-500/20">
@@ -230,112 +252,80 @@ function DashboardView() {
           <ProgressBar label="CPU" percentage={0} color="bg-blue-400 dark:bg-blue-500" />
           <ProgressBar label="RAM" percentage={0} color="bg-purple-400 dark:bg-purple-500" />
           <ProgressBar label="Disk" percentage={0} color="bg-yellow-400 dark:bg-amber-400" />
-          <ProgressBar 
-            label="Bandwidth" 
-            percentage={0} 
-            color="bg-cyan-400 dark:bg-cyan-500" 
-            valueText={<span>0<span className="text-[8px] text-gray-400 dark:text-slate-500 font-normal ml-0.5">GB</span></span>}
-            subText="Kmrn: 0 GB"
-          />
+          <ProgressBar label="Bandwidth" percentage={0} color="bg-cyan-400 dark:bg-cyan-500" valueText={<span>0<span className="text-[8px] text-gray-400 dark:text-slate-500 font-normal ml-0.5">GB</span></span>} subText="Kmrn: 0 GB" />
         </div>
       </div>
 
       <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700/60 shadow-sm overflow-hidden">
         <div className="flex justify-between items-center p-5 border-b border-gray-200 dark:border-slate-700/60 bg-gray-50/50 dark:bg-slate-800/50">
           <h3 className="text-base font-semibold text-gray-900 dark:text-slate-100 flex items-center gap-2">
-            <Radio className="w-4 h-4 text-emerald-500 dark:text-emerald-400" /> Daftar Live Streaming
+            <Radio className="w-4 h-4 text-emerald-500 dark:text-emerald-400" /> Daftar Tugas & Live Streaming
           </h3>
-          
-          {selectedIds.length > 0 && (
-            <button 
-              onClick={handleDeleteSelected}
-              className="flex items-center gap-2 px-3 py-1.5 bg-red-50 dark:bg-rose-500/15 text-red-600 dark:text-rose-400 hover:bg-red-100 dark:hover:bg-rose-500/25 rounded-md text-xs font-medium border border-red-100 dark:border-rose-500/20 transition-colors"
-            >
-              <Trash2 className="w-3.5 h-3.5" /> Hapus ({selectedIds.length})
-            </button>
-          )}
+          <button onClick={fetchTasks} className="text-xs text-blue-600 font-medium hover:underline flex items-center gap-1">
+              <RefreshCw className="w-3 h-3" /> Refresh
+          </button>
         </div>
         
         <div className="overflow-x-auto w-full pb-2">
           <table className="w-full text-left min-w-[850px]">
             <thead>
               <tr className="text-[11px] font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider bg-white dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700/60">
-                <th className="px-5 py-3 w-10 text-center">
-                  <input 
-                    type="checkbox" 
-                    className="w-4 h-4 rounded border-gray-300 dark:border-slate-600 text-emerald-500 dark:text-emerald-500 focus:ring-emerald-500 dark:focus:ring-emerald-500 transition-colors cursor-pointer bg-white dark:bg-slate-900" 
-                    onChange={handleSelectAll}
-                    checked={streams.length > 0 && selectedIds.length === streams.length}
-                  />
-                </th>
+                <th className="px-5 py-3 w-10 text-center">#</th>
                 <th className="px-5 py-3">Informasi Stream</th>
-                <th className="px-5 py-3">Kualitas Output</th>
-                <th className="px-5 py-3">Performa</th>
+                <th className="px-5 py-3">Jadwal/Mode</th>
                 <th className="px-5 py-3">Status Sistem</th>
                 <th className="px-5 py-3 text-right">Aksi</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 dark:divide-slate-700/50">
-              {streams.length === 0 ? (
+              {isLoading ? (
+                <tr><td colSpan="5" className="px-5 py-12 text-center text-sm text-gray-500 dark:text-slate-400">Memuat data...</td></tr>
+              ) : tasks.length === 0 ? (
                 <tr>
-                  <td colSpan="6" className="px-5 py-12 text-center text-gray-500 dark:text-slate-400 text-sm">
-                    Tidak ada tugas streaming yang sedang berjalan.
+                  <td colSpan="5" className="px-5 py-12 text-center text-gray-500 dark:text-slate-400 text-sm">
+                    Belum ada tugas live yang dibuat. Silakan buat di menu Tugas Live.
                   </td>
                 </tr>
               ) : (
-                streams.map((stream) => (
-                  <tr key={stream.id} className="hover:bg-gray-50/80 dark:hover:bg-slate-700/30 transition-colors group">
-                    <td className="px-5 py-4 align-middle text-center">
-                      <input 
-                        type="checkbox" 
-                        className="w-4 h-4 rounded border-gray-300 dark:border-slate-600 text-emerald-500 dark:text-emerald-500 focus:ring-emerald-500 dark:focus:ring-emerald-500 transition-colors cursor-pointer bg-white dark:bg-slate-900"
-                        checked={selectedIds.includes(stream.id)}
-                        onChange={(e) => handleSelectOne(e, stream.id)}
-                      />
-                    </td>
+                tasks.map((t, idx) => (
+                  <tr key={t.id} className="hover:bg-gray-50/80 dark:hover:bg-slate-700/30 transition-colors group">
+                    <td className="px-5 py-4 align-middle text-center text-xs font-mono text-gray-400">{idx+1}</td>
                     <td className="px-5 py-4 align-middle">
-                      <div className="font-semibold text-sm text-gray-900 dark:text-slate-100 leading-tight">{stream.channel}</div>
+                      <div className="font-semibold text-sm text-gray-900 dark:text-slate-100 leading-tight">{t.taskName || 'Tanpa Nama'}</div>
                       <div className="text-xs text-gray-500 dark:text-slate-400 mt-1 flex items-center gap-1.5">
-                        <Video className="w-3.5 h-3.5 text-gray-400 dark:text-slate-500" /> {stream.task}
+                        <Video className="w-3.5 h-3.5 text-gray-400 dark:text-slate-500" /> {t.videoPath || t.videoMode}
                       </div>
                     </td>
                     <td className="px-5 py-4 align-middle">
-                      <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-md bg-gray-100 dark:bg-slate-900/50 border border-gray-200 dark:border-slate-700/60 text-xs font-mono text-gray-600 dark:text-slate-300">
-                        <Monitor className="w-3.5 h-3.5 text-gray-400 dark:text-slate-500" />
-                        <span>{stream.resolution}</span>
-                        <span className="text-gray-300 dark:text-slate-600">•</span>
-                        <span>{stream.fps}fps</span>
-                      </div>
-                    </td>
-                    <td className="px-5 py-4 align-middle">
-                      <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-slate-300">
-                         <div className="flex items-center gap-1.5" title="Viewers">
-                           <Users className="w-4 h-4 text-gray-400 dark:text-slate-500" /> {stream.viewer}
-                         </div>
-                         <div className="flex items-center gap-1.5 font-mono text-xs" title="Uptime">
-                           <Clock className="w-4 h-4 text-gray-400 dark:text-slate-500" /> {stream.uptime}
-                         </div>
+                      <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-md bg-gray-100 dark:bg-slate-900/50 border border-gray-200 dark:border-slate-700/60 text-xs text-gray-600 dark:text-slate-300">
+                        <Clock className="w-3.5 h-3.5 text-gray-400 dark:text-slate-500" />
+                        <span>{t.jadwalMode === 'manual' || t.jadwalMode === 'sekali' ? `${t.scheduleDate} | ${t.scheduleTime}` : 'Langsung / Manual'}</span>
                       </div>
                     </td>
                     <td className="px-5 py-4 align-middle">
                       <div className="flex items-center gap-2">
                         <span className="relative flex h-2.5 w-2.5">
-                          {stream.statusText === 'Live' && <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 dark:bg-emerald-400 opacity-75"></span>}
-                          <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${stream.statusText === 'Live' ? 'bg-emerald-500 dark:bg-emerald-500' : stream.statusText === 'Starting' ? 'bg-blue-500' : 'bg-gray-400 dark:bg-slate-600'}`}></span>
+                          {t.status === 'Live' && <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 dark:bg-emerald-400 opacity-75"></span>}
+                          <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${t.status === 'Live' ? 'bg-emerald-500' : t.status === 'Terjadwal' ? 'bg-blue-500' : 'bg-gray-400'}`}></span>
                         </span>
-                        
                         <div className="flex flex-col">
-                          <span className={`text-sm font-medium leading-none ${stream.statusText === 'Live' ? 'text-gray-900 dark:text-slate-100' : 'text-gray-600 dark:text-slate-400'}`}>
-                            {stream.statusText}
-                          </span>
-                          <span className={`text-[11px] mt-1 ${stream.condType === 'success' ? 'text-emerald-600 dark:text-emerald-400' : stream.condType === 'warning' ? 'text-yellow-600 dark:text-amber-400' : stream.condType === 'error' ? 'text-red-600 dark:text-rose-400' : 'text-gray-500 dark:text-slate-500'}`}>
-                            {stream.condTitle}
+                          <span className={`text-sm font-medium leading-none ${t.status === 'Live' ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-600 dark:text-slate-400'}`}>
+                            {t.status}
                           </span>
                         </div>
                       </div>
                     </td>
                     <td className="px-5 py-4 align-middle text-right">
-                      <TableRowMenu onDelete={() => handleDeleteSingle(stream.id)} />
+                        <div className="flex justify-end gap-2">
+                           {t.status === 'Live' && (
+                               <button onClick={() => handleStopStream(t.id)} className="p-1.5 bg-yellow-50 text-yellow-600 hover:bg-yellow-100 rounded-md transition-colors" title="Hentikan Stream">
+                                   <StopCircle className="w-4 h-4" />
+                               </button>
+                           )}
+                           <button onClick={() => handleDeleteTask(t.id)} className="p-1.5 bg-red-50 text-red-600 hover:bg-red-100 rounded-md transition-colors" title="Hapus Tugas">
+                               <Trash2 className="w-4 h-4" />
+                           </button>
+                        </div>
                     </td>
                   </tr>
                 ))
@@ -348,49 +338,34 @@ function DashboardView() {
   );
 }
 
-function TugasLiveView({ accounts, isPreview, API_BASE }) {
-  const [streamKeyMode, setStreamKeyMode] = useState('Manual Input Key'); // Default ke manual untuk saat ini
-  const [manualStreamKey, setManualStreamKey] = useState(''); // State untuk menangkap Stream Key pengguna
-  const [isStarting, setIsStarting] = useState(false); // State loading saat memanggil FFmpeg
-
+// -----------------------------------------------------------------------------
+// TAB 2: TUGAS LIVE
+// -----------------------------------------------------------------------------
+function TugasLiveView({ accounts, isPreview, API_BASE, onNavigate }) {
+  const [taskName, setTaskName] = useState('');
+  const [streamKeyMode, setStreamKeyMode] = useState('Manual Input Key'); 
+  const [manualStreamKey, setManualStreamKey] = useState(''); 
   const [videoMode, setVideoMode] = useState('Satu Video (Looping)');
   const [selectedVideos, setSelectedVideos] = useState([]);
-  const [isVideoDropdownOpen, setIsVideoDropdownOpen] = useState(false);
+  
   const [jadwalMode, setJadwalMode] = useState('manual');
-  const [thumbnailMode, setThumbnailMode] = useState('random');
+  const [scheduleDate, setScheduleDate] = useState('');
+  const [scheduleTime, setScheduleTime] = useState('');
+  
+  const [thumbnailMode, setThumbnailMode] = useState('single');
+  const [thumbnailUrl, setThumbnailUrl] = useState('');
+  const [isUploadingThumb, setIsUploadingThumb] = useState(false);
+  const thumbInputRef = useRef(null);
 
   const [enableFallback, setEnableFallback] = useState(false);
-  const [scheduleGrid, setScheduleGrid] = useState({
-    Senin: { active: true, start: '08:00', end: '22:00' },
-    Selasa: { active: true, start: '08:00', end: '22:00' },
-    Rabu: { active: true, start: '08:00', end: '22:00' },
-    Kamis: { active: true, start: '08:00', end: '22:00' },
-    Jumat: { active: true, start: '08:00', end: '22:00' },
-    Sabtu: { active: false, start: '09:00', end: '20:00' },
-    Minggu: { active: false, start: '09:00', end: '20:00' }
-  });
-
+  const [isVideoDropdownOpen, setIsVideoDropdownOpen] = useState(false);
   const [availableVideos, setAvailableVideos] = useState([]);
   const [playlists, setPlaylists] = useState([]);
 
   useEffect(() => {
     if (isPreview) return;
-    
-    // Ambil Data Video
-    fetch(`${API_BASE}/api/media`)
-      .then(res => res.json())
-      .then(data => {
-        if(Array.isArray(data)) setAvailableVideos(data.map(d => d.name));
-      })
-      .catch(e => console.log(e));
-      
-    // Ambil Data Playlist  
-    fetch(`${API_BASE}/api/playlists`)
-      .then(res => res.json())
-      .then(data => {
-         if(Array.isArray(data)) setPlaylists(data);
-      })
-      .catch(e => console.log(e));
+    fetch(`${API_BASE}/api/media`).then(res => res.json()).then(data => { if(Array.isArray(data)) setAvailableVideos(data.map(d => d.name)); }).catch(e => console.log(e));
+    fetch(`${API_BASE}/api/playlists`).then(res => res.json()).then(data => { if(Array.isArray(data)) setPlaylists(data); }).catch(e => console.log(e));
   }, [API_BASE, isPreview]);
 
   const handleVideoSelection = (item) => {
@@ -398,57 +373,86 @@ function TugasLiveView({ accounts, isPreview, API_BASE }) {
       setSelectedVideos([item]);
       setIsVideoDropdownOpen(false);
     } else {
-      if (selectedVideos.includes(item)) {
-        setSelectedVideos(selectedVideos.filter(v => v !== item));
-      } else {
-        setSelectedVideos([...selectedVideos, item]);
+      if (selectedVideos.includes(item)) setSelectedVideos(selectedVideos.filter(v => v !== item));
+      else setSelectedVideos([...selectedVideos, item]);
+    }
+  };
+
+  const handleThumbUploadChange = async (e) => {
+      const file = e.target.files[0];
+      if(!file) return;
+
+      if(isPreview) {
+          setThumbnailUrl(URL.createObjectURL(file));
+          return alert('Simulasi: Thumbnail dipilih.');
       }
-    }
+
+      setIsUploadingThumb(true);
+      const formData = new FormData();
+      formData.append('thumbnail', file);
+
+      try {
+          const res = await fetch(`${API_BASE}/api/thumbnails/upload`, { method: 'POST', body: formData });
+          const data = await res.json();
+          if(data.success) {
+              setThumbnailUrl(API_BASE + data.url); 
+          } else {
+              alert(data.message);
+          }
+      } catch(e) { alert('Gagal mengupload thumbnail.'); }
+      setIsUploadingThumb(false);
   };
 
-  // FUNGSI UTAMA: MENYALAKAN FFMPEG KE BACKEND
-  const handleStartLive = async () => {
-    if (selectedVideos.length === 0) return alert('⚠️ Pilih minimal 1 video atau playlist dari Manajemen Media!');
-    
-    let keyToUse = manualStreamKey;
-    if (streamKeyMode === 'Otomatis (API v3)') {
-        return alert('⏳ Mode Otomatis (API v3) sedang dalam integrasi final. \n\n👉 Silakan ubah Dropdown "Stream Key Mode" ke "Manual Input Key" dan masukkan Stream Key Anda.');
-    }
+  const handleSaveTask = async (isMulaiSekarang = false) => {
+      if (!taskName.trim()) return alert('⚠️ Nama Tugas Live wajib diisi!');
+      if (selectedVideos.length === 0) return alert('⚠️ Pilih minimal 1 video/playlist!');
+      if (!manualStreamKey.trim()) return alert('⚠️ Stream Key wajib diisi!');
+      
+      if (jadwalMode === 'manual' || jadwalMode === 'sekali') {
+          if (!scheduleDate || !scheduleTime) {
+             if(!isMulaiSekarang) return alert('⚠️ Tanggal dan Jam jadwal wajib diisi!');
+          }
+      }
 
-    if (!keyToUse) return alert('⚠️ Stream Key tidak boleh kosong!');
+      if(isPreview) return alert('Simulasi: Data berhasil disimpan.');
 
-    if (isPreview) return alert('🖥️ Simulasi Tampilan: Perintah FFmpeg dikirim ke server!');
+      const payload = {
+          taskName,
+          videoMode,
+          videoPath: selectedVideos[0],
+          streamKeyMode,
+          streamKey: manualStreamKey,
+          jadwalMode,
+          scheduleDate,
+          scheduleTime,
+          thumbnailUrl,
+          isMulaiSekarang
+      };
 
-    setIsStarting(true);
-    try {
-        const res = await fetch(`${API_BASE}/api/stream/start`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                streamKey: keyToUse,
-                videoPath: selectedVideos[0], // Mengirim video/playlist terpilih
-                isLoop: videoMode === 'Satu Video (Looping)'
-            })
-        });
-        const data = await res.json();
-        if (data.success) {
-            alert(`✅ ${data.message}`);
-        } else {
-            alert(`❌ Gagal: ${data.message}`);
-        }
-    } catch (e) {
-        alert('❌ Gagal terhubung ke server untuk memulai stream.');
-    } finally {
-        setIsStarting(false);
-    }
+      try {
+          const res = await fetch(`${API_BASE}/api/tasks`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload)
+          });
+          const data = await res.json();
+          if(data.success) {
+              alert(`✅ Sukses! ${data.message}`);
+              onNavigate('dashboard');
+          } else {
+              alert(`❌ Gagal: ${data.message}`);
+          }
+      } catch(e) { alert('Terjadi kesalahan saat menghubungi server.'); }
   };
 
-  const inputClassName = "w-full bg-gray-50 dark:bg-slate-900/50 border border-gray-300 dark:border-slate-600/60 rounded-lg px-4 py-2.5 outline-none focus:border-emerald-500 dark:focus:border-emerald-400 focus:ring-1 focus:ring-emerald-500/50 dark:focus:ring-emerald-400/50 text-sm transition-all dark:text-slate-200 dark:placeholder-slate-500";
+  const inputClassName = "w-full bg-gray-50 dark:bg-slate-900/50 border border-gray-300 dark:border-slate-600/60 rounded-lg px-4 py-2.5 outline-none focus:border-emerald-500 dark:focus:border-emerald-400 focus:ring-1 focus:ring-emerald-500/50 text-sm transition-all dark:text-slate-200 dark:placeholder-slate-500";
   const labelClassName = "block text-sm font-semibold mb-1.5 text-gray-700 dark:text-slate-300";
 
   return (
     <div className="flex flex-col gap-6">
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        
+        {/* KOLOM KIRI TUGAS LIVE */}
         <div className="lg:col-span-7 flex flex-col gap-6">
           <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700/60 p-5 md:p-6 shadow-sm">
             <h3 className="text-lg font-bold flex items-center gap-2 border-b border-gray-100 dark:border-slate-700/60 pb-4 mb-5 text-gray-800 dark:text-slate-100">
@@ -457,21 +461,14 @@ function TugasLiveView({ accounts, isPreview, API_BASE }) {
             
             <div className="flex flex-col gap-5 bg-gray-50/50 dark:bg-slate-900/20 p-4 rounded-xl border border-gray-100 dark:border-slate-700/50">
               <div>
-                <label className={labelClassName}>Nama Tugas Live</label>
-                <input type="text" placeholder="Misal: Live Berita Pagi Loop" className={inputClassName} />
+                <label className={labelClassName}>Nama Tugas Live <span className="text-red-500">*</span></label>
+                <input type="text" value={taskName} onChange={e=>setTaskName(e.target.value)} placeholder="Misal: Live Berita Pagi Loop" className={inputClassName} />
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div>
                    <label className={labelClassName}>Mode Video</label>
-                   <select 
-                     className={inputClassName}
-                     value={videoMode}
-                     onChange={(e) => {
-                       setVideoMode(e.target.value);
-                       setSelectedVideos([]); 
-                     }}
-                   >
+                   <select className={inputClassName} value={videoMode} onChange={(e) => { setVideoMode(e.target.value); setSelectedVideos([]); }}>
                     <option value="Play Playlist (Berurutan)">Play Playlist (Berurutan)</option>
                     <option value="Acak Video Setiap Hari">Acak Video Setiap Hari</option>
                     <option value="Satu Video (Looping)">Satu Video (Looping)</option>
@@ -479,11 +476,7 @@ function TugasLiveView({ accounts, isPreview, API_BASE }) {
                 </div>
                 <div>
                    <label className={labelClassName}>Stream Key Mode</label>
-                   <select 
-                     className={inputClassName}
-                     value={streamKeyMode}
-                     onChange={(e) => setStreamKeyMode(e.target.value)}
-                   >
+                   <select className={inputClassName} value={streamKeyMode} onChange={(e) => setStreamKeyMode(e.target.value)}>
                     <option value="Manual Input Key">Manual Input Key</option>
                     <option value="Otomatis (API v3)">Otomatis (API v3)</option>
                   </select>
@@ -492,7 +485,7 @@ function TugasLiveView({ accounts, isPreview, API_BASE }) {
               
               <div className="relative">
                 <label className={labelClassName}>
-                  {videoMode === 'Play Playlist (Berurutan)' ? 'Pilih Playlist dari Manajemen Media' : 'Pilih Video dari Manajemen Media'}
+                  {videoMode === 'Play Playlist (Berurutan)' ? 'Pilih Playlist dari Manajemen Media' : 'Pilih Video dari Manajemen Media'} <span className="text-red-500">*</span>
                 </label>
                 
                 {isVideoDropdownOpen && (
@@ -513,10 +506,7 @@ function TugasLiveView({ accounts, isPreview, API_BASE }) {
                       <span key={vid} className="bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300 text-xs px-2.5 py-1.5 rounded-md flex items-center gap-1.5 border border-emerald-200 dark:border-emerald-500/20">
                         {videoMode === 'Play Playlist (Berurutan)' ? <ListVideo className="w-3 h-3" /> : <Video className="w-3 h-3" />}
                         {vid}
-                        <button 
-                          onClick={(e) => { e.stopPropagation(); handleVideoSelection(vid); }}
-                          className="hover:text-emerald-900 dark:hover:text-white ml-1 opacity-70 hover:opacity-100 transition-opacity"
-                        >
+                        <button onClick={(e) => { e.stopPropagation(); handleVideoSelection(vid); }} className="hover:text-emerald-900 dark:hover:text-white ml-1 opacity-70 hover:opacity-100 transition-opacity">
                           <XCircle className="w-3.5 h-3.5" />
                         </button>
                       </span>
@@ -536,61 +526,32 @@ function TugasLiveView({ accounts, isPreview, API_BASE }) {
                     
                     {videoMode === 'Play Playlist (Berurutan)' ? (
                       playlists.length === 0 ? (
-                        <div className="p-4 text-center text-sm text-gray-500 dark:text-slate-400">
-                          Belum ada playlist. Silakan buat di menu Media.
-                        </div>
+                        <div className="p-4 text-center text-sm text-gray-500 dark:text-slate-400">Belum ada playlist. Silakan buat di menu Media.</div>
                       ) : (
                         playlists.map((pl, idx) => {
                           const isSelected = selectedVideos.includes(pl.name);
                           return (
-                            <div 
-                              key={idx}
-                              onClick={() => handleVideoSelection(pl.name)}
-                              className={`flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-700/40 transition-colors ${isSelected ? 'bg-emerald-50/50 dark:bg-emerald-500/10' : ''}`}
-                            >
-                              <input 
-                                type="radio" 
-                                checked={isSelected}
-                                readOnly
-                                className="w-4 h-4 text-emerald-600 dark:text-emerald-500 focus:ring-emerald-500 dark:focus:ring-emerald-500 rounded-sm bg-white dark:bg-slate-900 border-gray-300 dark:border-slate-600"
-                              />
-                              <ListVideo className={`w-4 h-4 ${isSelected ? 'text-emerald-500 dark:text-emerald-400' : 'text-gray-400 dark:text-slate-500'}`} />
-                              <div className="flex-1 overflow-hidden">
-                                 <span className={`text-sm block truncate ${isSelected ? 'font-medium text-emerald-700 dark:text-emerald-400' : 'text-gray-700 dark:text-slate-300'}`}>
-                                   {pl.name}
-                                 </span>
-                                 <span className="text-[10px] text-gray-400">{pl.count} video</span>
-                              </div>
-                              {isSelected && <CheckCircle2 className="w-4 h-4 text-emerald-500 dark:text-emerald-400" />}
+                            <div key={idx} onClick={() => handleVideoSelection(pl.name)} className={`flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-700/40 transition-colors ${isSelected ? 'bg-emerald-50/50 dark:bg-emerald-500/10' : ''}`}>
+                              <input type="radio" checked={isSelected} readOnly className="w-4 h-4 text-emerald-600 rounded-sm bg-white dark:bg-slate-900 border-gray-300" />
+                              <ListVideo className={`w-4 h-4 ${isSelected ? 'text-emerald-500' : 'text-gray-400'}`} />
+                              <div className="flex-1 overflow-hidden"><span className={`text-sm block truncate ${isSelected ? 'font-medium text-emerald-700' : 'text-gray-700 dark:text-slate-300'}`}>{pl.name}</span><span className="text-[10px] text-gray-400">{pl.count} video</span></div>
+                              {isSelected && <CheckCircle2 className="w-4 h-4 text-emerald-500" />}
                             </div>
                           );
                         })
                       )
                     ) : (
                       availableVideos.length === 0 ? (
-                        <div className="p-4 text-center text-sm text-gray-500 dark:text-slate-400">
-                          Belum ada video. Silakan upload di menu Media.
-                        </div>
+                        <div className="p-4 text-center text-sm text-gray-500 dark:text-slate-400">Belum ada video. Silakan upload di menu Media.</div>
                       ) : (
                         availableVideos.map((vid, idx) => {
                           const isSelected = selectedVideos.includes(vid);
                           return (
-                            <div 
-                              key={idx}
-                              onClick={() => handleVideoSelection(vid)}
-                              className={`flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-700/40 transition-colors ${isSelected ? 'bg-emerald-50/50 dark:bg-emerald-500/10' : ''}`}
-                            >
-                              <input 
-                                type={videoMode === 'Satu Video (Looping)' ? 'radio' : 'checkbox'} 
-                                checked={isSelected}
-                                readOnly
-                                className="w-4 h-4 text-emerald-600 dark:text-emerald-500 focus:ring-emerald-500 dark:focus:ring-emerald-500 rounded-sm bg-white dark:bg-slate-900 border-gray-300 dark:border-slate-600"
-                              />
-                              <Video className={`w-4 h-4 ${isSelected ? 'text-emerald-500 dark:text-emerald-400' : 'text-gray-400 dark:text-slate-500'}`} />
-                              <span className={`text-sm flex-1 truncate ${isSelected ? 'font-medium text-emerald-700 dark:text-emerald-400' : 'text-gray-700 dark:text-slate-300'}`}>
-                                {vid}
-                              </span>
-                              {isSelected && <CheckCircle2 className="w-4 h-4 text-emerald-500 dark:text-emerald-400" />}
+                            <div key={idx} onClick={() => handleVideoSelection(vid)} className={`flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-700/40 transition-colors ${isSelected ? 'bg-emerald-50/50 dark:bg-emerald-500/10' : ''}`}>
+                              <input type={videoMode === 'Satu Video (Looping)' ? 'radio' : 'checkbox'} checked={isSelected} readOnly className="w-4 h-4 text-emerald-600 rounded-sm bg-white dark:bg-slate-900 border-gray-300" />
+                              <Video className={`w-4 h-4 ${isSelected ? 'text-emerald-500' : 'text-gray-400'}`} />
+                              <span className={`text-sm flex-1 truncate ${isSelected ? 'font-medium text-emerald-700' : 'text-gray-700 dark:text-slate-300'}`}>{vid}</span>
+                              {isSelected && <CheckCircle2 className="w-4 h-4 text-emerald-500" />}
                             </div>
                           );
                         })
@@ -598,27 +559,17 @@ function TugasLiveView({ accounts, isPreview, API_BASE }) {
                     )}
                   </div>
                 )}
-                
-                <p className="text-xs text-gray-500 dark:text-slate-400 mt-2.5 flex items-start gap-1.5 px-1">
-                  <AlertCircle className="w-4 h-4 shrink-0 text-blue-500 dark:text-blue-400" />
-                  {videoMode === 'Satu Video (Looping)' 
-                    ? 'Mode Looping: Hanya mengizinkan pemilihan 1 video utama.' 
-                    : videoMode === 'Play Playlist (Berurutan)'
-                    ? 'Mode Playlist: Pilih 1 playlist yang telah Anda simpan di menu Media.'
-                    : 'Pilih beberapa video. Sistem akan menggabungkan otomatis.'}
-                </p>
               </div>
 
-              {/* TAMPILAN MANUAL INPUT KEY */}
               {streamKeyMode === 'Manual Input Key' && (
                 <div className="animate-in fade-in slide-in-from-top-2 duration-300 pt-2 border-t border-gray-200 dark:border-slate-700/60">
-                  <label className="block text-sm font-bold mb-1.5 text-red-600 dark:text-rose-400">Masukkan Stream Key (Manual)</label>
+                  <label className="block text-sm font-bold mb-1.5 text-red-600 dark:text-rose-400">Masukkan Stream Key (Manual) <span className="text-red-500">*</span></label>
                   <input 
                     type="password" 
                     placeholder="xxxx-xxxx-xxxx-xxxx-xxxx" 
                     value={manualStreamKey}
                     onChange={(e) => setManualStreamKey(e.target.value)}
-                    className={`${inputClassName} border-red-300 dark:border-rose-500/50 focus:border-red-500 dark:focus:border-rose-500 focus:ring-red-500/50 dark:focus:ring-rose-500/50 font-mono`} 
+                    className={`${inputClassName} border-red-300 dark:border-rose-500/50 focus:border-red-500 font-mono`} 
                   />
                 </div>
               )}
@@ -709,104 +660,44 @@ function TugasLiveView({ accounts, isPreview, API_BASE }) {
           </div>
         </div>
 
+        {/* KOLOM KANAN TUGAS LIVE */}
         <div className="lg:col-span-5 flex flex-col gap-6">
           <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700/60 p-5 md:p-6 shadow-sm">
             <h3 className="text-lg font-bold flex items-center gap-2 border-b border-gray-100 dark:border-slate-700/60 pb-4 mb-5 text-gray-800 dark:text-slate-100">
-              <Calendar className="w-5 h-5 text-blue-500 dark:text-blue-400" /> Jadwal Live
+              <Calendar className="w-5 h-5 text-blue-500 dark:text-blue-400" /> Penjadwalan Tugas
             </h3>
             
             <div className="flex flex-wrap bg-gray-100 dark:bg-slate-900/60 p-1 rounded-xl gap-1 mb-5">
-              {['manual', 'sekali', 'harian', 'smart-weekly'].map((mode) => (
+              {['manual', 'sekali', 'harian', 'mingguan'].map((mode) => (
                 <button
                   key={mode}
                   onClick={() => setJadwalMode(mode)}
-                  className={`flex-1 min-w-[80px] text-[13px] py-2 px-2 rounded-lg font-semibold transition-all ${
-                    jadwalMode === mode 
-                      ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm dark:shadow-black/20' 
-                      : 'text-gray-500 hover:text-gray-800 dark:text-slate-400 dark:hover:text-slate-200'
-                  }`}
+                  className={`flex-1 min-w-[80px] text-[13px] py-2 px-2 rounded-lg font-semibold transition-all ${jadwalMode === mode ? 'bg-white dark:bg-slate-800 text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-800'}`}
                 >
-                  {mode === 'smart-weekly' ? 'Mingguan' : mode.charAt(0).toUpperCase() + mode.slice(1)}
+                  {mode.charAt(0).toUpperCase() + mode.slice(1)}
                 </button>
               ))}
             </div>
 
-            <div className="bg-gray-50/50 dark:bg-slate-900/30 p-4 rounded-xl border border-gray-100 dark:border-slate-700/50 mb-5">
-              {jadwalMode === 'manual' && (
+            {(jadwalMode === 'manual' || jadwalMode === 'sekali') && (
+               <div className="bg-gray-50/50 dark:bg-slate-900/30 p-4 rounded-xl border border-gray-100 dark:border-slate-700/50 mb-5">
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="col-span-2"><label className="block text-sm font-semibold text-gray-700 dark:text-slate-300">Waktu Mulai Manual</label></div>
-                  <input type="time" className={inputClassName} />
-                  <input type="date" className={`${inputClassName} text-gray-500 dark:text-slate-400`} />
+                  <div className="col-span-2"><label className="block text-sm font-semibold text-gray-700 dark:text-slate-300">Waktu Mulai {jadwalMode === 'manual' ? 'Manual' : 'Sekali'}</label></div>
+                  <input type="time" value={scheduleTime} onChange={e=>setScheduleTime(e.target.value)} className={inputClassName} />
+                  <input type="date" value={scheduleDate} onChange={e=>setScheduleDate(e.target.value)} className={`${inputClassName} text-gray-500 dark:text-slate-400`} />
                 </div>
-              )}
-
-              {jadwalMode === 'sekali' && (
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="col-span-2"><label className="block text-sm font-semibold text-gray-700 dark:text-slate-300">Jadwal Satu Kali</label></div>
-                  <input type="time" className={inputClassName} />
-                  <input type="date" className={`${inputClassName} text-gray-500 dark:text-slate-400`} />
-                </div>
-              )}
-
-              {jadwalMode === 'harian' && (
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="col-span-2"><label className="block text-sm font-semibold text-gray-700 dark:text-slate-300">Jam Mulai Harian</label></div>
-                  <input type="time" className={inputClassName} />
-                  <input type="date" className={`${inputClassName} text-gray-500 dark:text-slate-400`} />
-                </div>
-              )}
-
-              {jadwalMode === 'smart-weekly' && (
-                <div className="border border-gray-200 dark:border-slate-600/60 rounded-xl overflow-hidden bg-white dark:bg-slate-800">
-                  <div className="bg-blue-50/50 dark:bg-blue-900/20 px-4 py-2.5 border-b border-gray-200 dark:border-slate-600/60 flex items-center justify-between">
-                    <span className="font-semibold text-[13px] text-blue-800 dark:text-blue-300">Kalender Visual (WIB)</span>
-                  </div>
-                  <div className="divide-y divide-gray-100 dark:divide-slate-700/50 max-h-52 overflow-y-auto custom-scrollbar">
-                    {Object.keys(scheduleGrid).map(day => (
-                      <div key={day} className={`flex items-center justify-between p-2.5 gap-3 transition-colors ${scheduleGrid[day].active ? 'bg-transparent' : 'bg-gray-50/50 dark:bg-slate-900/20'}`}>
-                        <label className="flex items-center gap-2 cursor-pointer w-24">
-                          <input 
-                            type="checkbox" 
-                            checked={scheduleGrid[day].active} 
-                            onChange={() => setScheduleGrid({...scheduleGrid, [day]: {...scheduleGrid[day], active: !scheduleGrid[day].active}})}
-                            className="w-4 h-4 rounded text-blue-600 dark:text-blue-500 focus:ring-blue-500 bg-white dark:bg-slate-900 border-gray-300 dark:border-slate-600 cursor-pointer" 
-                          />
-                          <span className={`text-[13px] ${scheduleGrid[day].active ? 'font-bold text-gray-900 dark:text-slate-100' : 'font-medium text-gray-400 dark:text-slate-500'}`}>{day}</span>
-                        </label>
-                        
-                        <div className={`flex items-center gap-1.5 flex-1 ${scheduleGrid[day].active ? 'opacity-100' : 'opacity-40 pointer-events-none'}`}>
-                          <input 
-                            type="time" 
-                            value={scheduleGrid[day].start} 
-                            onChange={(e) => setScheduleGrid({...scheduleGrid, [day]: {...scheduleGrid[day], start: e.target.value}})}
-                            className="bg-gray-50 dark:bg-slate-900/50 border border-gray-300 dark:border-slate-600/60 rounded-md px-2 py-1 text-xs w-full outline-none focus:border-blue-500 dark:focus:border-blue-400 dark:text-slate-200" 
-                          />
-                          <span className="text-gray-400 dark:text-slate-500 text-xs">-</span>
-                          <input 
-                            type="time" 
-                            value={scheduleGrid[day].end} 
-                            onChange={(e) => setScheduleGrid({...scheduleGrid, [day]: {...scheduleGrid[day], end: e.target.value}})}
-                            className="bg-gray-50 dark:bg-slate-900/50 border border-gray-300 dark:border-slate-600/60 rounded-md px-2 py-1 text-xs w-full outline-none focus:border-blue-500 dark:focus:border-blue-400 dark:text-slate-200" 
-                          />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {jadwalMode !== 'smart-weekly' && (
-              <div className="flex items-center justify-between bg-gray-50 dark:bg-slate-900/30 p-3.5 rounded-xl border border-gray-100 dark:border-slate-700/50">
-                <span className="text-sm font-semibold text-gray-700 dark:text-slate-300">Stop Otomatis</span>
-                <div className="flex items-center gap-2">
-                  <div className="flex items-center gap-1.5 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600/60 rounded-md px-2 py-1">
-                    <input type="number" defaultValue={jadwalMode === 'harian' ? 12 : 0} min="0" className="w-8 bg-transparent outline-none text-sm text-center font-mono dark:text-slate-200" />
-                    <span className="text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase">Jam</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600/60 rounded-md px-2 py-1">
-                    <input type="number" defaultValue="0" min="0" max="59" className="w-8 bg-transparent outline-none text-sm text-center font-mono dark:text-slate-200" />
-                    <span className="text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase">Menit</span>
+                
+                <div className="flex items-center justify-between mt-4 border-t border-gray-200 dark:border-slate-700/50 pt-4">
+                  <span className="text-sm font-semibold text-gray-700 dark:text-slate-300">Stop Otomatis</span>
+                  <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600/60 rounded-md px-2 py-1">
+                      <input type="number" defaultValue="0" min="0" className="w-8 bg-transparent outline-none text-sm text-center font-mono dark:text-slate-200" />
+                      <span className="text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase">Jam</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600/60 rounded-md px-2 py-1">
+                      <input type="number" defaultValue="0" min="0" max="59" className="w-8 bg-transparent outline-none text-sm text-center font-mono dark:text-slate-200" />
+                      <span className="text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase">Menit</span>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -865,12 +756,23 @@ function TugasLiveView({ accounts, isPreview, API_BASE }) {
               ))}
             </div>
 
-            <div className="flex-1 border-2 border-dashed border-gray-300 dark:border-slate-600/60 rounded-xl p-8 flex flex-col items-center justify-center hover:bg-gray-50 dark:hover:bg-slate-700/30 transition-all cursor-pointer group">
-              <Upload className="w-8 h-8 text-gray-400 dark:text-slate-500 group-hover:text-emerald-500 dark:group-hover:text-emerald-400 mb-3 transition-colors" />
-              <p className="text-sm font-bold text-gray-700 dark:text-slate-300 mb-1">
-                {thumbnailMode === 'single' ? 'Pilih 1 File Gambar' : 'Pilih Folder Thumbnail'}
-              </p>
-              <p className="text-xs text-gray-500 dark:text-slate-400">Seret dan lepas (Drag & Drop) di sini</p>
+            <input type="file" ref={thumbInputRef} accept="image/*" onChange={handleThumbUploadChange} className="hidden" />
+            
+            <div 
+              onClick={() => thumbInputRef.current?.click()}
+              className="flex-1 min-h-[160px] border-2 border-dashed border-gray-300 dark:border-slate-600/60 rounded-xl p-2 flex flex-col items-center justify-center hover:bg-gray-50 dark:hover:bg-slate-700/30 transition-all cursor-pointer group overflow-hidden relative"
+            >
+              {isUploadingThumb ? (
+                 <span className="text-sm font-semibold text-gray-500 animate-pulse">Mengupload...</span>
+              ) : thumbnailUrl ? (
+                 <img src={thumbnailUrl} alt="Thumbnail Preview" className="w-full h-full object-cover rounded-lg" />
+              ) : (
+                <>
+                  <Upload className="w-8 h-8 text-gray-400 group-hover:text-emerald-500 mb-3 transition-colors" />
+                  <p className="text-sm font-bold text-gray-700 dark:text-slate-300 mb-1">Pilih 1 File Gambar</p>
+                  <p className="text-xs text-gray-500 dark:text-slate-400">Seret dan lepas (Drag & Drop) di sini</p>
+                </>
+              )}
             </div>
           </div>
 
@@ -904,27 +806,30 @@ function TugasLiveView({ accounts, isPreview, API_BASE }) {
         </div>
       </div>
 
-      <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700/60 p-5 md:p-6 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4 mt-2">
+      {/* FOOTER ACTION BAR */}
+      <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700/60 p-5 md:p-6 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4 mt-2 sticky bottom-4 z-50">
          <div className="flex items-center gap-4 w-full sm:w-auto">
            <div className="w-10 h-10 rounded-full bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center shrink-0">
              <div className="w-3 h-3 rounded-full bg-blue-500 dark:bg-blue-400 animate-pulse"></div>
            </div>
            <div>
              <p className="text-xs text-gray-500 dark:text-slate-400 font-medium mb-0.5">Status Tugas Live</p>
-             <p className="text-sm font-bold text-blue-600 dark:text-blue-400">Siap Dieksekusi</p>
+             <p className="text-sm font-bold text-blue-600 dark:text-blue-400">Siap Disimpan</p>
            </div>
          </div>
          
          <div className="flex w-full sm:w-auto gap-3">
-           <button className="flex-1 sm:flex-none px-6 py-2.5 rounded-xl border border-gray-300 dark:border-slate-600/60 hover:bg-gray-100 dark:hover:bg-slate-700/50 text-gray-700 dark:text-slate-200 font-semibold transition-colors text-sm">
-             Simpan Draft
+           <button 
+             onClick={() => handleSaveTask(false)}
+             className="flex-1 sm:flex-none px-6 py-2.5 rounded-xl border border-gray-300 hover:bg-gray-100 text-gray-700 font-semibold transition-colors text-sm bg-white"
+           >
+             💾 Simpan ke Database
            </button>
            <button 
-             onClick={handleStartLive}
-             disabled={isStarting}
-             className="flex-1 sm:flex-none px-8 py-2.5 bg-emerald-600 dark:bg-emerald-500 hover:bg-emerald-700 dark:hover:bg-emerald-600 text-white rounded-xl flex items-center justify-center gap-2 font-semibold transition-colors text-sm shadow-md hover:shadow-lg shadow-emerald-500/20 dark:shadow-emerald-500/20 disabled:opacity-50"
+             onClick={() => handleSaveTask(true)}
+             className="flex-1 sm:flex-none px-8 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl flex items-center justify-center gap-2 font-semibold transition-colors text-sm shadow-md"
            >
-             <PlayCircle className="w-5 h-5" /> {isStarting ? 'Memulai FFmpeg...' : 'Mulai Live Sekarang'}
+             <PlayCircle className="w-5 h-5" /> Simpan & Mulai Live
            </button>
          </div>
       </div>
@@ -933,27 +838,25 @@ function TugasLiveView({ accounts, isPreview, API_BASE }) {
   );
 }
 
+// -----------------------------------------------------------------------------
+// TAB 3: MEDIA
+// -----------------------------------------------------------------------------
 function MediaView({ isPreview, API_BASE }) {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadText, setUploadText] = useState('');
-  
   const [showPlaylistModal, setShowPlaylistModal] = useState(false);
   const [showImportUrlModal, setShowImportUrlModal] = useState(false);
   const [importUrl, setImportUrl] = useState('');
-  
   const [newPlaylistName, setNewPlaylistName] = useState('');
   const [selectedPlaylistVideos, setSelectedPlaylistVideos] = useState([]);
-
   const [mediaFiles, setMediaFiles] = useState([]);
   const [playlists, setPlaylists] = useState([]);
   const [activeFolder, setActiveFolder] = useState('Video Berita Utama');
-  
   const [editingFile, setEditingFile] = useState(null);
   const [editFileName, setEditFileName] = useState('');
   const [fileToDelete, setFileToDelete] = useState(null);
   const [playlistToDelete, setPlaylistToDelete] = useState(null);
-  
   const fileInputRef = useRef(null);
 
   const fetchMedia = async () => {
@@ -986,32 +889,20 @@ function MediaView({ isPreview, API_BASE }) {
   const handleActualUpload = async (e) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
-    
     if (isPreview) {
       alert('Simulasi (Layar Preview): File video/media berhasil dipilih.');
       return;
     }
-
     setIsUploading(true);
     setUploadText('Mengunggah ke VPS...');
     setUploadProgress(10);
-
     const formData = new FormData();
-    for (let i = 0; i < files.length; i++) {
-      formData.append('files', files[i]);
-    }
-
-    const progressInterval = setInterval(() => {
-      setUploadProgress(prev => Math.min(prev + 10, 90));
-    }, 500);
+    for (let i = 0; i < files.length; i++) formData.append('files', files[i]);
+    const progressInterval = setInterval(() => setUploadProgress(prev => Math.min(prev + 10, 90)), 500);
 
     try {
-      const res = await fetch(`${API_BASE}/api/media/upload`, {
-        method: 'POST',
-        body: formData
-      });
+      const res = await fetch(`${API_BASE}/api/media/upload`, { method: 'POST', body: formData });
       const data = await res.json();
-      
       if(data.success) {
         setUploadProgress(100);
         setTimeout(() => {
@@ -1041,24 +932,17 @@ function MediaView({ isPreview, API_BASE }) {
        setImportUrl('');
        return;
     }
-
     setShowImportUrlModal(false);
     setIsUploading(true);
     setUploadText('Mengunduh file dari URL...');
     setUploadProgress(10);
-
-    const progressInterval = setInterval(() => {
-      setUploadProgress(prev => Math.min(prev + 5, 90));
-    }, 1000);
+    const progressInterval = setInterval(() => setUploadProgress(prev => Math.min(prev + 5, 90)), 1000);
 
     try {
       const res = await fetch(`${API_BASE}/api/media/import-url`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: importUrl })
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url: importUrl })
       });
       const data = await res.json();
-      
       if(data.success) {
         setUploadProgress(100);
         setTimeout(() => {
@@ -1081,24 +965,17 @@ function MediaView({ isPreview, API_BASE }) {
   };
 
   const handleSavePlaylist = async () => {
-    if (!newPlaylistName.trim() || selectedPlaylistVideos.length === 0) {
-      return alert('Nama playlist dan minimal 1 video harus diisi/dipilih.');
-    }
-
+    if (!newPlaylistName.trim() || selectedPlaylistVideos.length === 0) return alert('Nama playlist dan minimal 1 video harus diisi/dipilih.');
     if (isPreview) {
       alert('Simulasi: Playlist berhasil disimpan.');
       setShowPlaylistModal(false);
       return;
     }
-
     try {
       const res = await fetch(`${API_BASE}/api/playlists`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: newPlaylistName, videos: selectedPlaylistVideos })
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: newPlaylistName, videos: selectedPlaylistVideos })
       });
       const data = await res.json();
-      
       if (data.success) {
         alert(data.message);
         setShowPlaylistModal(false);
@@ -1106,12 +983,8 @@ function MediaView({ isPreview, API_BASE }) {
         setSelectedPlaylistVideos([]);
         fetchPlaylists();
         setActiveFolder('Playlist Looping');
-      } else {
-        alert(data.message);
-      }
-    } catch (e) {
-      alert('Gagal menyimpan playlist ke server.');
-    }
+      } else alert(data.message);
+    } catch (e) { alert('Gagal menyimpan playlist ke server.'); }
   };
 
   const confirmDeleteFile = async () => {
@@ -1124,9 +997,7 @@ function MediaView({ isPreview, API_BASE }) {
       await fetch(`${API_BASE}/api/media/${fileToDelete.name}`, { method: 'DELETE' });
       fetchMedia();
       setFileToDelete(null);
-    } catch(e) {
-      alert('Gagal menghapus file.');
-    }
+    } catch(e) { alert('Gagal menghapus file.'); }
   };
 
   const confirmDeletePlaylist = async () => {
@@ -1139,46 +1010,26 @@ function MediaView({ isPreview, API_BASE }) {
       await fetch(`${API_BASE}/api/playlists/${playlistToDelete.id}`, { method: 'DELETE' });
       fetchPlaylists();
       setPlaylistToDelete(null);
-    } catch(e) {
-      alert('Gagal menghapus playlist.');
-    }
+    } catch(e) { alert('Gagal menghapus playlist.'); }
   };
 
   const toggleVideoForPlaylist = (vid) => {
-    if (selectedPlaylistVideos.includes(vid)) {
-      setSelectedPlaylistVideos(selectedPlaylistVideos.filter(v => v !== vid));
-    } else {
-      setSelectedPlaylistVideos([...selectedPlaylistVideos, vid]);
-    }
+    if (selectedPlaylistVideos.includes(vid)) setSelectedPlaylistVideos(selectedPlaylistVideos.filter(v => v !== vid));
+    else setSelectedPlaylistVideos([...selectedPlaylistVideos, vid]);
   };
 
   return (
     <div className="h-[calc(100vh-8rem)] flex flex-col bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700/60 shadow-sm overflow-hidden relative">
       <div className="flex justify-between items-center px-5 py-3.5 border-b border-gray-100 dark:border-slate-700/60 bg-gray-50/50 dark:bg-slate-800/50 shrink-0">
         <h3 className="text-sm font-bold text-gray-800 dark:text-slate-100 flex items-center gap-2">
-          <Film className="w-4 h-4 text-gray-400 dark:text-slate-500" />
-          Manajemen Media & Playlist
+          <Film className="w-4 h-4 text-gray-400 dark:text-slate-500" /> Manajemen Media & Playlist
         </h3>
         <div className="flex gap-2">
-          <button 
-            onClick={() => setShowImportUrlModal(true)}
-            className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700/60 hover:border-blue-300 hover:text-blue-600 dark:hover:border-blue-500/50 dark:hover:text-blue-400 text-gray-600 dark:text-slate-300 rounded-md flex items-center gap-1.5 text-[11px] font-bold tracking-wide uppercase transition-colors shadow-sm"
-          >
+          <button onClick={() => setShowImportUrlModal(true)} className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700/60 hover:border-blue-300 hover:text-blue-600 dark:text-slate-300 rounded-md flex items-center gap-1.5 text-[11px] font-bold tracking-wide uppercase transition-colors shadow-sm">
             <LinkIcon className={`w-3.5 h-3.5`} /> Import URL
           </button>
-          
-          <input 
-             type="file" 
-             multiple 
-             accept="video/mp4,video/mkv,image/*" 
-             className="hidden" 
-             ref={fileInputRef} 
-             onChange={handleActualUpload} 
-          />
-          <button 
-            onClick={() => fileInputRef.current?.click()}
-            className="px-3 py-1.5 bg-gray-900 dark:bg-slate-100 text-white dark:text-slate-900 rounded-md flex items-center gap-1.5 text-[11px] font-bold tracking-wide uppercase hover:opacity-90 transition-opacity shadow-sm"
-          >
+          <input type="file" multiple accept="video/mp4,video/mkv,image/*" className="hidden" ref={fileInputRef} onChange={handleActualUpload} />
+          <button onClick={() => fileInputRef.current?.click()} className="px-3 py-1.5 bg-gray-900 dark:bg-slate-100 text-white dark:text-slate-900 rounded-md flex items-center gap-1.5 text-[11px] font-bold tracking-wide uppercase hover:opacity-90 transition-opacity shadow-sm">
             <Upload className="w-3.5 h-3.5" /> Upload Lokal
           </button>
         </div>
@@ -1187,9 +1038,7 @@ function MediaView({ isPreview, API_BASE }) {
       {isUploading && (
         <div className="px-5 py-2 bg-blue-50/50 dark:bg-blue-900/20 border-b border-blue-100 dark:border-blue-800/30 flex items-center gap-4 shrink-0">
           <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-widest w-48 truncate">{uploadText}</span>
-          <div className="flex-1 h-1.5 bg-blue-100 dark:bg-blue-900/40 rounded-full overflow-hidden">
-            <div className="h-full bg-blue-500 dark:bg-blue-400 transition-all duration-300" style={{ width: `${uploadProgress}%` }}></div>
-          </div>
+          <div className="flex-1 h-1.5 bg-blue-100 dark:bg-blue-900/40 rounded-full overflow-hidden"><div className="h-full bg-blue-500 dark:bg-blue-400 transition-all duration-300" style={{ width: `${uploadProgress}%` }}></div></div>
           <span className="text-[10px] font-mono text-blue-600 dark:text-blue-400">{uploadProgress}%</span>
         </div>
       )}
@@ -1198,27 +1047,17 @@ function MediaView({ isPreview, API_BASE }) {
         <div className="w-60 flex flex-col border-r border-gray-100 dark:border-slate-700/60 bg-gray-50/30 dark:bg-slate-900/30 shrink-0">
           <div className="p-3 flex-1 overflow-y-auto space-y-0.5 custom-scrollbar">
             <div className="text-[9px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-widest px-2 pb-2 pt-1">Direktori Penyimpanan</div>
-            <div onClick={() => setActiveFolder('Video Berita Utama')}>
-               <FolderItem name="Semua Video / Media" count={mediaFiles.length} active={activeFolder === 'Video Berita Utama'} />
-            </div>
-            <div onClick={() => setActiveFolder('Playlist Looping')}>
-               <FolderItem name="Playlist Tersimpan" count={playlists.length} active={activeFolder === 'Playlist Looping'} />
-            </div>
+            <div onClick={() => setActiveFolder('Video Berita Utama')}><FolderItem name="Semua Video / Media" count={mediaFiles.length} active={activeFolder === 'Video Berita Utama'} /></div>
+            <div onClick={() => setActiveFolder('Playlist Looping')}><FolderItem name="Playlist Tersimpan" count={playlists.length} active={activeFolder === 'Playlist Looping'} /></div>
           </div>
-          
           <div className="p-3 border-t border-gray-100 dark:border-slate-700/60 space-y-1.5 bg-white dark:bg-slate-800/50 shrink-0">
-            <button 
-              onClick={() => setShowPlaylistModal(true)}
-              className="w-full text-left px-3 py-2 text-xs font-medium text-gray-600 dark:text-slate-300 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 rounded-md transition-colors flex items-center gap-2 border border-transparent hover:border-emerald-100 dark:hover:border-emerald-500/20"
-            >
+            <button onClick={() => setShowPlaylistModal(true)} className="w-full text-left px-3 py-2 text-xs font-medium text-gray-600 dark:text-slate-300 hover:text-emerald-600 dark:hover:bg-emerald-500/10 rounded-md transition-colors flex items-center gap-2">
               <Plus className="w-3.5 h-3.5" /> Buat Playlist Baru
             </button>
           </div>
         </div>
 
         <div className="flex-1 bg-white dark:bg-slate-800 p-5 overflow-y-auto relative custom-scrollbar">
-          
-          {/* TAMPILAN JIKA FOLDER VIDEO DIPILIH */}
           {activeFolder === 'Video Berita Utama' && (
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
               {mediaFiles.length === 0 ? (
@@ -1228,20 +1067,11 @@ function MediaView({ isPreview, API_BASE }) {
                   <p className="text-xs mt-1">Gunakan Upload Lokal atau Import URL untuk menambah video.</p>
                 </div>
               ) : (
-                mediaFiles.map((file) => (
-                  <VideoFile 
-                    key={file.id} 
-                    name={file.name} 
-                    size={file.size} 
-                    onEdit={() => {}}
-                    onDelete={() => setFileToDelete(file)}
-                  />
-                ))
+                mediaFiles.map((file) => <VideoFile key={file.id} name={file.name} size={file.size} onEdit={() => {}} onDelete={() => setFileToDelete(file)} />)
               )}
             </div>
           )}
 
-          {/* TAMPILAN JIKA FOLDER PLAYLIST DIPILIH */}
           {activeFolder === 'Playlist Looping' && (
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
               {playlists.length === 0 ? (
@@ -1254,148 +1084,76 @@ function MediaView({ isPreview, API_BASE }) {
                 playlists.map((pl) => (
                   <div key={pl.id} className="bg-gray-50 dark:bg-slate-900/50 border border-gray-200 dark:border-slate-700/60 rounded-xl p-4 shadow-sm hover:shadow transition-shadow group relative">
                     <div className="flex items-center gap-3 mb-3">
-                       <div className="w-10 h-10 rounded-lg bg-emerald-100 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400 flex items-center justify-center shrink-0">
-                         <ListVideo className="w-5 h-5" />
-                       </div>
-                       <div>
-                         <h4 className="font-bold text-gray-900 dark:text-slate-100 text-sm">{pl.name}</h4>
-                         <p className="text-xs text-gray-500 dark:text-slate-400">{pl.count} Video di dalam antrean</p>
-                       </div>
+                       <div className="w-10 h-10 rounded-lg bg-emerald-100 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400 flex items-center justify-center shrink-0"><ListVideo className="w-5 h-5" /></div>
+                       <div><h4 className="font-bold text-gray-900 dark:text-slate-100 text-sm">{pl.name}</h4><p className="text-xs text-gray-500 dark:text-slate-400">{pl.count} Video di dalam antrean</p></div>
                     </div>
                     <div className="space-y-1 mt-3 pt-3 border-t border-gray-200 dark:border-slate-700/50 max-h-24 overflow-y-auto custom-scrollbar">
-                       {pl.videos.map((vid, idx) => (
-                         <div key={idx} className="text-[11px] text-gray-600 dark:text-slate-300 flex items-center gap-2 truncate">
-                            <span className="text-gray-400">{idx+1}.</span> {vid}
-                         </div>
-                       ))}
+                       {pl.videos.map((vid, idx) => <div key={idx} className="text-[11px] text-gray-600 dark:text-slate-300 flex items-center gap-2 truncate"><span className="text-gray-400">{idx+1}.</span> {vid}</div>)}
                     </div>
-                    <button 
-                      onClick={() => setPlaylistToDelete(pl)}
-                      className="absolute top-4 right-4 p-1.5 text-gray-400 hover:text-red-500 bg-white dark:bg-slate-800 rounded-md shadow-sm border border-gray-200 dark:border-slate-700 opacity-0 group-hover:opacity-100 transition-opacity"
-                      title="Hapus Playlist"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+                    <button onClick={() => setPlaylistToDelete(pl)} className="absolute top-4 right-4 p-1.5 text-gray-400 hover:text-red-500 bg-white dark:bg-slate-800 rounded-md shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 className="w-3.5 h-3.5" /></button>
                   </div>
                 ))
               )}
             </div>
           )}
-
         </div>
       </div>
 
-      {/* MODAL IMPORT URL */}
       {showImportUrlModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4" onClick={() => setShowImportUrlModal(false)}>
           <div className="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-md shadow-2xl shadow-black/40 overflow-hidden border border-gray-200 dark:border-slate-700 flex flex-col" onClick={e => e.stopPropagation()}>
             <div className="px-6 py-4 border-b border-gray-200 dark:border-slate-700/60 flex justify-between items-center bg-gray-50 dark:bg-slate-800/80">
-              <h3 className="text-lg font-bold dark:text-slate-100 flex items-center gap-2">
-                 <LinkIcon className="w-5 h-5 text-blue-500" /> Import File dari URL
-              </h3>
-              <button onClick={() => setShowImportUrlModal(false)} className="text-gray-400 hover:text-red-500 transition-colors">
-                <XCircle className="w-6 h-6" />
-              </button>
+              <h3 className="text-lg font-bold dark:text-slate-100 flex items-center gap-2"><LinkIcon className="w-5 h-5 text-blue-500" /> Import File dari URL</h3>
+              <button onClick={() => setShowImportUrlModal(false)} className="text-gray-400 hover:text-red-500 transition-colors"><XCircle className="w-6 h-6" /></button>
             </div>
-            
             <div className="p-6">
               <label className="block text-sm font-medium mb-2 dark:text-slate-300">Direct Link (URL Langsung)</label>
               <div className="relative">
-                <input 
-                  type="text" 
-                  value={importUrl}
-                  onChange={(e) => setImportUrl(e.target.value)}
-                  placeholder="Paste link Google Drive di sini..." 
-                  className="w-full bg-white dark:bg-slate-900/80 border border-gray-300 dark:border-slate-600/60 rounded-lg px-4 py-3 outline-none focus:border-blue-500 dark:focus:border-blue-400 dark:text-slate-200 font-mono text-sm pr-10 shadow-sm transition-all" 
-                  autoFocus
-                />
-                {importUrl && (
-                  <button onClick={() => setImportUrl('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-red-500 transition-colors">
-                    <XCircle className="w-5 h-5" />
-                  </button>
-                )}
+                <input type="text" value={importUrl} onChange={(e) => setImportUrl(e.target.value)} placeholder="Paste link Google Drive di sini..." className="w-full bg-white dark:bg-slate-900/80 border border-gray-300 dark:border-slate-600/60 rounded-lg px-4 py-3 outline-none focus:border-blue-500 font-mono text-sm pr-10 shadow-sm" autoFocus />
+                {importUrl && <button onClick={() => setImportUrl('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-red-500"><XCircle className="w-5 h-5" /></button>}
               </div>
               <div className="mt-3 text-[11px] text-gray-500 dark:text-slate-400 bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg border border-blue-100 dark:border-blue-800/30">
                  <strong>Perhatian:</strong> Server VPS akan mengunduh langsung dari tautan tersebut. Pastikan file GDrive Anda disetting <strong>"Siapa saja memiliki link" (Public)</strong>.
               </div>
             </div>
-
             <div className="px-6 py-4 border-t border-gray-200 dark:border-slate-700/60 bg-gray-50 dark:bg-slate-800/80 flex justify-end gap-3">
-              <button 
-                onClick={() => setShowImportUrlModal(false)}
-                className="px-4 py-2 rounded-lg border border-gray-300 dark:border-slate-600/60 text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700/50 transition-colors text-sm font-medium"
-              >
-                Batal
-              </button>
-              <button 
-                onClick={handleImportUrlSubmit}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors shadow-sm"
-              >
-                Mulai Import
-              </button>
+              <button onClick={() => setShowImportUrlModal(false)} className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 text-sm font-medium">Batal</button>
+              <button onClick={handleImportUrlSubmit} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium">Mulai Import</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Modal Buat Playlist Baru */}
       {showPlaylistModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
           <div className="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-lg shadow-2xl shadow-black/40 overflow-hidden border border-gray-200 dark:border-slate-700 flex flex-col max-h-[90vh]">
             <div className="px-6 py-4 border-b border-gray-200 dark:border-slate-700/60 flex justify-between items-center bg-gray-50 dark:bg-slate-800/80">
               <h3 className="text-lg font-bold dark:text-slate-100">Buat Playlist Baru</h3>
-              <button 
-                onClick={() => setShowPlaylistModal(false)}
-                className="text-gray-400 dark:text-slate-400 hover:text-emerald-500 dark:hover:text-emerald-400 transition-colors"
-              >
-                <XCircle className="w-6 h-6" />
-              </button>
+              <button onClick={() => setShowPlaylistModal(false)} className="text-gray-400 hover:text-emerald-500"><XCircle className="w-6 h-6" /></button>
             </div>
-            
             <div className="p-6 overflow-y-auto flex-1 space-y-5 custom-scrollbar">
               <div>
                 <label className="block text-sm font-medium mb-1.5 dark:text-slate-300">Nama Playlist</label>
-                <input 
-                  type="text" 
-                  value={newPlaylistName}
-                  onChange={(e) => setNewPlaylistName(e.target.value)}
-                  placeholder="Misal: Playlist Berita Malam" 
-                  className="w-full bg-gray-50 dark:bg-slate-900/50 border border-gray-300 dark:border-slate-600/60 rounded-lg px-4 py-2.5 outline-none focus:border-emerald-500 dark:focus:border-emerald-400 dark:text-slate-200" 
-                />
+                <input type="text" value={newPlaylistName} onChange={(e) => setNewPlaylistName(e.target.value)} placeholder="Misal: Playlist Berita Malam" className="w-full bg-gray-50 border border-gray-300 rounded-lg px-4 py-2.5 outline-none focus:border-emerald-500" />
               </div>
-
               <div>
                 <div className="flex justify-between items-center mb-2">
                   <label className="block text-sm font-medium dark:text-slate-300">Pilih Video untuk Playlist</label>
-                  <span className="text-xs bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300 px-2 py-1 rounded-md font-medium">
-                    {selectedPlaylistVideos.length} Terpilih
-                  </span>
+                  <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-1 rounded-md font-medium">{selectedPlaylistVideos.length} Terpilih</span>
                 </div>
                 <div className="border border-gray-200 dark:border-slate-700/60 rounded-xl overflow-hidden">
-                  <div className="bg-gray-50 dark:bg-slate-900/30 px-4 py-2 border-b border-gray-200 dark:border-slate-700/60 text-xs font-medium text-gray-500 dark:text-slate-400">
-                    Daftar Video di Media (Bisa dipilih banyak)
-                  </div>
+                  <div className="bg-gray-50 dark:bg-slate-900/30 px-4 py-2 border-b border-gray-200 text-xs font-medium text-gray-500">Daftar Video di Media (Bisa dipilih banyak)</div>
                   <div className="max-h-48 overflow-y-auto p-2 space-y-1 custom-scrollbar">
                     {mediaFiles.length === 0 ? (
-                      <div className="text-center py-4 text-xs text-gray-500 dark:text-slate-400">Belum ada video tersedia. Silakan upload terlebih dahulu.</div>
+                      <div className="text-center py-4 text-xs text-gray-500">Belum ada video tersedia. Silakan upload terlebih dahulu.</div>
                     ) : (
                       mediaFiles.filter(f => f.name.toLowerCase().endsWith('.mp4') || f.name.toLowerCase().endsWith('.mkv')).map((file) => {
                         const isSelected = selectedPlaylistVideos.includes(file.name);
                         return (
-                          <label 
-                            key={file.id} 
-                            className={`flex items-center gap-3 p-2.5 rounded-lg cursor-pointer transition-colors border ${isSelected ? 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/20' : 'border-transparent hover:bg-gray-100 dark:hover:bg-slate-700/40'}`}
-                          >
-                            <input 
-                              type="checkbox" 
-                              checked={isSelected}
-                              onChange={() => toggleVideoForPlaylist(file.name)}
-                              className="w-4 h-4 text-emerald-600 dark:text-emerald-500 focus:ring-emerald-500 dark:focus:ring-emerald-500 cursor-pointer rounded-sm bg-white dark:bg-slate-900 border-gray-300 dark:border-slate-600"
-                            />
-                            <Video className={`w-4 h-4 ${isSelected ? 'text-emerald-500 dark:text-emerald-400' : 'text-gray-400 dark:text-slate-500'}`} />
-                            <span className={`text-sm flex-1 truncate ${isSelected ? 'font-medium text-emerald-700 dark:text-emerald-300' : 'text-gray-700 dark:text-slate-300'}`}>
-                              {file.name}
-                            </span>
+                          <label key={file.id} className={`flex items-center gap-3 p-2.5 rounded-lg cursor-pointer transition-colors border ${isSelected ? 'bg-emerald-50 border-emerald-200' : 'border-transparent hover:bg-gray-100'}`}>
+                            <input type="checkbox" checked={isSelected} onChange={() => toggleVideoForPlaylist(file.name)} className="w-4 h-4 text-emerald-600" />
+                            <Video className={`w-4 h-4 ${isSelected ? 'text-emerald-500' : 'text-gray-400'}`} />
+                            <span className={`text-sm flex-1 truncate ${isSelected ? 'font-medium text-emerald-700' : 'text-gray-700'}`}>{file.name}</span>
                           </label>
                         )
                       })
@@ -1404,98 +1162,37 @@ function MediaView({ isPreview, API_BASE }) {
                 </div>
               </div>
             </div>
-
-            <div className="px-6 py-4 border-t border-gray-200 dark:border-slate-700/60 bg-gray-50 dark:bg-slate-800/80 flex justify-end gap-3">
-              <button 
-                onClick={() => setShowPlaylistModal(false)}
-                className="px-4 py-2 rounded-lg border border-gray-300 dark:border-slate-600/60 text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700/50 transition-colors text-sm font-medium"
-              >
-                Batal
-              </button>
-              <button 
-                className="px-4 py-2 bg-emerald-600 dark:bg-emerald-500 hover:bg-emerald-700 dark:hover:bg-emerald-600 text-white rounded-lg text-sm font-medium transition-colors shadow-sm"
-                onClick={handleSavePlaylist}
-              >
-                Simpan Playlist
-              </button>
+            <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 flex justify-end gap-3">
+              <button onClick={() => setShowPlaylistModal(false)} className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 text-sm font-medium">Batal</button>
+              <button onClick={handleSavePlaylist} className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-medium">Simpan Playlist</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Modal Edit Media */}
-      {editingFile && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
-          <div className="bg-white dark:bg-slate-800 rounded-xl w-full max-w-md shadow-2xl shadow-black/40 overflow-hidden border border-gray-200 dark:border-slate-700">
-            <div className="px-6 py-4 border-b border-gray-200 dark:border-slate-700/60 flex justify-between items-center bg-gray-50 dark:bg-slate-800/80">
-              <h3 className="text-lg font-bold dark:text-slate-100">Edit Metadata File</h3>
-              <button 
-                onClick={() => setEditingFile(null)}
-                className="text-gray-400 dark:text-slate-400 hover:text-emerald-500 dark:hover:text-emerald-400 transition-colors"
-              >
-                <XCircle className="w-6 h-6" />
-              </button>
-            </div>
-            <div className="p-6">
-              <label className="block text-sm font-medium mb-2 dark:text-slate-300">Nama File Baru</label>
-              <input 
-                type="text" 
-                value={editFileName}
-                onChange={(e) => setEditFileName(e.target.value)}
-                className="w-full bg-gray-50 dark:bg-slate-900/50 border border-gray-300 dark:border-slate-600/60 rounded-lg px-4 py-2.5 outline-none focus:border-emerald-500 dark:focus:border-emerald-400 font-mono text-sm dark:text-slate-200" 
-              />
-            </div>
-            <div className="px-6 py-4 border-t border-gray-200 dark:border-slate-700/60 bg-gray-50 dark:bg-slate-800/80 flex justify-end gap-3">
-              <button 
-                onClick={() => setEditingFile(null)}
-                className="px-4 py-2 rounded-lg border border-gray-300 dark:border-slate-600/60 text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700/50 transition-colors text-sm font-medium"
-              >
-                Batal
-              </button>
-              <button 
-                onClick={handleSaveEdit}
-                className="px-4 py-2 bg-emerald-600 dark:bg-emerald-500 hover:bg-emerald-700 dark:hover:bg-emerald-600 text-white rounded-lg text-sm font-medium transition-colors shadow-sm"
-              >
-                Simpan Perubahan
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Modal Konfirmasi Hapus File */}
       {fileToDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
-          <div className="bg-white dark:bg-slate-800 rounded-xl w-full max-w-sm shadow-2xl shadow-black/40 overflow-hidden border border-gray-200 dark:border-slate-700 p-6 text-center">
-            <div className="w-16 h-16 bg-red-100 dark:bg-rose-500/15 text-red-600 dark:text-rose-400 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Trash2 className="w-8 h-8" />
-            </div>
+          <div className="bg-white dark:bg-slate-800 rounded-xl w-full max-w-sm shadow-2xl overflow-hidden border border-gray-200 p-6 text-center">
+            <div className="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4"><Trash2 className="w-8 h-8" /></div>
             <h3 className="text-lg font-bold mb-2 dark:text-slate-100">Hapus Media?</h3>
-            <p className="text-sm text-gray-500 dark:text-slate-400 mb-6 break-all">
-              File <strong className="dark:text-slate-200">{fileToDelete.name}</strong> akan dihapus permanen.
-            </p>
+            <p className="text-sm text-gray-500 mb-6 break-all">File <strong>{fileToDelete.name}</strong> akan dihapus permanen.</p>
             <div className="flex gap-3 justify-center">
-              <button onClick={() => setFileToDelete(null)} className="px-4 py-2 rounded-lg border border-gray-300 dark:border-slate-600/60 text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700/50 text-sm font-medium">Batal</button>
-              <button onClick={confirmDeleteFile} className="px-4 py-2 bg-red-600 dark:bg-rose-500 hover:bg-red-700 text-white rounded-lg text-sm font-medium">Ya, Hapus</button>
+              <button onClick={() => setFileToDelete(null)} className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 text-sm">Batal</button>
+              <button onClick={confirmDeleteFile} className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm">Ya, Hapus</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Modal Konfirmasi Hapus Playlist */}
       {playlistToDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
-          <div className="bg-white dark:bg-slate-800 rounded-xl w-full max-w-sm shadow-2xl shadow-black/40 overflow-hidden border border-gray-200 dark:border-slate-700 p-6 text-center">
-            <div className="w-16 h-16 bg-red-100 dark:bg-rose-500/15 text-red-600 dark:text-rose-400 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Trash2 className="w-8 h-8" />
-            </div>
+          <div className="bg-white dark:bg-slate-800 rounded-xl w-full max-w-sm shadow-2xl overflow-hidden border border-gray-200 p-6 text-center">
+            <div className="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4"><Trash2 className="w-8 h-8" /></div>
             <h3 className="text-lg font-bold mb-2 dark:text-slate-100">Hapus Playlist?</h3>
-            <p className="text-sm text-gray-500 dark:text-slate-400 mb-6 break-all">
-              Playlist <strong className="dark:text-slate-200">{playlistToDelete.name}</strong> akan dihapus. Video aslinya tidak akan terhapus.
-            </p>
+            <p className="text-sm text-gray-500 mb-6 break-all">Playlist <strong>{playlistToDelete.name}</strong> akan dihapus.</p>
             <div className="flex gap-3 justify-center">
-              <button onClick={() => setPlaylistToDelete(null)} className="px-4 py-2 rounded-lg border border-gray-300 dark:border-slate-600/60 text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700/50 text-sm font-medium">Batal</button>
-              <button onClick={confirmDeletePlaylist} className="px-4 py-2 bg-red-600 dark:bg-rose-500 hover:bg-red-700 text-white rounded-lg text-sm font-medium">Ya, Hapus</button>
+              <button onClick={() => setPlaylistToDelete(null)} className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 text-sm">Batal</button>
+              <button onClick={confirmDeletePlaylist} className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm">Ya, Hapus</button>
             </div>
           </div>
         </div>
@@ -1504,9 +1201,10 @@ function MediaView({ isPreview, API_BASE }) {
   );
 }
 
+// -----------------------------------------------------------------------------
+// TAB 4: ANALYTICS
+// -----------------------------------------------------------------------------
 function AnalyticsView({ accounts }) {
-  const topStreams = []; 
-
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap justify-between items-center bg-white dark:bg-slate-800 rounded-xl p-4 border border-gray-200 dark:border-slate-700/60 gap-4 shadow-sm">
@@ -1530,65 +1228,10 @@ function AnalyticsView({ accounts }) {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-white dark:bg-slate-800 p-5 rounded-xl border border-gray-200 dark:border-slate-700/60 shadow-sm relative overflow-hidden">
-          <div className="flex justify-between items-start mb-2">
-            <div>
-              <p className="text-sm font-medium text-gray-500 dark:text-slate-400">Total Jam Tayang</p>
-              <h4 className="text-2xl font-bold text-gray-900 dark:text-slate-100 mt-1">0 <span className="text-sm font-medium text-gray-500 dark:text-slate-500">Jam</span></h4>
-            </div>
-            <div className="p-2 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-lg">
-              <Clock className="w-5 h-5" />
-            </div>
-          </div>
-          <p className="text-xs text-gray-500 dark:text-slate-400 flex items-center gap-1 font-medium mt-2">
-            Menunggu data stream...
-          </p>
-        </div>
-
-        <div className="bg-white dark:bg-slate-800 p-5 rounded-xl border border-gray-200 dark:border-slate-700/60 shadow-sm relative overflow-hidden">
-          <div className="flex justify-between items-start mb-2">
-            <div>
-              <p className="text-sm font-medium text-gray-500 dark:text-slate-400">Penonton Unik</p>
-              <h4 className="text-2xl font-bold text-gray-900 dark:text-slate-100 mt-1">0</h4>
-            </div>
-            <div className="p-2 bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 rounded-lg">
-              <Users className="w-5 h-5" />
-            </div>
-          </div>
-          <p className="text-xs text-gray-500 dark:text-slate-400 flex items-center gap-1 font-medium mt-2">
-            Menunggu data stream...
-          </p>
-        </div>
-
-        <div className="bg-white dark:bg-slate-800 p-5 rounded-xl border border-gray-200 dark:border-slate-700/60 shadow-sm relative overflow-hidden">
-          <div className="flex justify-between items-start mb-2">
-            <div>
-              <p className="text-sm font-medium text-gray-500 dark:text-slate-400">Rata-rata Durasi Tonton</p>
-              <h4 className="text-2xl font-bold text-gray-900 dark:text-slate-100 mt-1">0:00 <span className="text-sm font-medium text-gray-500 dark:text-slate-500">Menit</span></h4>
-            </div>
-            <div className="p-2 bg-yellow-50 dark:bg-amber-900/20 text-yellow-600 dark:text-amber-400 rounded-lg">
-              <Activity className="w-5 h-5" />
-            </div>
-          </div>
-          <p className="text-xs text-gray-500 dark:text-slate-400 flex items-center gap-1 font-medium mt-2">
-            Menunggu data stream...
-          </p>
-        </div>
-
-        <div className="bg-white dark:bg-slate-800 p-5 rounded-xl border border-gray-200 dark:border-slate-700/60 shadow-sm relative overflow-hidden">
-          <div className="flex justify-between items-start mb-2">
-            <div>
-              <p className="text-sm font-medium text-gray-500 dark:text-slate-400">Interaksi Live (Chat/Like)</p>
-              <h4 className="text-2xl font-bold text-gray-900 dark:text-slate-100 mt-1">0 <span className="text-sm font-medium text-gray-500 dark:text-slate-500">/ Menit</span></h4>
-            </div>
-            <div className="p-2 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 rounded-lg">
-              <MessageSquare className="w-5 h-5" />
-            </div>
-          </div>
-          <p className="text-xs text-gray-500 dark:text-slate-400 flex items-center gap-1 font-medium mt-2">
-            Menunggu interaksi...
-          </p>
-        </div>
+        <StatCard title="Total Jam Tayang" value="0 Jam" icon={Clock} color="text-blue-600" bgColor="bg-blue-50 dark:bg-blue-900/20" />
+        <StatCard title="Penonton Unik" value="0" icon={Users} color="text-purple-600" bgColor="bg-purple-50 dark:bg-purple-900/20" />
+        <StatCard title="Rata-rata Durasi" value="0:00 Menit" icon={Activity} color="text-yellow-600" bgColor="bg-yellow-50 dark:bg-amber-900/20" />
+        <StatCard title="Interaksi Live" value="0 / Menit" icon={MessageSquare} color="text-emerald-600" bgColor="bg-emerald-50 dark:bg-emerald-900/20" />
       </div>
       
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -1598,9 +1241,7 @@ function AnalyticsView({ accounts }) {
             <span className="text-xs font-medium bg-gray-100 text-gray-600 dark:bg-slate-700/50 dark:text-slate-400 px-2.5 py-1 rounded-md border border-transparent dark:border-slate-600">Menunggu Data</span>
           </div>
           <div className="flex-1 border-b border-l border-gray-200 dark:border-slate-700/60 relative min-h-[200px] mt-4 flex items-center justify-center">
-            
             <p className="text-sm text-gray-400 dark:text-slate-500">Belum ada data grafik untuk ditampilkan.</p>
-            
             <div className="absolute inset-0 flex flex-col justify-between pointer-events-none opacity-20 dark:opacity-10">
               <div className="border-t border-gray-400 dark:border-slate-400 w-full"></div>
               <div className="border-t border-gray-400 dark:border-slate-400 w-full"></div>
@@ -1615,34 +1256,8 @@ function AnalyticsView({ accounts }) {
 
         <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700/60 p-6 shadow-sm flex flex-col">
           <h3 className="text-lg font-semibold mb-4 dark:text-slate-100">Performa Live Tertinggi</h3>
-          
-          <div className="space-y-4 overflow-y-auto flex-1 pr-2 custom-scrollbar">
-            {topStreams.length === 0 ? (
-              <div className="flex items-center justify-center h-full">
-                <p className="text-sm text-gray-400 dark:text-slate-500">Belum ada aktivitas live.</p>
-              </div>
-            ) : (
-              topStreams.map((stream, i) => (
-                <div key={i} className="flex items-center gap-3 p-3 rounded-lg border border-gray-100 dark:border-slate-700/50 hover:bg-gray-50 dark:hover:bg-slate-700/30 transition-colors">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs ${i === 0 ? 'bg-yellow-100 text-yellow-700 dark:bg-amber-500/20 dark:text-amber-400' : 'bg-gray-100 text-gray-600 dark:bg-slate-900/50 dark:text-slate-400'}`}>
-                    #{i+1}
-                  </div>
-                  <div className="flex-1 overflow-hidden">
-                    <div className="text-sm font-semibold truncate dark:text-slate-200">{stream.title}</div>
-                    <div className="text-xs text-gray-500 dark:text-slate-400 truncate">{stream.channel}</div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-sm font-bold text-gray-900 dark:text-slate-100 flex items-center gap-1 justify-end">
-                      <Users className="w-3.5 h-3.5 text-gray-400 dark:text-slate-500" /> {stream.view}
-                    </div>
-                    <div className={`text-[10px] font-medium flex items-center justify-end gap-0.5 ${stream.trend === 'up' ? 'text-green-500 dark:text-emerald-400' : 'text-red-500 dark:text-rose-400'}`}>
-                      <TrendingUp className={`w-3 h-3 ${stream.trend === 'down' ? 'rotate-180' : ''}`} />
-                      {stream.trend === 'up' ? 'Naik' : 'Turun'}
-                    </div>
-                  </div>
-                </div>
-              ))
-            )}
+          <div className="flex items-center justify-center h-full">
+            <p className="text-sm text-gray-400 dark:text-slate-500">Belum ada aktivitas live.</p>
           </div>
         </div>
       </div>
@@ -1650,6 +1265,9 @@ function AnalyticsView({ accounts }) {
   );
 }
 
+// -----------------------------------------------------------------------------
+// TAB 5: PENGATURAN
+// -----------------------------------------------------------------------------
 function SettingsView({ accounts, fetchAccounts, isPreview, API_BASE }) {
   const [notifPlatform, setNotifPlatform] = useState('telegram');
   const [notifEnabled, setNotifEnabled] = useState(false); 
@@ -1683,7 +1301,7 @@ function SettingsView({ accounts, fetchAccounts, isPreview, API_BASE }) {
 
   const handleSaveGoogleCredentials = async () => {
     if (!clientId || !clientSecret) return alert('Client ID dan Client Secret harus diisi!');
-    if (isPreview) return alert('Simulasi (Layar Preview): Kredensial Google berhasil divalidasi.');
+    if (isPreview) return alert('Simulasi: Kredensial disimpan.');
     
     setIsSavingCreds(true);
     try {
@@ -1725,7 +1343,7 @@ function SettingsView({ accounts, fetchAccounts, isPreview, API_BASE }) {
       if (data.success) {
         setAccountName('');
         setAuthUrl('');
-        fetchAccounts(); // Update daftar global
+        fetchAccounts();
       }
     } catch (err) { alert('Terjadi kesalahan koneksi ke server.'); } 
     finally { setIsSaving(false); }
@@ -1733,7 +1351,7 @@ function SettingsView({ accounts, fetchAccounts, isPreview, API_BASE }) {
 
   const deleteAccount = async (id) => {
     if (isPreview) return;
-    if (!confirm('Anda yakin ingin menghapus sambungan akun ini?')) return;
+    if (!window.confirm('Anda yakin ingin menghapus sambungan akun ini?')) return;
     try {
       await fetch(`${API_BASE}/api/settings/account/${id}`, { method: 'DELETE' });
       fetchAccounts();
@@ -1768,7 +1386,7 @@ function SettingsView({ accounts, fetchAccounts, isPreview, API_BASE }) {
 
   const deleteKey = async (id) => {
     if (isPreview) return;
-    if (!confirm('Anda yakin ingin menghapus API Key ini?')) return;
+    if (!window.confirm('Anda yakin ingin menghapus API Key ini?')) return;
     try {
       await fetch(`${API_BASE}/api/settings/api-key/${id}`, { method: 'DELETE' });
       const res = await fetch(`${API_BASE}/api/settings/api-keys`);
@@ -2062,7 +1680,7 @@ function SettingsView({ accounts, fetchAccounts, isPreview, API_BASE }) {
         </div>
       </div>
 
-      {/* CARD 4: FITUR BARU - YOUTUBE CHATBOT */}
+      {/* CARD 4: YOUTUBE CHATBOT */}
       <div className="bg-gradient-to-br from-white to-emerald-50/30 dark:from-slate-800 dark:to-emerald-900/10 rounded-xl border border-gray-200 dark:border-slate-700/60 p-6 shadow-sm">
         <div className="flex items-center justify-between mb-4 border-b border-gray-200 dark:border-slate-700/60 pb-4">
           <div className="flex items-center gap-3">
@@ -2135,13 +1753,12 @@ function SettingsView({ accounts, fetchAccounts, isPreview, API_BASE }) {
               
               {scheduledMessages.length === 0 && (
                 <div className="text-center py-4 text-sm text-gray-500 dark:text-slate-500 border border-dashed border-gray-300 dark:border-slate-700/60 rounded-lg">
-                  Belum ada jadwal pesan. Klik &quot;+ Tambah Jadwal&quot;
+                  Belum ada jadwal pesan. Klik "+ Tambah Jadwal"
                 </div>
               )}
             </div>
           </div>
 
-          {/* Auto Reply (Sapaan) */}
           <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700/60 rounded-xl p-4 shadow-sm">
             <div className="flex justify-between items-center mb-3">
               <h4 className="text-sm font-semibold flex items-center gap-2 dark:text-slate-200">
@@ -2156,16 +1773,17 @@ function SettingsView({ accounts, fetchAccounts, isPreview, API_BASE }) {
               </div>
             </div>
           </div>
-          
         </div>
       </div>
-      
     </div>
   );
 }
 
+// -----------------------------------------------------------------------------
+// TAB 6: LOG VIEW
+// -----------------------------------------------------------------------------
 function LogView() {
-  const [logs, setLogs] = useState([]);
+  const [logs, setLogs] = useState([{ type: 'info', text: 'Menunggu koneksi ke server VPS FFmpeg...' }]);
   const [bitrateHistory, setBitrateHistory] = useState(Array(20).fill(0));
   const [currentFps, setCurrentFps] = useState(0);
   const [droppedFrames, setDroppedFrames] = useState(0);
@@ -2173,7 +1791,9 @@ function LogView() {
   const logsEndRef = useRef(null);
 
   useEffect(() => {
-    // Logika WebSocket sementara dihilangkan untuk fokus backend
+    // INFO UNTUK PRODUCTION:
+    // Logika setInterval untuk data dummy (FFmpeg output dll) telah dihapus
+    // Silakan hubungkan state `setLogs`, `setBitrateHistory`, dll dengan WebSocket dari Backend / VPS
   }, []);
 
   useEffect(() => {
@@ -2201,7 +1821,6 @@ function LogView() {
           <Activity className="w-5 h-5 text-emerald-500 dark:text-emerald-400" /> Stream Health
         </h3>
 
-        {/* Info Cards */}
         <div className="grid grid-cols-2 gap-3">
           <div className="bg-gray-900 dark:bg-slate-800 text-white p-4 rounded-xl border border-gray-800 dark:border-slate-700/60 shadow-[inset_0_2px_10px_rgba(0,0,0,0.5)] dark:shadow-none">
             <div className="flex items-center gap-1.5 text-xs text-gray-400 dark:text-slate-400 font-bold uppercase tracking-wider mb-1">
@@ -2238,7 +1857,6 @@ function LogView() {
           </div>
         </div>
 
-        {/* Real-time Bitrate Chart */}
         <div className="bg-gray-900 dark:bg-slate-800 rounded-xl border border-gray-800 dark:border-slate-700/60 p-4 mt-2 flex-1 min-h-[200px] flex flex-col relative overflow-hidden shadow-sm">
           <div className="flex justify-between items-center mb-4 relative z-10">
             <span className="text-xs font-bold text-gray-400 dark:text-slate-300 uppercase tracking-widest">Network Stability</span>
@@ -2248,7 +1866,6 @@ function LogView() {
             </div>
           </div>
           
-          {/* Chart Area */}
           <div className="flex-1 relative mt-2 w-full">
             <div className="absolute inset-0 flex flex-col justify-between opacity-10 dark:opacity-20 pointer-events-none">
               <div className="border-t border-gray-400 dark:border-slate-500 w-full"></div>
@@ -2263,18 +1880,8 @@ function LogView() {
                   <stop offset="100%" stopColor="currentColor" stopOpacity="0.0" />
                 </linearGradient>
               </defs>
-              <polyline 
-                points={`0,100 ${createChartPath()} 100,100`} 
-                fill="url(#gradientBitrate)" 
-              />
-              <polyline 
-                points={createChartPath()} 
-                fill="none" 
-                stroke="currentColor" 
-                strokeWidth="2" 
-                strokeLinejoin="round" 
-                strokeLinecap="round" 
-              />
+              <polyline points={`0,100 ${createChartPath()} 100,100`} fill="url(#gradientBitrate)" />
+              <polyline points={createChartPath()} fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
             </svg>
           </div>
           <div className="flex justify-between mt-2 text-[10px] text-gray-600 dark:text-slate-400 font-mono">
@@ -2332,6 +1939,10 @@ function LogView() {
     </div>
   );
 }
+
+/* =========================================
+   REUSABLE UI COMPONENTS
+   ========================================= */
 
 function StatCard({ title, value, icon: Icon, color, bgColor, className = "" }) {
   return (
@@ -2393,7 +2004,6 @@ function VideoFile({ name, size, onEdit, onDelete }) {
         </div>
       </div>
       
-      {/* Action Buttons */}
       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-gradient-to-l from-white dark:from-slate-800 via-white dark:via-slate-800 pl-4 pr-1">
         <button 
           onClick={(e) => { e.stopPropagation(); onEdit && onEdit(); }} 
