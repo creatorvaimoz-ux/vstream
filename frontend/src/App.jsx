@@ -1817,17 +1817,84 @@ function LogView() {
             <div className="text-sm font-black font-mono mt-1 text-gray-500 dark:text-slate-500">Menunggu...</div>
           </div>
         </div>
+
+        {/* Real-time Bitrate Chart */}
+        <div className="bg-gray-900 dark:bg-slate-800 rounded-xl border border-gray-800 dark:border-slate-700/60 p-4 mt-2 flex-1 min-h-[200px] flex flex-col relative overflow-hidden shadow-sm">
+          <div className="flex justify-between items-center mb-4 relative z-10">
+            <span className="text-xs font-bold text-gray-400 dark:text-slate-300 uppercase tracking-widest">Network Stability</span>
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-gray-500 dark:bg-slate-500"></span>
+              <span className="text-xs text-gray-500 dark:text-slate-500 font-medium">Menunggu Stream</span>
+            </div>
+          </div>
+          
+          <div className="flex-1 relative mt-2 w-full">
+            <div className="absolute inset-0 flex flex-col justify-between opacity-10 dark:opacity-20 pointer-events-none">
+              <div className="border-t border-gray-400 dark:border-slate-500 w-full"></div>
+              <div className="border-t border-gray-400 dark:border-slate-500 w-full"></div>
+              <div className="border-t border-gray-400 dark:border-slate-500 w-full"></div>
+              <div className="border-t border-gray-400 dark:border-slate-500 w-full"></div>
+            </div>
+            <svg className="w-full h-full text-green-500 dark:text-emerald-400 drop-shadow-[0_0_8px_rgba(34,197,94,0.6)] dark:drop-shadow-[0_0_8px_rgba(52,211,153,0.4)] opacity-50" viewBox="0 0 100 100" preserveAspectRatio="none">
+              <defs>
+                <linearGradient id="gradientBitrate" x1="0%" y1="0%" x2="0%" y2="100%">
+                  <stop offset="0%" stopColor="currentColor" stopOpacity="0.4" />
+                  <stop offset="100%" stopColor="currentColor" stopOpacity="0.0" />
+                </linearGradient>
+              </defs>
+              <polyline points={`0,100 ${createChartPath()} 100,100`} fill="url(#gradientBitrate)" />
+              <polyline points={createChartPath()} fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
+            </svg>
+          </div>
+          <div className="flex justify-between mt-2 text-[10px] text-gray-600 dark:text-slate-400 font-mono">
+            <span>T-20s</span>
+            <span>T-10s</span>
+            <span>Now</span>
+          </div>
+        </div>
       </div>
 
-      <div className="lg:w-2/3 bg-[#0a0a0a] dark:bg-[#0f172a] rounded-xl border border-gray-800 dark:border-slate-800 flex flex-col font-mono text-sm shadow-[0_8px_30px_rgb(0,0,0,0.4)] overflow-hidden h-full">
+      <div className="lg:w-2/3 bg-[#0a0a0a] dark:bg-[#020617] rounded-xl border border-gray-800 dark:border-slate-800 flex flex-col font-mono text-sm shadow-[0_8px_30px_rgb(0,0,0,0.4)] overflow-hidden h-full relative">
+        <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMSIgY3k9IjEiIHI9IjEiIGZpbGw9InJnYmEoMjU1LD,I1NSwyNTUsMC4wMykiLz48L3N2Zz4=')] opacity-50 dark:opacity-20 pointer-events-none"></div>
+
         <div className="bg-[#1a1a1a] dark:bg-[#0f172a] px-4 py-2.5 border-b border-gray-800 dark:border-slate-800 flex justify-between items-center z-10">
           <div className="flex items-center gap-3 text-gray-400 dark:text-slate-400 text-xs">
             <TerminalSquare className="w-4 h-4" />
             <span className="font-bold tracking-wider">root@vps-vstream:~# tail -f /var/log/ffmpeg_stream.log</span>
           </div>
+          <div className="flex gap-2">
+            <div className="w-3 h-3 rounded-full bg-gray-600/80 dark:bg-slate-700/80 shadow-none"></div>
+            <div className="w-3 h-3 rounded-full bg-gray-600/80 dark:bg-slate-700/80 shadow-none"></div>
+            <div className="w-3 h-3 rounded-full bg-gray-600/80 dark:bg-slate-700/80 shadow-none"></div>
+          </div>
         </div>
-        <div className="p-4 overflow-y-auto flex-1 z-10 custom-scrollbar text-[13px] leading-relaxed">
-          <div className="text-gray-500 dark:text-slate-600 italic">Menunggu koneksi log dari server...</div>
+
+        <div className="p-4 overflow-y-auto flex-1 z-10 custom-scrollbar">
+          <div className="space-y-1.5 text-[13px] leading-relaxed">
+            {logs.length === 0 ? (
+              <div className="text-gray-500 dark:text-slate-600 italic">Menunggu koneksi log dari server...</div>
+            ) : (
+              logs.map((log, index) => {
+                let colorClass = "text-gray-300 dark:text-slate-300";
+                if (log.type === 'system') colorClass = "text-purple-400 dark:text-purple-300 font-bold";
+                if (log.type === 'info') colorClass = "text-blue-400 dark:text-blue-300";
+                if (log.type === 'success') colorClass = "text-green-400 dark:text-emerald-300";
+                if (log.type === 'warning') colorClass = "text-yellow-400 dark:text-amber-300";
+                if (log.type === 'error') colorClass = "text-red-500 dark:text-rose-400 font-bold";
+                if (log.type === 'ffmpeg') colorClass = "text-gray-400 dark:text-slate-500";
+
+                return (
+                  <div key={index} className={`${colorClass} break-all hover:bg-white/5 dark:hover:bg-white/10 px-1 rounded transition-colors`}>
+                    <span className="opacity-50 dark:opacity-40 mr-2 text-xs">
+                      {new Date().toISOString().split('T')[1].substring(0,8)}
+                    </span>
+                    {log.text}
+                  </div>
+                );
+              })
+            )}
+            <div ref={logsEndRef} />
+          </div>
         </div>
       </div>
     </div>
@@ -1839,26 +1906,49 @@ function ProgressBar({ label, percentage, color, valueText, subText }) {
     <div className="flex flex-col justify-end w-full">
       <div className="flex justify-between items-end mb-1.5"><span className="text-[10px] font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider">{label}</span><span className="text-[10px] font-mono font-bold text-gray-700 dark:text-slate-300">{valueText || `${percentage}%`}</span></div>
       <div className="w-full rounded-full h-1.5 bg-gray-100 dark:bg-slate-700/50 overflow-hidden"><div className={`h-full rounded-full ${color}`} style={{ width: `${percentage}%` }}></div></div>
+      <div className={`mt-1.5 text-[9px] text-gray-400 dark:text-slate-500 font-medium text-right leading-none ${subText ? 'opacity-100' : 'opacity-0 select-none'}`}>
+        {subText || '-'}
+      </div>
     </div>
   );
 }
 
 function FolderItem({ name, count, active }) {
   return (
-    <div className={`flex items-center justify-between px-3 py-2 rounded-md cursor-pointer transition-colors ${active ? 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600' : 'text-gray-600 dark:text-slate-400'}`}>
-      <div className="flex items-center gap-2.5 overflow-hidden"><FolderOpen className="w-3.5 h-3.5" /><span className="text-[11px] truncate">{name}</span></div>
+    <div className={`flex items-center justify-between px-3 py-2 rounded-md cursor-pointer transition-colors ${active ? 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-medium border border-emerald-100 dark:border-emerald-500/20' : 'text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-700/50 border border-transparent'}`}>
+      <div className="flex items-center gap-2.5 overflow-hidden"><FolderOpen className={`w-3.5 h-3.5 shrink-0 ${active ? 'text-emerald-500 dark:text-emerald-400' : 'text-gray-400 dark:text-slate-500'}`} /><span className="text-[11px] truncate">{name}</span></div>
+      <span className={`text-[9px] px-1.5 py-0.5 rounded-sm font-mono ${active ? 'bg-white dark:bg-slate-800 text-emerald-500 dark:text-emerald-400 shadow-sm' : 'bg-gray-100 dark:bg-slate-700/50 text-gray-500 dark:text-slate-400'}`}>{count}</span>
     </div>
   );
 }
 
-function VideoFile({ name, size }) {
+function VideoFile({ name, size, onEdit, onDelete }) {
+  const isImage = name.toLowerCase().endsWith('.jpg') || name.toLowerCase().endsWith('.png') || name.toLowerCase().endsWith('.jpeg');
   return (
-    <div className="group flex items-center justify-between p-2.5 bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-700/60 rounded-lg cursor-pointer">
-      <div className="flex items-center gap-3"><div className="w-8 h-8 rounded-md bg-blue-50 text-blue-600 flex items-center justify-center"><Video className="w-4 h-4" /></div><div><p className="text-[13px] font-semibold text-gray-800 dark:text-slate-200">{name}</p><p className="text-[10px] font-mono text-gray-400">{size}</p></div></div>
+    <div className="group flex items-center justify-between p-2.5 bg-white dark:bg-slate-800 hover:bg-gray-50 dark:hover:bg-slate-700/50 border border-gray-100 dark:border-slate-700/60 rounded-lg transition-all cursor-pointer shadow-sm">
+      <div className="flex items-center gap-3 overflow-hidden flex-1"><div className={`w-8 h-8 rounded-md flex items-center justify-center shrink-0 ${isImage ? 'bg-purple-50 text-purple-600' : 'bg-blue-50 text-blue-600'}`}>{isImage ? <Image className="w-4 h-4" /> : <Video className="w-4 h-4" />}</div><div className="overflow-hidden"><p className="text-[13px] font-semibold text-gray-800 dark:text-slate-200 truncate pr-2">{name}</p><p className="text-[10px] font-mono text-gray-400 dark:text-slate-500 mt-0.5">{size}</p></div></div>
+      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-gradient-to-l from-white dark:from-slate-800 via-white dark:via-slate-800 pl-4 pr-1">
+        <button onClick={(e) => { e.stopPropagation(); onEdit && onEdit(); }} className="p-1.5 text-gray-400 hover:text-blue-500 hover:bg-blue-50 rounded-md transition-colors"><Edit className="w-3.5 h-3.5" /></button>
+        <button onClick={(e) => { e.stopPropagation(); onDelete && onDelete(); }} className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors"><Trash2 className="w-3.5 h-3.5" /></button>
+      </div>
     </div>
   );
 }
 
-function TableRowMenu() {
-  return (<button className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 dark:bg-slate-700/50 text-gray-700 dark:text-slate-300 rounded-lg text-sm font-medium"><Settings className="w-4 h-4" /> Menu</button>);
+function TableRowMenu({ onDelete }) {
+  const [isOpen, setIsOpen] = useState(false);
+  return (
+    <div className="relative">
+      <button onClick={() => setIsOpen(!isOpen)} onBlur={() => setTimeout(() => setIsOpen(false), 200)} className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 dark:bg-slate-700/50 text-gray-700 dark:text-slate-300 rounded-lg text-sm font-medium"><Settings className="w-4 h-4" /> Menu</button>
+      {isOpen && (
+        <div className="absolute right-0 top-full mt-1 w-48 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700/60 rounded-xl shadow-lg z-50 py-2">
+          <button className="w-full text-left px-4 py-2 text-sm flex items-center gap-2 text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-700/50"><Edit className="w-4 h-4" /> Edit Metadata</button>
+          <button className="w-full text-left px-4 py-2 text-sm flex items-center gap-2 text-green-600 dark:text-emerald-400 hover:bg-gray-50 dark:hover:bg-slate-700/50"><PlayCircle className="w-4 h-4" /> Play Live</button>
+          <button className="w-full text-left px-4 py-2 text-sm flex items-center gap-2 text-yellow-600 dark:text-amber-400 hover:bg-gray-50 dark:hover:bg-slate-700/50"><StopCircle className="w-4 h-4" /> Stop Live</button>
+          <div className="h-px bg-gray-200 dark:bg-slate-700/60 my-1"></div>
+          <button onClick={onDelete} className="w-full text-left px-4 py-2 text-sm flex items-center gap-2 text-red-600 dark:text-rose-400 hover:bg-red-50 dark:hover:bg-rose-500/10"><Trash2 className="w-4 h-4" /> Hapus Live</button>
+        </div>
+      )}
+    </div>
+  );
 }
