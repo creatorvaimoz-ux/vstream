@@ -315,10 +315,10 @@ function DashboardView({ isPreview, API_BASE }) {
                       <div className="flex items-center gap-2">
                         <span className="relative flex h-2.5 w-2.5">
                           {t.status === 'Live' && <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 dark:bg-emerald-400 opacity-75"></span>}
-                          <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${t.status === 'Live' ? 'bg-emerald-500' : t.status === 'Terjadwal' ? 'bg-blue-500' : 'bg-gray-400'}`}></span>
+                          <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${t.status === 'Live' ? 'bg-emerald-500' : t.status === 'Terjadwal' ? 'bg-blue-500' : t.status === 'Error' ? 'bg-red-500' : 'bg-gray-400'}`}></span>
                         </span>
                         <div className="flex flex-col">
-                          <span className={`text-sm font-medium leading-none ${t.status === 'Live' ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-600 dark:text-slate-400'}`}>
+                          <span className={`text-sm font-medium leading-none ${t.status === 'Live' ? 'text-emerald-600 dark:text-emerald-400' : t.status === 'Error' ? 'text-red-600 dark:text-rose-400' : 'text-gray-600 dark:text-slate-400'}`}>
                             {t.status}
                           </span>
                         </div>
@@ -371,6 +371,14 @@ function TugasLiveView({ accounts, isPreview, API_BASE, onNavigate }) {
   const [availableVideos, setAvailableVideos] = useState([]);
   const [playlists, setPlaylists] = useState([]);
 
+  // STATE UNTUK METADATA YOUTUBE
+  const [accountId, setAccountId] = useState('');
+  const [youtubeCategory, setYoutubeCategory] = useState('24'); // Default 24 = Entertainment
+  const [youtubeTitle, setYoutubeTitle] = useState('');
+  const [youtubeDescription, setYoutubeDescription] = useState('');
+  const [youtubeTags, setYoutubeTags] = useState('');
+  const [youtubePrivacy, setYoutubePrivacy] = useState('public');
+
   useEffect(() => {
     if (isPreview) return;
     fetch(`${API_BASE}/api/media`).then(res => res.json()).then(data => { if(Array.isArray(data)) setAvailableVideos(data.map(d => d.name)); }).catch(e => console.log(e));
@@ -415,7 +423,18 @@ function TugasLiveView({ accounts, isPreview, API_BASE, onNavigate }) {
   const handleSaveTask = async (isMulaiSekarang = false) => {
       if (!taskName.trim()) return alert('⚠️ Nama Tugas Live wajib diisi!');
       if (selectedVideos.length === 0) return alert('⚠️ Pilih minimal 1 video/playlist!');
-      if (!manualStreamKey.trim()) return alert('⚠️ Stream Key wajib diisi!');
+      
+      if (streamKeyMode === 'Manual Input Key' && !manualStreamKey.trim()) {
+          return alert('⚠️ Stream Key wajib diisi untuk mode manual!');
+      }
+
+      if (streamKeyMode === 'Otomatis (API v3)' && !accountId) {
+          return alert('⚠️ Anda harus memilih Channel YouTube di kolom Metadata jika menggunakan Mode API Otomatis!');
+      }
+
+      if (youtubeTitle && youtubeTitle.length > 100) {
+          return alert(`⚠️ Judul video maksimal 100 karakter! (Saat ini: ${youtubeTitle.length} karakter)`);
+      }
       
       if (jadwalMode === 'manual' || jadwalMode === 'sekali') {
           if (!scheduleDate || !scheduleTime) {
@@ -435,7 +454,14 @@ function TugasLiveView({ accounts, isPreview, API_BASE, onNavigate }) {
           scheduleDate,
           scheduleTime,
           thumbnailUrl,
-          isMulaiSekarang
+          isMulaiSekarang,
+          // Metadata terikat agar dikirim ke VPS
+          accountId,
+          youtubeCategory,
+          youtubeTitle,
+          youtubeDescription,
+          youtubeTags,
+          youtubePrivacy
       };
 
       try {
@@ -570,7 +596,7 @@ function TugasLiveView({ accounts, isPreview, API_BASE, onNavigate }) {
                 )}
               </div>
 
-              {streamKeyMode === 'Manual Input Key' && (
+              {streamKeyMode === 'Manual Input Key' ? (
                 <div className="animate-in fade-in slide-in-from-top-2 duration-300 pt-2 border-t border-gray-200 dark:border-slate-700/60">
                   <label className="block text-sm font-bold mb-1.5 text-red-600 dark:text-rose-400">Masukkan Stream Key (Manual) <span className="text-red-500">*</span></label>
                   <input 
@@ -580,6 +606,13 @@ function TugasLiveView({ accounts, isPreview, API_BASE, onNavigate }) {
                     onChange={(e) => setManualStreamKey(e.target.value)}
                     className={`${inputClassName} border-red-300 dark:border-rose-500/50 focus:border-red-500 font-mono`} 
                   />
+                </div>
+              ) : (
+                <div className="animate-in fade-in slide-in-from-top-2 duration-300 pt-2 border-t border-gray-200 dark:border-slate-700/60">
+                   <div className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800/30 p-3 rounded-lg flex gap-3 text-sm text-emerald-800 dark:text-emerald-300">
+                     <CheckCircle2 className="w-5 h-5 shrink-0 mt-0.5" />
+                     <p>Mode API Otomatis aktif. Sistem akan langsung mengikat Stream Key dari YouTube Studio menggunakan Channel yang Anda pilih di menu Metadata di bawah.</p>
+                   </div>
                 </div>
               )}
             </div>
@@ -593,8 +626,8 @@ function TugasLiveView({ accounts, isPreview, API_BASE, onNavigate }) {
             <div className="flex flex-col gap-5">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div>
-                  <label className={labelClassName}>Pilih Channel</label>
-                  <select className={inputClassName}>
+                  <label className={labelClassName}>Pilih Channel {streamKeyMode === 'Otomatis (API v3)' && <span className="text-red-500">*</span>}</label>
+                  <select className={inputClassName} value={accountId} onChange={e => setAccountId(e.target.value)}>
                     <option value="">-- Pilih Channel Aktif --</option>
                     {accounts?.map(acc => (
                       <option key={acc.id} value={acc.id}>{acc.name}</option>
@@ -603,30 +636,42 @@ function TugasLiveView({ accounts, isPreview, API_BASE, onNavigate }) {
                 </div>
                 <div>
                   <label className={labelClassName}>Kategori</label>
-                  <select className={inputClassName}>
-                    <option>News & Politics</option>
-                    <option>Gaming</option>
-                    <option>Entertainment</option>
-                    <option>Music</option>
-                    <option>People & Blogs</option>
-                    <option>Education</option>
+                  <select className={inputClassName} value={youtubeCategory} onChange={e => setYoutubeCategory(e.target.value)}>
+                    <option value="1">Film & Animation</option>
+                    <option value="2">Autos & Vehicles</option>
+                    <option value="10">Music</option>
+                    <option value="15">Pets & Animals</option>
+                    <option value="17">Sports</option>
+                    <option value="19">Travel & Events</option>
+                    <option value="20">Gaming</option>
+                    <option value="22">People & Blogs</option>
+                    <option value="23">Comedy</option>
+                    <option value="24">Entertainment</option>
+                    <option value="25">News & Politics</option>
+                    <option value="26">Howto & Style</option>
+                    <option value="27">Education</option>
+                    <option value="28">Science & Technology</option>
+                    <option value="29">Nonprofits & Activism</option>
                   </select>
                 </div>
               </div>
 
               <div>
                 <label className={labelClassName}>Judul Video <span className="text-xs text-gray-400 dark:text-slate-500 font-normal ml-1 font-mono">(Spintax Supported)</span></label>
-                <input type="text" placeholder="{Live|Update} Judul Video Anda..." className={`${inputClassName} font-mono`} />
+                <input type="text" value={youtubeTitle} onChange={e => setYoutubeTitle(e.target.value)} placeholder="{Live|Update} Judul Video Anda..." className={`${inputClassName} ${youtubeTitle.length > 100 ? 'border-red-500 focus:border-red-500 focus:ring-red-500/50' : ''} font-mono`} />
+                <p className={`text-[10px] mt-1.5 font-medium ${youtubeTitle.length > 100 ? 'text-red-500' : 'text-gray-500 dark:text-slate-400'}`}>
+                  {youtubeTitle.length} / 100 karakter {youtubeTitle.length > 100 && '(Terlalu panjang!)'}
+                </p>
               </div>
 
               <div>
                 <label className={labelClassName}>Deskripsi <span className="text-xs text-gray-400 dark:text-slate-500 font-normal ml-1 font-mono">(Spintax Supported)</span></label>
-                <textarea rows="3" placeholder="Deskripsi video stream..." className={`${inputClassName} font-mono resize-none`}></textarea>
+                <textarea rows="3" value={youtubeDescription} onChange={e => setYoutubeDescription(e.target.value)} placeholder="Deskripsi video stream..." className={`${inputClassName} font-mono resize-none`}></textarea>
               </div>
 
               <div>
                 <label className={labelClassName}>Tag Video <span className="text-xs text-gray-400 dark:text-slate-500 font-normal ml-1">(Pisahkan dengan koma)</span></label>
-                <input type="text" placeholder="berita, live stream, update" className={`${inputClassName} font-mono`} />
+                <input type="text" value={youtubeTags} onChange={e => setYoutubeTags(e.target.value)} placeholder="berita, live stream, update" className={`${inputClassName} font-mono`} />
               </div>
 
               <div className="mt-2 bg-gray-50 dark:bg-slate-900/40 p-4 rounded-xl border border-gray-200 dark:border-slate-700/50">
@@ -636,7 +681,7 @@ function TugasLiveView({ accounts, isPreview, API_BASE, onNavigate }) {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-semibold text-gray-600 dark:text-slate-400 mb-1.5">Status Setelah Live</label>
-                    <select className="w-full bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600/60 rounded-lg px-3 py-2 outline-none focus:border-emerald-500 dark:focus:border-emerald-400 text-sm dark:text-slate-200">
+                    <select value={youtubePrivacy} onChange={e => setYoutubePrivacy(e.target.value)} className="w-full bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600/60 rounded-lg px-3 py-2 outline-none focus:border-emerald-500 dark:focus:border-emerald-400 text-sm dark:text-slate-200">
                       <option value="public">Publik</option>
                       <option value="unlisted">Tidak Publik (Unlisted)</option>
                       <option value="private">Privat</option>
