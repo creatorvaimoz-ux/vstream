@@ -27,7 +27,7 @@ const THUMB_DIR = path.join(__dirname, 'public/thumbnails');
 const PLAYLIST_FILE = path.join(__dirname, 'playlists.json');
 const TASKS_FILE = path.join(__dirname, 'tasks.json');
 const LOGS_DIR = path.join(__dirname, 'logs');
-const NOTIF_FILE = path.join(__dirname, 'notifications.json'); // SETUP FILE NOTIFIKASI
+const NOTIF_FILE = path.join(__dirname, 'notifications.json'); 
 
 [SECRETS_DIR, MEDIA_DIR, THUMB_DIR, LOGS_DIR].forEach(dir => {
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
@@ -42,9 +42,14 @@ function writeLog(taskId, message) {
     const logFileName = taskId ? `${taskId}.log` : 'system.log';
     const logPath = path.join(LOGS_DIR, logFileName);
     const timestamp = new Date().toISOString();
-    // Jika pesan sudah mengandung kurung kotak, tidak usah tambah timestamp lagi
     const finalMessage = message.startsWith('[') ? message : `[${timestamp}] ${message}`;
     try { fs.appendFileSync(logPath, `${finalMessage}\n`); } catch(e) {}
+}
+
+// Helper untuk menghindari Telegram Crash akibat karakter khusus
+function escapeHtml(text) {
+    if (!text) return '';
+    return text.toString().replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
 // --- FUNGSI PENGIRIM TELEGRAM BOT ---
@@ -53,13 +58,12 @@ function sendTelegramMessage(message) {
         if (!fs.existsSync(NOTIF_FILE)) return;
         const settings = JSON.parse(fs.readFileSync(NOTIF_FILE));
         
-        // Cek apakah fitur diaktifkan dan datanya lengkap
         if (!settings.notifEnabled || settings.notifPlatform !== 'telegram' || !settings.telegramToken || !settings.telegramChatId) return;
 
         const data = JSON.stringify({
             chat_id: settings.telegramChatId,
-            text: `🚨 *VStream Alert*\n\n${message}`,
-            parse_mode: 'Markdown'
+            text: `🚨 <b>VStream Alert</b>\n\n${message}`,
+            parse_mode: 'HTML' // Format HTML sangat kebal terhadap karakter error
         });
 
         const options = {
@@ -68,7 +72,7 @@ function sendTelegramMessage(message) {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Content-Length': data.length
+                'Content-Length': Buffer.byteLength(data) // Mengkalkulasi byte untuk Emoji
             }
         };
 
@@ -531,6 +535,12 @@ function startStreamInternal(task) {
             stopTimer = setTimeout(() => {
                 writeLog(task.id, `[SYSTEM] Waktu habis! Menghentikan tugas otomatis: ${task.taskName}`);
                 stopStreamById(task.id);
+                
+                // TELEGRAM NOTIF: STOP OTOMATIS
+                const notifSettings = fs.existsSync(NOTIF_FILE) ? JSON.parse(fs.readFileSync(NOTIF_FILE)) : {};
+                if (notifSettings.notifEnabled) {
+                    sendTelegramMessage(`🟡 <b>Stream Terhenti Otomatis</b>\n\nTugas: <b>${escapeHtml(task.taskName)}</b>\n\nBerhenti sesuai jadwal timer pengaturan.`);
+                }
             }, stopDurationMs);
         }
 
@@ -544,6 +554,12 @@ function startStreamInternal(task) {
             startTime: Date.now(),
             stopTimer: stopTimer
         });
+
+        // TELEGRAM NOTIF: STREAM MULAI
+        const notifSettings = fs.existsSync(NOTIF_FILE) ? JSON.parse(fs.readFileSync(NOTIF_FILE)) : {};
+        if (notifSettings.notifEnabled) {
+            sendTelegramMessage(`🟢 <b>Stream Berhasil Dimulai</b>\n\nTugas: <b>${escapeHtml(task.taskName)}</b>\nStatus: Mengirim data video ke YouTube 🚀`);
+        }
 
         // Nyalakan Chatbot
         if (task.chatbotEnabled && liveChatId) {
@@ -561,7 +577,7 @@ function startStreamInternal(task) {
             // TRIGGGER TELEGRAM BOT (JIKA ERROR)
             const notifSettings = fs.existsSync(NOTIF_FILE) ? JSON.parse(fs.readFileSync(NOTIF_FILE)) : {};
             if (notifSettings.triggerError) {
-                sendTelegramMessage(`Streaming *${task.taskName}* gagal dieksekusi!\n\n_Pesan Error:_ ${err.message}`);
+                sendTelegramMessage(`🔴 <b>Gagal Memulai Streaming!</b>\n\nTugas: <b>${escapeHtml(task.taskName)}</b>\n<i>Pesan Error:</i> ${escapeHtml(err.message)}`);
             }
         });
 
@@ -569,11 +585,11 @@ function startStreamInternal(task) {
             writeLog(task.id, `[SYSTEM] FFmpeg Terhenti (Kode Keluar: ${code})`);
             stopStreamById(task.id);
             
-            // TRIGGER TELEGRAM BOT (JIKA TERHENTI MENDADAK BUKAN KARENA STOP MANUAL KODE 255)
+            // TRIGGER TELEGRAM BOT (JIKA TERHENTI MENDADAK BUKAN KARENA STOP MANUAL)
             if (code !== 0 && code !== 255 && code !== null) {
                 const notifSettings = fs.existsSync(NOTIF_FILE) ? JSON.parse(fs.readFileSync(NOTIF_FILE)) : {};
                 if (notifSettings.triggerError) {
-                    sendTelegramMessage(`Streaming *${task.taskName}* terputus secara tiba-tiba (Kode Exit: ${code}).\nSilakan periksa server Anda.`);
+                    sendTelegramMessage(`🔴 <b>Streaming Terputus!</b>\n\nTugas: <b>${escapeHtml(task.taskName)}</b>\nTerputus secara tiba-tiba (Kode Exit: ${code}).\nSilakan periksa server atau koneksi internet VPS.`);
                 }
             }
         });
@@ -702,7 +718,7 @@ setInterval(() => {
             if (now - lastCpuAlertTime > 15 * 60 * 1000) { 
                 const notifSettings = fs.existsSync(NOTIF_FILE) ? JSON.parse(fs.readFileSync(NOTIF_FILE)) : {};
                 if (notifSettings.triggerCpu) {
-                    sendTelegramMessage(`⚠️ *Peringatan Kinerja Server!*\n\nPenggunaan CPU VPS Anda mencapai *${cpuUsage}%*. Beban yang terlalu tinggi dapat membuat streaming Anda *patah-patah* atau *terputus*.\n\nSilakan periksa pengaturan Encoder Anda.`);
+                    sendTelegramMessage(`⚠️ <b>Peringatan Kinerja Server!</b>\n\nPenggunaan CPU VPS Anda mencapai <b>${cpuUsage}%</b>. Beban yang terlalu tinggi dapat membuat streaming Anda patah-patah atau terputus.\n\nSilakan periksa pengaturan Encoder Anda.`);
                     lastCpuAlertTime = now;
                 }
             }
@@ -797,7 +813,7 @@ app.get('/api/tasks', (req, res) => {
                 if (activeData.healthStatus === 'bad') {
                     condType = 'error';
                     condTitle = 'Buruk (Bad) / Putus';
-                } else if (activeData.healthStatus === 'ok') {
+                } else if (activeData.healthStatus === 'ok' || activeData.healthStatus === 'poor') {
                     condType = 'warning';
                     condTitle = 'Lemah (Poor)';
                 } else if (activeData.healthStatus === 'noData' || activeData.healthStatus === 'no_data') {
@@ -810,6 +826,7 @@ app.get('/api/tasks', (req, res) => {
                     ...t, 
                     viewers: activeData.viewers, 
                     uptime: `${hours}:${minutes}`,
+                    streamHealth: activeData.healthStatus || 'good',
                     condType: condType,
                     condTitle: condTitle,
                     statusText: statusText,
@@ -821,6 +838,7 @@ app.get('/api/tasks', (req, res) => {
                 ...t, 
                 viewers: 0, 
                 uptime: '00:00',
+                streamHealth: 'no_data',
                 condType: 'gray',
                 condTitle: 'Offline',
                 statusText: t.status,
@@ -983,11 +1001,10 @@ app.post('/api/notifications/test', (req, res) => {
             return res.status(400).json({ message: "Silakan isi Token dan Chat ID Telegram terlebih dahulu." });
         }
         
-        // Memanggil fungsi pengirim pesan langsung secara paksa untuk Testing
         const data = JSON.stringify({
             chat_id: settings.telegramChatId,
-            text: `✅ *Test Notifikasi Berhasil!*\n\nSistem VStream Anda telah berhasil terhubung ke Telegram.\nAnda akan menerima pesan otomatis di sini jika terjadi error pada Stream atau penggunaan CPU Overload.`,
-            parse_mode: 'Markdown'
+            text: `✅ <b>Test Notifikasi Berhasil!</b>\n\nSistem VStream Anda telah berhasil terhubung ke Telegram.\nAnda akan menerima pesan otomatis di sini jika terjadi error pada Stream atau penggunaan CPU Overload.`,
+            parse_mode: 'HTML'
         });
 
         const options = {
@@ -996,7 +1013,7 @@ app.post('/api/notifications/test', (req, res) => {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Content-Length': data.length
+                'Content-Length': Buffer.byteLength(data)
             }
         };
 

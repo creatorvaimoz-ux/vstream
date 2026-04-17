@@ -7,7 +7,7 @@ import {
   AlertTriangle, XCircle, ChevronDown, TrendingUp, MessageSquare, ThumbsUp,
   Menu, Image, Monitor, Radio, Calendar, ShieldAlert,
   Wifi, Zap, TerminalSquare, Cpu, Bell, Bot, Send, MessageCircle,
-  Cast, Film, LineChart, Sliders, ScrollText, Link as LinkIcon, ListVideo
+  Cast, Film, LineChart, Sliders, ScrollText, Link as LinkIcon, ListVideo, ArrowDown
 } from 'lucide-react';
 
 export default function App() {
@@ -36,14 +36,19 @@ export default function App() {
       const res = await fetch(`${API_BASE}/api/settings/accounts`);
       const data = await res.json();
       setAccounts(Array.isArray(data) ? data : []);
-    } catch (e) { console.error('Gagal mengambil daftar Akun:', e); }
+    } catch (e) { 
+      console.error('Gagal mengambil daftar Akun:', e); 
+    }
   };
 
-  useEffect(() => { fetchAccounts(); }, []);
+  useEffect(() => {
+    fetchAccounts();
+  }, []);
 
   return (
     <div className={`min-h-screen flex flex-col ${isDarkMode ? 'dark' : ''}`}>
       <div className="flex flex-col w-full h-screen bg-gray-50 dark:bg-slate-900 text-gray-900 dark:text-slate-100 transition-colors duration-300 overflow-hidden relative">
+        
         <header className="shrink-0 bg-white dark:bg-slate-800 relative z-50 flex flex-col shadow-sm dark:shadow-black/20">
           <div className="h-16 flex items-center justify-between px-4 md:px-6 border-b border-gray-200 dark:border-slate-700/60">
             <div className="flex items-center gap-3 shrink-0">
@@ -61,13 +66,20 @@ export default function App() {
                 <div className="w-2 h-2 rounded-full bg-emerald-500 dark:bg-emerald-400 animate-pulse"></div>
                 Running
               </div>
-              <button onClick={toggleTheme} className="p-2 text-gray-500 hover:text-gray-700 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700/50 transition-colors rounded-lg">
+              <button 
+                onClick={toggleTheme}
+                className="p-2 text-gray-500 hover:text-gray-700 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700/50 transition-colors rounded-lg"
+              >
                 {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
               </button>
               <div className="hidden sm:flex w-8 h-8 bg-gray-200 dark:bg-slate-700/80 rounded-full items-center justify-center shrink-0">
                 <Users className="w-4 h-4 dark:text-slate-300" />
               </div>
-              <button className="md:hidden p-2 -mr-2 text-gray-500 hover:bg-gray-100 dark:text-slate-400 dark:hover:bg-slate-700/50 rounded-lg transition-colors" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}>
+              
+              <button 
+                className="md:hidden p-2 -mr-2 text-gray-500 hover:bg-gray-100 dark:text-slate-400 dark:hover:bg-slate-700/50 rounded-lg transition-colors"
+                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              >
                 {isMobileMenuOpen ? <XCircle className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
               </button>
             </div>
@@ -79,8 +91,17 @@ export default function App() {
                 const Icon = item.icon;
                 const isActive = activeTab === item.id;
                 return (
-                  <button key={item.id} onClick={() => setActiveTab(item.id)} className={`flex items-center gap-2 px-3.5 py-2 rounded-lg transition-all text-sm font-medium whitespace-nowrap ${isActive ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-500/20' : 'text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-700/40 border border-transparent'}`}>
-                    <Icon className="w-4 h-4" /> {item.label}
+                  <button
+                    key={item.id}
+                    onClick={() => setActiveTab(item.id)}
+                    className={`flex items-center gap-2 px-3.5 py-2 rounded-lg transition-all text-sm font-medium whitespace-nowrap ${
+                      isActive
+                        ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-500/20'
+                        : 'text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-700/40 border border-transparent'
+                    }`}
+                  >
+                    <Icon className="w-4 h-4" />
+                    {item.label}
                   </button>
                 );
               })}
@@ -95,8 +116,20 @@ export default function App() {
                 const Icon = item.icon;
                 const isActive = activeTab === item.id;
                 return (
-                  <button key={item.id} onClick={() => { setActiveTab(item.id); setIsMobileMenuOpen(false); }} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-sm font-medium ${isActive ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-500/20' : 'text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-700/40'}`}>
-                    <Icon className="w-5 h-5" /> {item.label}
+                  <button
+                    key={item.id}
+                    onClick={() => {
+                      setActiveTab(item.id);
+                      setIsMobileMenuOpen(false);
+                    }}
+                    className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-sm font-medium ${
+                      isActive
+                        ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-500/20'
+                        : 'text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-700/40'
+                    }`}
+                  >
+                    <Icon className="w-5 h-5" />
+                    {item.label}
                   </button>
                 );
               })}
@@ -104,6 +137,13 @@ export default function App() {
           </div>
         )}
         
+        {isMobileMenuOpen && (
+           <div 
+             className="md:hidden absolute inset-0 top-16 z-30 bg-slate-900/50 backdrop-blur-sm"
+             onClick={() => setIsMobileMenuOpen(false)}
+           ></div>
+        )}
+
         <main className="flex-1 overflow-y-auto p-4 md:p-6 relative z-10 w-full mx-auto">
           {activeTab === 'dashboard' && <DashboardView isPreview={isPreview} API_BASE={API_BASE} />}
           {activeTab === 'tugas-live' && <TugasLiveView accounts={accounts} isPreview={isPreview} API_BASE={API_BASE} onNavigate={setActiveTab} />}
@@ -112,6 +152,7 @@ export default function App() {
           {activeTab === 'pengaturan' && <SettingsView accounts={accounts} fetchAccounts={fetchAccounts} isPreview={isPreview} API_BASE={API_BASE} />}
           {activeTab === 'log' && <LogView isPreview={isPreview} API_BASE={API_BASE} />}
         </main>
+        
       </div>
     </div>
   );
@@ -151,17 +192,27 @@ function DashboardView({ isPreview, API_BASE }) {
       try { await fetch(`${API_BASE}/api/stream/stop`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ streamId: id }) }); fetchTasks(); } catch(e) {}
   };
 
+  const handleStartStream = async (task) => {
+      if(!window.confirm('Mulai Streaming untuk tugas ini sekarang?')) return;
+      try {
+          const payload = { ...task, isMulaiSekarang: true };
+          await fetch(`${API_BASE}/api/tasks`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+          await fetch(`${API_BASE}/api/tasks/${task.id}`, { method: 'DELETE' }); 
+          fetchTasks();
+      } catch(e) {}
+  };
+
   const getHealthStyle = (health) => {
     switch(health) {
       case 'good': return { dot: 'bg-blue-500', text: 'text-blue-600 dark:text-blue-400', label: 'Bagus (Good)' };
       case 'poor': return { dot: 'bg-yellow-500', text: 'text-yellow-600 dark:text-yellow-400', label: 'Lemah (Poor)' };
-      case 'bad': return { dot: 'bg-red-500', text: 'text-red-600 dark:text-red-400', label: 'Buruk / No Data' };
-      default: return { dot: 'bg-green-500', text: 'text-green-600 dark:text-green-400', label: 'Sangat Baik' }; // excellent
+      case 'bad': return { dot: 'bg-red-500', text: 'text-red-600 dark:text-red-400', label: 'Buruk / Putus' };
+      default: return { dot: 'bg-emerald-500', text: 'text-emerald-600 dark:text-emerald-400', label: 'Sangat Baik' };
     }
   };
 
   const liveTasks = tasks.filter(t => t.status === 'Live');
-  const scheduledTasks = tasks.filter(t => t.status === 'Terjadwal' || t.status === 'Draft');
+  const scheduledTasks = tasks.filter(t => t.status === 'Terjadwal' || t.status === 'Draft' || t.status === 'Berhenti');
 
   return (
     <div className="space-y-3">
@@ -220,7 +271,7 @@ function DashboardView({ isPreview, API_BASE }) {
           <h3 className="text-base font-semibold text-gray-900 dark:text-slate-100 flex items-center gap-2">
             <Radio className="w-4 h-4 text-emerald-500 dark:text-emerald-400" /> Daftar Tugas & Live Streaming
           </h3>
-          <button onClick={fetchTasks} className="text-xs text-blue-600 font-medium hover:underline flex items-center gap-1">
+          <button onClick={fetchTasks} className="text-xs text-blue-600 dark:text-blue-400 font-medium hover:underline flex items-center gap-1">
               <RefreshCw className="w-3 h-3" /> Refresh
           </button>
         </div>
@@ -249,20 +300,28 @@ function DashboardView({ isPreview, API_BASE }) {
                   return (
                     <tr key={t.id} className="hover:bg-gray-50/80 dark:hover:bg-slate-700/30 transition-colors group">
                       <td className="px-5 py-4 align-middle text-center text-xs font-mono text-gray-400">{idx+1}</td>
+                      
+                      {/* Informasi Stream */}
                       <td className="px-5 py-4 align-middle">
-                        <div className="font-semibold text-sm text-gray-900 dark:text-slate-100 leading-tight truncate max-w-[200px]">{t.taskName || 'Tanpa Nama'}</div>
+                        <div className="font-semibold text-sm text-gray-900 dark:text-slate-100 leading-tight truncate max-w-[200px]">
+                          {t.taskName || 'Tanpa Nama'}
+                        </div>
                         <div className="text-[10px] text-gray-500 dark:text-slate-400 mt-1 truncate max-w-[200px] flex items-center gap-1">
-                          <Video className="w-3 h-3 text-gray-400" /> {t.videoPath || t.videoMode}
+                          {t.videoMode === 'Play Playlist (Berurutan)' ? <ListVideo className="w-3 h-3 text-gray-400" /> : <Video className="w-3 h-3 text-gray-400" />}
+                          {t.videoPath || t.videoMode}
                         </div>
                       </td>
+                      
+                      {/* Mode & Viewers */}
                       <td className="px-5 py-4 align-middle">
                         <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-md bg-gray-100 dark:bg-slate-900/50 border border-gray-200 dark:border-slate-700/60 text-xs text-gray-600 dark:text-slate-300">
                           <Clock className="w-3 h-3 text-gray-400" />
-                          <span>{t.jadwalMode === 'smart-weekly' ? 'Jadwal Mingguan' : t.jadwalMode === 'harian' ? `Harian | ${t.scheduleTime}` : t.jadwalMode === 'sekali' ? `${t.scheduleDate} | ${t.scheduleTime}` : 'Manual'}</span>
+                          <span>{t.jadwalMode === 'smart-weekly' ? 'Mingguan' : t.jadwalMode === 'harian' ? `Harian | ${t.scheduleTime}` : t.jadwalMode === 'sekali' ? `${t.scheduleDate} | ${t.scheduleTime}` : 'Manual'}</span>
                         </div>
+                        
                         {t.status === 'Live' && (
-                          <div className="mt-2 space-y-1">
-                            <div className="text-[11px] font-bold text-blue-600 dark:text-blue-400 flex items-center gap-1">
+                          <div className="mt-2 space-y-1.5">
+                            <div className="text-[11px] font-bold text-blue-600 dark:text-blue-400 flex items-center gap-1.5">
                               <Users className="w-3 h-3" /> {t.viewers || 0} Penonton • {t.uptime || '00:00'}
                             </div>
                             <div className={`text-[10px] font-medium flex items-center gap-1.5 ${healthStyle.text}`}>
@@ -272,25 +331,39 @@ function DashboardView({ isPreview, API_BASE }) {
                           </div>
                         )}
                       </td>
+                      
+                      {/* Status Sistem */}
                       <td className="px-5 py-4 align-middle">
-                        <div className="flex items-center gap-2">
-                          <span className="relative flex h-2.5 w-2.5">
+                        <div className="flex items-start gap-2">
+                          <span className="relative flex h-2.5 w-2.5 mt-1 shrink-0">
                             {t.status === 'Live' && <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 dark:bg-emerald-400 opacity-75"></span>}
                             <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${t.status === 'Live' ? 'bg-emerald-500' : t.status === 'Terjadwal' ? 'bg-blue-500' : t.status === 'Error' ? 'bg-red-500' : 'bg-gray-400'}`}></span>
                           </span>
+                          
                           <div className="flex flex-col">
                             <span className={`text-sm font-medium leading-none ${t.status === 'Live' ? 'text-emerald-600 dark:text-emerald-400' : t.status === 'Error' ? 'text-red-600 dark:text-rose-400' : 'text-gray-600 dark:text-slate-400'}`}>
                               {t.status}
                             </span>
+                            <span className={`text-[11px] mt-1 mb-1.5 ${t.condType === 'success' ? 'text-emerald-600 dark:text-emerald-400' : t.condType === 'warning' ? 'text-yellow-600 dark:text-amber-400' : t.condType === 'error' ? 'text-red-600 dark:text-rose-400' : 'text-gray-500 dark:text-slate-500'}`}>
+                              {t.condTitle || 'Menunggu Waktu'}
+                            </span>
+                            
+                            <div className="flex flex-col gap-1 border-t border-gray-100 dark:border-slate-700/50 pt-1.5 mt-0.5">
+                              <span className="text-[10px] text-gray-500 dark:text-slate-400 flex items-center gap-1">
+                                <StopCircle className="w-3 h-3" /> Stop: {t.stopHours || 0}j {t.stopMinutes || 0}m {t.randomizeStop ? '(Acak)' : ''}
+                              </span>
+                            </div>
                           </div>
                         </div>
                       </td>
+                      
+                      {/* Aksi Dropdown Menu */}
                       <td className="px-5 py-4 align-middle text-right">
                           <TableRowMenu 
                             t={t}
-                            onStart={() => alert('Memulai Stream... Server akan memanggil FFmpeg untuk tugas ini.')}
+                            onStart={() => handleStartStream(t)}
                             onStop={() => handleStopStream(t.id)}
-                            onEdit={() => alert('Membuka form Edit Metadata untuk mengubah Judul, Deskripsi, dan Setelan API.')}
+                            onEdit={() => alert('Fitur Edit Metadata sedang dalam pengembangan untuk UI ini.')}
                             onDelete={() => handleDeleteTask(t.id)}
                           />
                       </td>
@@ -393,7 +466,6 @@ function TugasLiveView({ accounts, isPreview, API_BASE, onNavigate }) {
           taskName, videoMode, videoPath: selectedVideos[0], streamKeyMode, streamKey: manualStreamKey, jadwalMode, scheduleDate, scheduleTime,
           scheduleGrid, stopHours, stopMinutes, randomizeStop, thumbnailUrl, isMulaiSekarang, accountId, youtubeCategory, youtubeTitle, youtubeDescription, youtubeTags,
           youtubePrivacy, chatbotEnabled, scheduledMessages,
-          // Payload Tambahan
           enableFallback, fallbackVideo, encoderEngine, outputResolution, syntheticContent, monetization, targetPlaylist
       };
 
@@ -434,6 +506,7 @@ function TugasLiveView({ accounts, isPreview, API_BASE, onNavigate }) {
                    <select className={inputClassName} value={videoMode} onChange={(e) => { setVideoMode(e.target.value); setSelectedVideos([]); }}>
                     <option value="Satu Video (Looping)">Satu Video (Looping)</option>
                     <option value="Play Playlist (Berurutan)">Play Playlist (Berurutan)</option>
+                    <option value="Acak Video Setiap Hari">Acak Video Setiap Hari</option>
                   </select>
                 </div>
                 <div>
@@ -446,12 +519,15 @@ function TugasLiveView({ accounts, isPreview, API_BASE, onNavigate }) {
               </div>
               
               <div className="relative">
-                <label className={labelClassName}>{videoMode === 'Play Playlist (Berurutan)' ? 'Pilih Playlist' : 'Pilih Video'} <span className="text-red-500">*</span></label>
+                <label className={labelClassName}>
+                  {videoMode === 'Play Playlist (Berurutan)' ? 'Pilih Playlist' : videoMode === 'Acak Video Setiap Hari' ? 'Pilih Beberapa Video' : 'Pilih Video'} <span className="text-red-500">*</span>
+                </label>
                 {isVideoDropdownOpen && <div className="fixed inset-0 z-40" onClick={() => setIsVideoDropdownOpen(false)}></div>}
                 <div className="min-h-[44px] w-full bg-white dark:bg-slate-900/50 border border-gray-300 dark:border-slate-600/60 rounded-lg px-3 py-2 cursor-pointer flex flex-wrap gap-2 items-center relative z-40" onClick={() => setIsVideoDropdownOpen(!isVideoDropdownOpen)}>
                   {selectedVideos.length === 0 ? ( <span className="text-sm text-gray-400 px-1">Klik untuk memilih...</span> ) : (
                     selectedVideos.map(vid => (
                       <span key={vid} className="bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300 text-xs px-2.5 py-1.5 rounded-md flex items-center gap-1.5 border border-emerald-200 dark:border-emerald-500/20">
+                        {videoMode === 'Play Playlist (Berurutan)' ? <ListVideo className="w-3 h-3" /> : <Video className="w-3 h-3" />}
                         {vid} <button onClick={(e) => { e.stopPropagation(); handleVideoSelection(vid); }} className="hover:text-red-500 ml-1"><XCircle className="w-3.5 h-3.5" /></button>
                       </span>
                     ))
@@ -459,18 +535,35 @@ function TugasLiveView({ accounts, isPreview, API_BASE, onNavigate }) {
                   <div className="ml-auto pr-1"><ChevronDown className={`w-4 h-4 text-gray-400 ${isVideoDropdownOpen ? 'rotate-180' : ''}`} /></div>
                 </div>
                 {isVideoDropdownOpen && (
-                  <div className="absolute z-50 mt-2 w-full bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700/60 rounded-xl shadow-xl max-h-56 overflow-y-auto">
-                    {videoMode === 'Play Playlist (Berurutan)' ? playlists.map((pl, idx) => (
-                        <div key={idx} onClick={() => handleVideoSelection(pl.name)} className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-700/40">
-                          <span className={`text-sm flex-1 ${selectedVideos.includes(pl.name) ? 'text-emerald-600' : 'dark:text-slate-300'}`}>{pl.name}</span>
+                  <div className="absolute z-50 mt-2 w-full bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700/60 rounded-xl shadow-xl max-h-56 overflow-y-auto custom-scrollbar">
+                    {videoMode === 'Play Playlist (Berurutan)' ? playlists.map((pl, idx) => {
+                      const isSelected = selectedVideos.includes(pl.name);
+                      return (
+                        <div key={idx} onClick={() => handleVideoSelection(pl.name)} className={`flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-700/40 ${isSelected ? 'bg-emerald-50/50 dark:bg-emerald-500/10' : ''}`}>
+                          <input type="radio" checked={isSelected} readOnly className="w-4 h-4 text-emerald-600 rounded-sm bg-white dark:bg-slate-900 border-gray-300 dark:border-slate-600" />
+                          <span className={`text-sm flex-1 ${isSelected ? 'font-medium text-emerald-700 dark:text-emerald-400' : 'text-gray-700 dark:text-slate-300'}`}>{pl.name} ({pl.count} video)</span>
                         </div>
-                    )) : availableVideos.map((vid, idx) => (
-                        <div key={idx} onClick={() => handleVideoSelection(vid)} className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-700/40">
-                          <span className={`text-sm flex-1 ${selectedVideos.includes(vid) ? 'text-emerald-600' : 'dark:text-slate-300'}`}>{vid}</span>
+                      )
+                    }) : availableVideos.map((vid, idx) => {
+                      const isSelected = selectedVideos.includes(vid);
+                      return (
+                        <div key={idx} onClick={() => handleVideoSelection(vid)} className={`flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-700/40 ${isSelected ? 'bg-emerald-50/50 dark:bg-emerald-500/10' : ''}`}>
+                          <input type={videoMode === 'Satu Video (Looping)' ? 'radio' : 'checkbox'} checked={isSelected} readOnly className="w-4 h-4 text-emerald-600 rounded-sm bg-white dark:bg-slate-900 border-gray-300 dark:border-slate-600" />
+                          <span className={`text-sm flex-1 ${isSelected ? 'font-medium text-emerald-700 dark:text-emerald-400' : 'text-gray-700 dark:text-slate-300'}`}>{vid}</span>
                         </div>
-                    ))}
+                      )
+                    })}
                   </div>
                 )}
+                
+                <p className="text-xs text-gray-500 dark:text-slate-400 mt-2.5 flex items-start gap-1.5 px-1">
+                  <AlertCircle className="w-4 h-4 shrink-0 text-blue-500 dark:text-blue-400" />
+                  {videoMode === 'Satu Video (Looping)' 
+                    ? 'Mode Looping: Hanya mengizinkan pemilihan 1 video utama.' 
+                    : videoMode === 'Play Playlist (Berurutan)'
+                    ? 'Mode Playlist: Pilih 1 playlist yang telah Anda simpan di menu Media.'
+                    : 'Pilih beberapa video. Sistem akan memutar secara acak setiap berganti hari.'}
+                </p>
               </div>
 
               {streamKeyMode === 'Manual Input Key' ? (
@@ -500,36 +593,49 @@ function TugasLiveView({ accounts, isPreview, API_BASE, onNavigate }) {
                   <label className={labelClassName}>Pilih Channel {streamKeyMode === 'Otomatis (API v3)' && <span className="text-red-500">*</span>}</label>
                   <select className={inputClassName} value={accountId} onChange={e => setAccountId(e.target.value)}>
                     <option value="">-- Pilih Channel Aktif --</option>
-                    {accounts?.map(acc => ( <option key={acc.id} value={acc.id}>{acc.name}</option> ))}
+                    {accounts?.map(acc => (
+                      <option key={acc.id} value={acc.id}>{acc.name}</option>
+                    ))}
                   </select>
                 </div>
                 <div>
                   <label className={labelClassName}>Kategori</label>
                   <select className={inputClassName} value={youtubeCategory} onChange={e => setYoutubeCategory(e.target.value)}>
-                    <option value="1">Film & Animation</option><option value="2">Autos & Vehicles</option><option value="10">Music</option>
-                    <option value="15">Pets & Animals</option><option value="17">Sports</option><option value="19">Travel & Events</option>
-                    <option value="20">Gaming</option><option value="22">People & Blogs</option><option value="23">Comedy</option>
-                    <option value="24">Entertainment</option><option value="25">News & Politics</option><option value="26">Howto & Style</option>
-                    <option value="27">Education</option><option value="28">Science & Technology</option><option value="29">Nonprofits & Activism</option>
+                    <option value="25">News & Politics</option>
+                    <option value="20">Gaming</option>
+                    <option value="24">Entertainment</option>
+                    <option value="10">Music</option>
+                    <option value="22">People & Blogs</option>
+                    <option value="27">Education</option>
+                    <option value="1">Film & Animation</option>
+                    <option value="2">Autos & Vehicles</option>
+                    <option value="15">Pets & Animals</option>
+                    <option value="17">Sports</option>
+                    <option value="19">Travel & Events</option>
+                    <option value="23">Comedy</option>
+                    <option value="26">Howto & Style</option>
+                    <option value="28">Science & Technology</option>
+                    <option value="29">Nonprofits & Activism</option>
                   </select>
                 </div>
               </div>
 
               <div>
-                <label className={labelClassName}>Judul Video <span className="text-xs font-normal ml-1 font-mono">(Spintax Supported)</span></label>
+                <label className={labelClassName}>Judul Video <span className="text-xs text-gray-400 dark:text-slate-500 font-normal ml-1 font-mono">(Spintax Supported)</span></label>
                 <input type="text" value={youtubeTitle} onChange={e => setYoutubeTitle(e.target.value)} placeholder="{Live|Update} Judul Video Anda..." className={`${inputClassName} ${youtubeTitle.length > 100 ? 'border-red-500 focus:border-red-500' : ''} font-mono`} />
                 <p className={`text-[10px] mt-1.5 font-medium ${youtubeTitle.length > 100 ? 'text-red-500' : 'text-gray-500 dark:text-slate-400'}`}>{youtubeTitle.length} / 100 karakter {youtubeTitle.length > 100 && '(Terlalu panjang!)'}</p>
               </div>
+
               <div>
-                <label className={labelClassName}>Deskripsi <span className="text-xs font-normal ml-1 font-mono">(Spintax Supported)</span></label>
+                <label className={labelClassName}>Deskripsi <span className="text-xs text-gray-400 dark:text-slate-500 font-normal ml-1 font-mono">(Spintax Supported)</span></label>
                 <textarea rows="3" value={youtubeDescription} onChange={e => setYoutubeDescription(e.target.value)} placeholder="Deskripsi video stream..." className={`${inputClassName} font-mono resize-none`}></textarea>
               </div>
+
               <div>
-                <label className={labelClassName}>Tag Video <span className="text-xs font-normal ml-1">(Pisahkan dengan koma)</span></label>
+                <label className={labelClassName}>Tag Video <span className="text-xs text-gray-400 dark:text-slate-500 font-normal ml-1">(Pisahkan dengan koma)</span></label>
                 <input type="text" value={youtubeTags} onChange={e => setYoutubeTags(e.target.value)} placeholder="berita, live stream, update" className={`${inputClassName} font-mono`} />
               </div>
 
-              {/* Aturan Publikasi & Visibilitas */}
               <div className="mt-2 bg-gray-50 dark:bg-slate-900/40 p-4 rounded-xl border border-gray-200 dark:border-slate-700/50">
                 <h4 className="text-sm font-bold text-gray-800 dark:text-slate-200 mb-4 flex items-center gap-2">
                   <Settings className="w-4 h-4 text-gray-500 dark:text-slate-400" /> Aturan Publikasi & Visibilitas
@@ -619,9 +725,23 @@ function TugasLiveView({ accounts, isPreview, API_BASE, onNavigate }) {
             <div className="bg-gray-50/50 dark:bg-slate-900/30 p-4 rounded-xl border border-gray-100 dark:border-slate-700/50 mb-5">
               {(jadwalMode === 'manual' || jadwalMode === 'sekali' || jadwalMode === 'harian') && (
                 <div className="grid grid-cols-2 gap-3 mb-4">
-                  <div className="col-span-2"><label className="block text-sm font-semibold text-gray-700 dark:text-slate-300">Waktu Mulai {jadwalMode.charAt(0).toUpperCase() + jadwalMode.slice(1)}</label></div>
-                  <input type="time" value={scheduleTime} onChange={e=>setScheduleTime(e.target.value)} className={inputClassName} />
-                  {(jadwalMode === 'manual' || jadwalMode === 'sekali') && ( <input type="date" value={scheduleDate} onChange={e=>setScheduleDate(e.target.value)} className={`${inputClassName} text-gray-500 dark:text-slate-400`} /> )}
+                  <div className="col-span-2">
+                    <label className="block text-sm font-semibold text-gray-700 dark:text-slate-300">
+                      Waktu Mulai {jadwalMode === 'manual' ? 'Manual' : jadwalMode === 'sekali' ? 'Satu Kali' : 'Harian'}
+                    </label>
+                  </div>
+                  <input 
+                    type="time" 
+                    value={scheduleTime} 
+                    onChange={e => setScheduleTime(e.target.value)} 
+                    className={inputClassName} 
+                  />
+                  <input 
+                    type="date" 
+                    value={scheduleDate} 
+                    onChange={e => setScheduleDate(e.target.value)} 
+                    className={`${inputClassName} text-gray-500 dark:text-slate-400`} 
+                  />
                 </div>
               )}
 
@@ -1153,7 +1273,7 @@ function SettingsView({ accounts, fetchAccounts, isPreview, API_BASE }) {
 
   const deleteAccount = async (id) => {
     if (isPreview) return;
-    if (!confirm('Anda yakin ingin menghapus sambungan akun ini?')) return;
+    if (!window.confirm('Anda yakin ingin menghapus sambungan akun ini?')) return;
     try { await fetch(`${API_BASE}/api/settings/account/${id}`, { method: 'DELETE' }); fetchAccounts(); } catch (e) {}
   };
 
@@ -1308,8 +1428,18 @@ function LogView({ isPreview, API_BASE }) {
   
   const [tasks, setTasks] = useState([]);
   const [selectedTaskId, setSelectedTaskId] = useState('');
+  const [autoScroll, setAutoScroll] = useState(true); // SMART SCROLL
 
   const logsEndRef = useRef(null);
+  const logContainerRef = useRef(null);
+
+  // Fungsi Deteksi Scroll User (Mencegah scroll paksa saat membaca log lama)
+  const handleScroll = (e) => {
+    const { scrollTop, scrollHeight, clientHeight } = e.target;
+    // Beri batas toleransi 20px dari bawah
+    const isNearBottom = Math.abs(scrollHeight - scrollTop - clientHeight) < 20;
+    setAutoScroll(isNearBottom);
+  };
 
   // Ambil list tugas untuk dropdown
   useEffect(() => {
@@ -1373,7 +1503,12 @@ function LogView({ isPreview, API_BASE }) {
     return () => clearInterval(interval);
   }, [API_BASE, isPreview, selectedTaskId]);
 
-  useEffect(() => { logsEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [logs]);
+  // Eksekusi Smart Scroll (Hanya jalan jika autoScroll aktif)
+  useEffect(() => { 
+      if (autoScroll) {
+          logsEndRef.current?.scrollIntoView({ behavior: "smooth" }); 
+      }
+  }, [logs]); 
 
   const createChartPath = () => {
     return bitrateHistory.map((val, i) => {
@@ -1445,7 +1580,11 @@ function LogView({ isPreview, API_BASE }) {
           </div>
           <div className="flex gap-2"><div className="w-3 h-3 rounded-full bg-gray-600/80 dark:bg-slate-700/80"></div><div className="w-3 h-3 rounded-full bg-gray-600/80 dark:bg-slate-700/80"></div><div className="w-3 h-3 rounded-full bg-gray-600/80 dark:bg-slate-700/80"></div></div>
         </div>
-        <div className="p-4 overflow-y-auto flex-1 z-10 custom-scrollbar">
+        <div 
+          className="p-4 overflow-y-auto flex-1 z-10 custom-scrollbar relative"
+          ref={logContainerRef}
+          onScroll={handleScroll}
+        >
           <div className="space-y-1.5 text-[13px] leading-relaxed">
             {logs.length === 0 ? (
               <div className="text-gray-500 dark:text-slate-600 italic">Menunggu koneksi log dari server...</div>
@@ -1470,6 +1609,17 @@ function LogView({ isPreview, API_BASE }) {
             <div ref={logsEndRef} />
           </div>
         </div>
+        
+        {/* Tombol kembali ke bawah jika scroll dimatikan */}
+        {!autoScroll && (
+          <button 
+            onClick={() => { setAutoScroll(true); logsEndRef.current?.scrollIntoView({ behavior: "smooth" }); }}
+            className="absolute bottom-6 right-6 p-2.5 bg-gray-700 hover:bg-gray-600 text-white rounded-full shadow-lg transition-colors z-20 flex items-center justify-center animate-bounce"
+            title="Kembali ke Log Terbaru"
+          >
+            <ArrowDown className="w-5 h-5" />
+          </button>
+        )}
       </div>
     </div>
   );
@@ -1518,6 +1668,7 @@ function VideoFile({ name, size, onEdit, onDelete }) {
         </div>
       </div>
       
+      {/* Action Buttons */}
       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-gradient-to-l from-white dark:from-slate-800 via-white dark:via-slate-800 pl-4 pr-1">
         <button 
           onClick={(e) => { e.stopPropagation(); onEdit && onEdit(); }} 
