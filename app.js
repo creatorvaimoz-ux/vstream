@@ -189,8 +189,7 @@ function startStreamInternal(task) {
     
     ffmpegArgs.push(
         '-i', fullVideoPath,
-        '-c:v', 'libx264', '-preset', 'veryfast', '-b:v', '3000k', '-maxrate', '3000k', '-bufsize', '6000k',
-        '-pix_fmt', 'yuv420p', '-g', '60', 
+        '-c:v', 'copy', // FIX: Mode Direct Copy. Super Ringan, Beban CPU nyaris 0%, Kecepatan ~1.0x
         '-c:a', 'aac', '-b:a', '128k', '-ar', '44100', '-f', 'flv',
         `rtmp://a.rtmp.youtube.com/live2/${cleanStreamKey}`
     );
