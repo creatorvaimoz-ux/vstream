@@ -7,7 +7,7 @@ import {
   AlertTriangle, XCircle, ChevronDown, TrendingUp, MessageSquare, ThumbsUp,
   Menu, Image, Monitor, Radio, Calendar, ShieldAlert,
   Wifi, Zap, TerminalSquare, Cpu, Bell, Bot, Send, MessageCircle,
-  Cast, Film, LineChart, Sliders, ScrollText, Link as LinkIcon, ListVideo, ArrowDown
+  Cast, Film, LineChart, Sliders, ScrollText, Link as LinkIcon, ListVideo, ArrowDown, Archive
 } from 'lucide-react';
 
 export default function App() {
@@ -162,6 +162,9 @@ function DashboardView({ isPreview, API_BASE }) {
   const [tasks, setTasks] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [sysInfo, setSysInfo] = useState({ cpu: 0, ram: 0, disk: 0, bandwidth: 0 });
+  
+  // STATE BARU: Filter Tab di Dashboard
+  const [tableFilter, setTableFilter] = useState('utama'); // 'utama' | 'history'
 
   const fetchTasks = async () => {
     if(isPreview) { setIsLoading(false); return; }
@@ -207,12 +210,23 @@ function DashboardView({ isPreview, API_BASE }) {
       case 'good': return { dot: 'bg-blue-500', text: 'text-blue-600 dark:text-blue-400', label: 'Bagus (Good)' };
       case 'poor': return { dot: 'bg-yellow-500', text: 'text-yellow-600 dark:text-yellow-400', label: 'Lemah (Poor)' };
       case 'bad': return { dot: 'bg-red-500', text: 'text-red-600 dark:text-red-400', label: 'Buruk / Putus' };
-      default: return { dot: 'bg-emerald-500', text: 'text-emerald-600 dark:text-emerald-400', label: 'Sangat Baik' };
+      default: return { dot: 'bg-emerald-500', text: 'text-emerald-600 dark:text-emerald-400', label: 'Sangat Baik' }; // excellent
     }
   };
 
   const liveTasks = tasks.filter(t => t.status === 'Live');
   const scheduledTasks = tasks.filter(t => t.status === 'Terjadwal' || t.status === 'Draft' || t.status === 'Berhenti');
+
+  // Logika Filter Tabel
+  const filteredTasks = tasks.filter(t => {
+      if (tableFilter === 'utama') {
+          // Utama: Live sekarang, atau Terjadwal yang cuma 1x jalan
+          return t.status === 'Live' || t.status === 'Starting' || (t.status === 'Terjadwal' && ['sekali', 'manual'].includes(t.jadwalMode));
+      } else {
+          // History & Rutin: Yang sudah berhenti, error, atau jadwal looping (harian/mingguan) yang sedang standby
+          return t.status === 'Berhenti' || t.status === 'Error' || (t.status !== 'Live' && ['harian', 'smart-weekly'].includes(t.jadwalMode));
+      }
+  });
 
   return (
     <div className="space-y-3">
@@ -266,14 +280,33 @@ function DashboardView({ isPreview, API_BASE }) {
         </div>
       </div>
 
-      <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700/60 shadow-sm overflow-hidden">
-        <div className="flex justify-between items-center p-5 border-b border-gray-200 dark:border-slate-700/60 bg-gray-50/50 dark:bg-slate-800/50">
+      <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700/60 shadow-sm overflow-hidden flex flex-col">
+        {/* HEADER & TAB FILTER */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 border-b border-gray-200 dark:border-slate-700/60 bg-gray-50/50 dark:bg-slate-800/50 gap-4">
           <h3 className="text-base font-semibold text-gray-900 dark:text-slate-100 flex items-center gap-2">
-            <Radio className="w-4 h-4 text-emerald-500 dark:text-emerald-400" /> Daftar Tugas & Live Streaming
+            <Radio className="w-4 h-4 text-emerald-500 dark:text-emerald-400" /> Daftar Tugas & Streaming
           </h3>
-          <button onClick={fetchTasks} className="text-xs text-blue-600 dark:text-blue-400 font-medium hover:underline flex items-center gap-1">
-              <RefreshCw className="w-3 h-3" /> Refresh
-          </button>
+          
+          <div className="flex items-center gap-2 bg-gray-200/50 dark:bg-slate-900 p-1 rounded-lg self-start sm:self-auto">
+             <button 
+                onClick={() => setTableFilter('utama')}
+                className={`px-3 py-1.5 rounded-md text-xs font-bold transition-colors flex items-center gap-1.5 ${tableFilter === 'utama' ? 'bg-white dark:bg-slate-700 text-emerald-600 dark:text-emerald-400 shadow-sm' : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-300'}`}
+             >
+                <PlayCircle className="w-3.5 h-3.5" /> Live & Antrean
+             </button>
+             <button 
+                onClick={() => setTableFilter('history')}
+                className={`px-3 py-1.5 rounded-md text-xs font-bold transition-colors flex items-center gap-1.5 ${tableFilter === 'history' ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-300'}`}
+             >
+                <Archive className="w-3.5 h-3.5" /> History & Rutin
+             </button>
+             
+             <div className="w-px h-4 bg-gray-300 dark:bg-slate-600 mx-1"></div>
+             
+             <button onClick={fetchTasks} className="p-1.5 text-gray-500 hover:text-blue-600 dark:text-slate-400 dark:hover:text-blue-400 transition-colors rounded-md" title="Refresh Data">
+                <RefreshCw className="w-3.5 h-3.5" />
+             </button>
+          </div>
         </div>
         
         <div className="overflow-x-auto w-full pb-2">
@@ -284,18 +317,20 @@ function DashboardView({ isPreview, API_BASE }) {
                 <th className="px-5 py-3">Informasi Stream</th>
                 <th className="px-5 py-3">Mode & Viewers</th>
                 <th className="px-5 py-3">Status Sistem</th>
-                <th className="px-5 py-3 text-right">Aksi</th>
+                <th className="px-5 py-3 text-right">Aksi Cepat</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 dark:divide-slate-700/50">
               {isLoading ? (
                 <tr><td colSpan="5" className="px-5 py-12 text-center text-sm text-gray-500 dark:text-slate-400">Memuat data...</td></tr>
-              ) : tasks.length === 0 ? (
+              ) : filteredTasks.length === 0 ? (
                 <tr>
-                  <td colSpan="5" className="px-5 py-12 text-center text-gray-500 dark:text-slate-400 text-sm">Belum ada tugas live yang dibuat. Silakan buat di menu Tugas Live.</td>
+                  <td colSpan="5" className="px-5 py-12 text-center text-gray-500 dark:text-slate-400 text-sm">
+                    {tableFilter === 'utama' ? 'Tidak ada tugas live yang sedang berjalan atau antre.' : 'Belum ada riwayat video yang berhenti atau jadwal rutin.'}
+                  </td>
                 </tr>
               ) : (
-                tasks.map((t, idx) => {
+                filteredTasks.map((t, idx) => {
                   const healthStyle = getHealthStyle(t.streamHealth || 'excellent');
                   return (
                     <tr key={t.id} className="hover:bg-gray-50/80 dark:hover:bg-slate-700/30 transition-colors group">
@@ -303,7 +338,7 @@ function DashboardView({ isPreview, API_BASE }) {
                       
                       {/* Informasi Stream */}
                       <td className="px-5 py-4 align-middle">
-                        <div className="font-semibold text-sm text-gray-900 dark:text-slate-100 leading-tight truncate max-w-[200px]">
+                        <div className="font-semibold text-sm text-gray-900 dark:text-slate-100 leading-tight truncate max-w-[200px]" title={t.taskName}>
                           {t.taskName || 'Tanpa Nama'}
                         </div>
                         <div className="text-[10px] text-gray-500 dark:text-slate-400 mt-1 truncate max-w-[200px] flex items-center gap-1">
@@ -357,15 +392,42 @@ function DashboardView({ isPreview, API_BASE }) {
                         </div>
                       </td>
                       
-                      {/* Aksi Dropdown Menu */}
+                      {/* AKSI CEPAT (INLINE BUTTONS) */}
                       <td className="px-5 py-4 align-middle text-right">
-                          <TableRowMenu 
-                            t={t}
-                            onStart={() => handleStartStream(t)}
-                            onStop={() => handleStopStream(t.id)}
-                            onEdit={() => alert('Fitur Edit Metadata sedang dalam pengembangan untuk UI ini.')}
-                            onDelete={() => handleDeleteTask(t.id)}
-                          />
+                          <div className="flex items-center justify-end gap-1.5">
+                             {t.status !== 'Live' && (
+                               <button 
+                                 onClick={() => handleStartStream(t)} 
+                                 className="p-2 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-500/20 rounded-md transition-colors" 
+                                 title="Mulai Live Sekarang"
+                               >
+                                 <PlayCircle className="w-4 h-4"/>
+                               </button>
+                             )}
+                             {t.status === 'Live' && (
+                               <button 
+                                 onClick={() => handleStopStream(t.id)} 
+                                 className="p-2 bg-yellow-50 dark:bg-amber-500/10 text-yellow-600 dark:text-amber-400 hover:bg-yellow-100 dark:hover:bg-amber-500/20 rounded-md transition-colors" 
+                                 title="Hentikan Stream"
+                               >
+                                 <StopCircle className="w-4 h-4"/>
+                               </button>
+                             )}
+                             <button 
+                               onClick={() => alert('Fitur Edit Metadata sedang dikembangkan')} 
+                               className="p-2 bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-500/20 rounded-md transition-colors" 
+                               title="Edit Tugas"
+                             >
+                               <Edit className="w-4 h-4"/>
+                             </button>
+                             <button 
+                               onClick={() => handleDeleteTask(t.id)} 
+                               className="p-2 bg-red-50 dark:bg-rose-500/10 text-red-600 dark:text-rose-400 hover:bg-red-100 dark:hover:bg-rose-500/20 rounded-md transition-colors" 
+                               title="Hapus Tugas (Hapus dari History)"
+                             >
+                               <Trash2 className="w-4 h-4"/>
+                             </button>
+                          </div>
                       </td>
                     </tr>
                   )
@@ -456,8 +518,8 @@ function TugasLiveView({ accounts, isPreview, API_BASE, onNavigate }) {
       if (streamKeyMode === 'Otomatis (API v3)' && !accountId) return alert('⚠️ Anda harus memilih Channel YouTube di kolom Metadata jika menggunakan Mode API Otomatis!');
       if (youtubeTitle && youtubeTitle.length > 100) return alert(`⚠️ Judul video maksimal 100 karakter! (Saat ini: ${youtubeTitle.length} karakter)`);
       
-      if (jadwalMode === 'manual' || jadwalMode === 'sekali') {
-          if (!scheduleDate || !scheduleTime) { if(!isMulaiSekarang) return alert('⚠️ Tanggal dan Jam jadwal wajib diisi!'); }
+      if (jadwalMode === 'manual' || jadwalMode === 'sekali' || jadwalMode === 'harian') {
+          if (!scheduleTime) { if(!isMulaiSekarang) return alert('⚠️ Jam jadwal wajib diisi!'); }
       }
 
       if(isPreview) return alert('Simulasi: Data berhasil disimpan.');
@@ -593,9 +655,7 @@ function TugasLiveView({ accounts, isPreview, API_BASE, onNavigate }) {
                   <label className={labelClassName}>Pilih Channel {streamKeyMode === 'Otomatis (API v3)' && <span className="text-red-500">*</span>}</label>
                   <select className={inputClassName} value={accountId} onChange={e => setAccountId(e.target.value)}>
                     <option value="">-- Pilih Channel Aktif --</option>
-                    {accounts?.map(acc => (
-                      <option key={acc.id} value={acc.id}>{acc.name}</option>
-                    ))}
+                    {accounts?.map(acc => ( <option key={acc.id} value={acc.id}>{acc.name}</option> ))}
                   </select>
                 </div>
                 <div>
@@ -621,21 +681,20 @@ function TugasLiveView({ accounts, isPreview, API_BASE, onNavigate }) {
               </div>
 
               <div>
-                <label className={labelClassName}>Judul Video <span className="text-xs text-gray-400 dark:text-slate-500 font-normal ml-1 font-mono">(Spintax Supported)</span></label>
+                <label className={labelClassName}>Judul Video <span className="text-xs font-normal ml-1 font-mono">(Spintax Supported)</span></label>
                 <input type="text" value={youtubeTitle} onChange={e => setYoutubeTitle(e.target.value)} placeholder="{Live|Update} Judul Video Anda..." className={`${inputClassName} ${youtubeTitle.length > 100 ? 'border-red-500 focus:border-red-500' : ''} font-mono`} />
                 <p className={`text-[10px] mt-1.5 font-medium ${youtubeTitle.length > 100 ? 'text-red-500' : 'text-gray-500 dark:text-slate-400'}`}>{youtubeTitle.length} / 100 karakter {youtubeTitle.length > 100 && '(Terlalu panjang!)'}</p>
               </div>
-
               <div>
-                <label className={labelClassName}>Deskripsi <span className="text-xs text-gray-400 dark:text-slate-500 font-normal ml-1 font-mono">(Spintax Supported)</span></label>
+                <label className={labelClassName}>Deskripsi <span className="text-xs font-normal ml-1 font-mono">(Spintax Supported)</span></label>
                 <textarea rows="3" value={youtubeDescription} onChange={e => setYoutubeDescription(e.target.value)} placeholder="Deskripsi video stream..." className={`${inputClassName} font-mono resize-none`}></textarea>
               </div>
-
               <div>
-                <label className={labelClassName}>Tag Video <span className="text-xs text-gray-400 dark:text-slate-500 font-normal ml-1">(Pisahkan dengan koma)</span></label>
+                <label className={labelClassName}>Tag Video <span className="text-xs font-normal ml-1">(Pisahkan dengan koma)</span></label>
                 <input type="text" value={youtubeTags} onChange={e => setYoutubeTags(e.target.value)} placeholder="berita, live stream, update" className={`${inputClassName} font-mono`} />
               </div>
 
+              {/* Aturan Publikasi & Visibilitas */}
               <div className="mt-2 bg-gray-50 dark:bg-slate-900/40 p-4 rounded-xl border border-gray-200 dark:border-slate-700/50">
                 <h4 className="text-sm font-bold text-gray-800 dark:text-slate-200 mb-4 flex items-center gap-2">
                   <Settings className="w-4 h-4 text-gray-500 dark:text-slate-400" /> Aturan Publikasi & Visibilitas
@@ -1086,9 +1145,6 @@ function MediaView({ isPreview, API_BASE }) {
   );
 }
 
-// -----------------------------------------------------------------------------
-// TAB 4: ANALYTICS (REAL TIME TERHUBUNG API)
-// -----------------------------------------------------------------------------
 function AnalyticsView({ accounts, API_BASE }) {
   const [tasks, setTasks] = useState([]);
   
@@ -1181,9 +1237,6 @@ function AnalyticsView({ accounts, API_BASE }) {
   );
 }
 
-// -----------------------------------------------------------------------------
-// TAB 5: PENGATURAN
-// -----------------------------------------------------------------------------
 function SettingsView({ accounts, fetchAccounts, isPreview, API_BASE }) {
   const [notifPlatform, setNotifPlatform] = useState('telegram');
   const [notifEnabled, setNotifEnabled] = useState(false);
@@ -1273,7 +1326,7 @@ function SettingsView({ accounts, fetchAccounts, isPreview, API_BASE }) {
 
   const deleteAccount = async (id) => {
     if (isPreview) return;
-    if (!window.confirm('Anda yakin ingin menghapus sambungan akun ini?')) return;
+    if (!confirm('Anda yakin ingin menghapus sambungan akun ini?')) return;
     try { await fetch(`${API_BASE}/api/settings/account/${id}`, { method: 'DELETE' }); fetchAccounts(); } catch (e) {}
   };
 
@@ -1416,9 +1469,6 @@ function SettingsView({ accounts, fetchAccounts, isPreview, API_BASE }) {
   );
 }
 
-// -----------------------------------------------------------------------------
-// TAB 6: LOG VIEW
-// -----------------------------------------------------------------------------
 function LogView({ isPreview, API_BASE }) {
   const [logs, setLogs] = useState([{ type: 'info', text: 'Menghubungkan ke log server VPS...' }]);
   const [bitrateHistory, setBitrateHistory] = useState(Array(20).fill(0));
@@ -1685,55 +1735,6 @@ function VideoFile({ name, size, onEdit, onDelete }) {
           <Trash2 className="w-3.5 h-3.5" />
         </button>
       </div>
-    </div>
-  );
-}
-
-function TableRowMenu({ t, onStart, onStop, onEdit, onDelete }) {
-  const [isOpen, setIsOpen] = useState(false);
-  const menuRef = useRef(null);
-
-  useEffect(() => {
-    function handleClickOutside(event) {
-      if (menuRef.current && !menuRef.current.contains(event.target)) setIsOpen(false);
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
-  return (
-    <div className="relative inline-block text-left" ref={menuRef}>
-      <button 
-        onClick={() => setIsOpen(!isOpen)} 
-        className="flex items-center justify-between gap-2 px-3 py-1.5 bg-gray-100 dark:bg-slate-700/50 hover:bg-gray-200 dark:hover:bg-slate-700 text-gray-700 dark:text-slate-300 rounded-lg text-sm font-medium transition-colors border border-gray-200 dark:border-slate-600"
-      >
-        <Settings className="w-4 h-4" /> Pengaturan <ChevronDown className={`w-3 h-3 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
-      </button>
-      
-      {isOpen && (
-        <div className="absolute right-0 top-full mt-1.5 w-48 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700/60 rounded-xl shadow-xl dark:shadow-black/40 z-50 py-2 overflow-hidden">
-          {t && t.status !== 'Live' && (
-              <button onClick={() => { setIsOpen(false); onStart && onStart(); }} className="w-full text-left px-4 py-2.5 text-sm flex items-center gap-3 text-emerald-600 dark:text-emerald-400 hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors font-medium">
-                <PlayCircle className="w-4 h-4" /> Mulai Live
-              </button>
-          )}
-          {t && t.status === 'Live' && (
-              <button onClick={() => { setIsOpen(false); onStop && onStop(); }} className="w-full text-left px-4 py-2.5 text-sm flex items-center gap-3 text-yellow-600 dark:text-amber-400 hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors font-medium">
-                <StopCircle className="w-4 h-4" /> Hentikan Live
-              </button>
-          )}
-          <button onClick={() => { setIsOpen(false); onEdit && onEdit(); }} className="w-full text-left px-4 py-2.5 text-sm flex items-center gap-3 text-blue-600 dark:text-blue-400 hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors font-medium">
-            <Edit className="w-4 h-4" /> Edit Metadata
-          </button>
-          <div className="h-px bg-gray-200 dark:bg-slate-700/60 my-1"></div>
-          <button 
-            onClick={() => { setIsOpen(false); onDelete && onDelete(); }}
-            className="w-full text-left px-4 py-2.5 text-sm flex items-center gap-3 text-red-600 dark:text-rose-400 hover:bg-red-50 dark:hover:bg-rose-500/10 transition-colors font-medium"
-          >
-            <Trash2 className="w-4 h-4" /> Hapus Tugas
-          </button>
-        </div>
-      )}
     </div>
   );
 }
