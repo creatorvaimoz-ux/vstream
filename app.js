@@ -27,6 +27,7 @@ const THUMB_DIR = path.join(__dirname, 'public/thumbnails');
 const PLAYLIST_FILE = path.join(__dirname, 'playlists.json');
 const TASKS_FILE = path.join(__dirname, 'tasks.json');
 const LOGS_DIR = path.join(__dirname, 'logs');
+const NOTIF_FILE = path.join(__dirname, 'notifications.json'); // SETUP FILE NOTIFIKASI
 
 [SECRETS_DIR, MEDIA_DIR, THUMB_DIR, LOGS_DIR].forEach(dir => {
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
@@ -34,6 +35,7 @@ const LOGS_DIR = path.join(__dirname, 'logs');
 
 if (!fs.existsSync(PLAYLIST_FILE)) fs.writeFileSync(PLAYLIST_FILE, JSON.stringify([]));
 if (!fs.existsSync(TASKS_FILE)) fs.writeFileSync(TASKS_FILE, JSON.stringify([]));
+if (!fs.existsSync(NOTIF_FILE)) fs.writeFileSync(NOTIF_FILE, JSON.stringify({}));
 
 // --- FUNGSI HELPER PENCATATAN LOG PER TUGAS ---
 function writeLog(taskId, message) {
@@ -43,6 +45,40 @@ function writeLog(taskId, message) {
     // Jika pesan sudah mengandung kurung kotak, tidak usah tambah timestamp lagi
     const finalMessage = message.startsWith('[') ? message : `[${timestamp}] ${message}`;
     try { fs.appendFileSync(logPath, `${finalMessage}\n`); } catch(e) {}
+}
+
+// --- FUNGSI PENGIRIM TELEGRAM BOT ---
+function sendTelegramMessage(message) {
+    try {
+        if (!fs.existsSync(NOTIF_FILE)) return;
+        const settings = JSON.parse(fs.readFileSync(NOTIF_FILE));
+        
+        // Cek apakah fitur diaktifkan dan datanya lengkap
+        if (!settings.notifEnabled || settings.notifPlatform !== 'telegram' || !settings.telegramToken || !settings.telegramChatId) return;
+
+        const data = JSON.stringify({
+            chat_id: settings.telegramChatId,
+            text: `🚨 *VStream Alert*\n\n${message}`,
+            parse_mode: 'Markdown'
+        });
+
+        const options = {
+            hostname: 'api.telegram.org',
+            path: `/bot${settings.telegramToken}/sendMessage`,
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Content-Length': data.length
+            }
+        };
+
+        const req = https.request(options, (res) => {});
+        req.on('error', (e) => console.error("Gagal mengirim Telegram:", e.message));
+        req.write(data);
+        req.end();
+    } catch (e) {
+        console.error("Kesalahan fungsi Telegram:", e.message);
+    }
 }
 
 // Storage Multer
@@ -521,11 +557,25 @@ function startStreamInternal(task) {
         ffmpegProcess.on('error', (err) => {
             writeLog(task.id, `[CRITICAL ERROR] Gagal mengeksekusi FFmpeg: ${err.message}`);
             stopStreamById(task.id);
+            
+            // TRIGGGER TELEGRAM BOT (JIKA ERROR)
+            const notifSettings = fs.existsSync(NOTIF_FILE) ? JSON.parse(fs.readFileSync(NOTIF_FILE)) : {};
+            if (notifSettings.triggerError) {
+                sendTelegramMessage(`Streaming *${task.taskName}* gagal dieksekusi!\n\n_Pesan Error:_ ${err.message}`);
+            }
         });
 
         ffmpegProcess.on('close', (code) => {
             writeLog(task.id, `[SYSTEM] FFmpeg Terhenti (Kode Keluar: ${code})`);
             stopStreamById(task.id);
+            
+            // TRIGGER TELEGRAM BOT (JIKA TERHENTI MENDADAK BUKAN KARENA STOP MANUAL KODE 255)
+            if (code !== 0 && code !== 255 && code !== null) {
+                const notifSettings = fs.existsSync(NOTIF_FILE) ? JSON.parse(fs.readFileSync(NOTIF_FILE)) : {};
+                if (notifSettings.triggerError) {
+                    sendTelegramMessage(`Streaming *${task.taskName}* terputus secara tiba-tiba (Kode Exit: ${code}).\nSilakan periksa server Anda.`);
+                }
+            }
         });
 
     })(); 
@@ -632,6 +682,34 @@ setInterval(async () => {
         }
     }
 }, 120000);
+
+// --- CPU MONITORING & TELEGRAM ALERT (Tiap 1 Menit) ---
+let lastCpuAlertTime = 0;
+let prevCpuForMonitor = getCpuTimes();
+
+setInterval(() => {
+    try {
+        const currentCpu = getCpuTimes();
+        const idleDiff = currentCpu.idle - prevCpuForMonitor.idle;
+        const totalDiff = currentCpu.total - prevCpuForMonitor.total;
+        let cpuUsage = 0;
+        if (totalDiff > 0) cpuUsage = 100 - Math.floor((idleDiff / totalDiff) * 100);
+        prevCpuForMonitor = currentCpu;
+
+        if (cpuUsage > 85) {
+            const now = Date.now();
+            // Jeda 15 menit agar tidak spam chat Telegram berturut-turut
+            if (now - lastCpuAlertTime > 15 * 60 * 1000) { 
+                const notifSettings = fs.existsSync(NOTIF_FILE) ? JSON.parse(fs.readFileSync(NOTIF_FILE)) : {};
+                if (notifSettings.triggerCpu) {
+                    sendTelegramMessage(`⚠️ *Peringatan Kinerja Server!*\n\nPenggunaan CPU VPS Anda mencapai *${cpuUsage}%*. Beban yang terlalu tinggi dapat membuat streaming Anda *patah-patah* atau *terputus*.\n\nSilakan periksa pengaturan Encoder Anda.`);
+                    lastCpuAlertTime = now;
+                }
+            }
+        }
+    } catch(e) {}
+}, 60000);
+
 
 // --- API ROUTES ---
 
@@ -880,6 +958,64 @@ app.post('/api/auth/save', async (req, res) => {
         res.json({ success: true, message: `Akun tersambung!` });
     } catch (e) { res.status(500).json({ success: false, message: e.message }); }
 });
+
+// --- ROUTES UNTUK SETTINGS TELEGRAM NOTIFIKASI ---
+app.get('/api/settings/notifications', (req, res) => {
+    try {
+        const settings = fs.existsSync(NOTIF_FILE) ? JSON.parse(fs.readFileSync(NOTIF_FILE)) : {};
+        res.json({ success: true, settings });
+    } catch(e) { res.status(500).json({ success: false }); }
+});
+
+app.post('/api/settings/notifications', (req, res) => {
+    try {
+        fs.writeFileSync(NOTIF_FILE, JSON.stringify(req.body, null, 2));
+        res.json({ success: true, message: 'Notifikasi berhasil disimpan!' });
+    } catch(e) { res.status(500).json({ success: false }); }
+});
+
+app.post('/api/notifications/test', (req, res) => {
+    try {
+        if (!fs.existsSync(NOTIF_FILE)) return res.json({ message: "Pengaturan belum disimpan." });
+        const settings = JSON.parse(fs.readFileSync(NOTIF_FILE));
+        
+        if (!settings.telegramToken || !settings.telegramChatId) {
+            return res.status(400).json({ message: "Silakan isi Token dan Chat ID Telegram terlebih dahulu." });
+        }
+        
+        // Memanggil fungsi pengirim pesan langsung secara paksa untuk Testing
+        const data = JSON.stringify({
+            chat_id: settings.telegramChatId,
+            text: `✅ *Test Notifikasi Berhasil!*\n\nSistem VStream Anda telah berhasil terhubung ke Telegram.\nAnda akan menerima pesan otomatis di sini jika terjadi error pada Stream atau penggunaan CPU Overload.`,
+            parse_mode: 'Markdown'
+        });
+
+        const options = {
+            hostname: 'api.telegram.org',
+            path: `/bot${settings.telegramToken}/sendMessage`,
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Content-Length': data.length
+            }
+        };
+
+        const reqTest = https.request(options, (resTest) => {
+            res.json({ success: true, message: 'Pesan test berhasil dikirim ke Telegram Anda!' });
+        });
+        
+        reqTest.on('error', (e) => {
+            res.status(500).json({ message: `Gagal mengirim Telegram: ${e.message}` });
+        });
+        
+        reqTest.write(data);
+        reqTest.end();
+
+    } catch(e) { 
+        res.status(500).json({ success: false, message: e.message }); 
+    }
+});
+
 
 // --- SERVE FRONTEND ---
 app.use(express.static(path.join(__dirname, 'frontend/dist')));
