@@ -167,6 +167,147 @@ function downloadStandardUrl(urlStr, destPath, callback, redirectCount = 0) {
     }).on('error', (err) => callback(err));
 }
 
+// --- FUNGSI YOUTUBE METADATA AUTOMATION ---
+
+// Fungsi Parse Spintax (Contoh: "{Live|Update} Berita" akan dirandom otomatis)
+function parseSpintax(text) {
+    if (!text) return '';
+    const spintaxRegex = /\{([^{}]+)\}/g;
+    return text.replace(spintaxRegex, (match, options) => {
+        const opts = options.split('|');
+        return opts[Math.floor(Math.random() * opts.length)];
+    });
+}
+
+// Map Kategori String ke Kategori ID YouTube API
+function getCategoryId(categoryName) {
+    const map = {
+        'News & Politics': '25',
+        'Gaming': '20',
+        'Entertainment': '24',
+        'Music': '10',
+        'People & Blogs': '22',
+        'Education': '27'
+    };
+    return map[categoryName] || '24'; // Default ke Entertainment
+}
+
+// Fungsi Utama: Menyedot API YouTube dan Update Data
+async function updateYouTubeMetadata(task) {
+    try {
+        let creds = cachedCredentials;
+        if (!creds && fs.existsSync(CREDENTIALS_FILE)) {
+            creds = JSON.parse(fs.readFileSync(CREDENTIALS_FILE));
+        }
+        if (!creds && !process.env.GOOGLE_CLIENT_ID) {
+            fs.appendFileSync(LOG_FILE, `\n[YOUTUBE API] Gagal: Kredensial Google API belum diatur di Pengaturan.\n`);
+            return;
+        }
+
+        const tokenPath = path.join(__dirname, task.accountId);
+        if (!fs.existsSync(tokenPath)) {
+            fs.appendFileSync(LOG_FILE, `\n[YOUTUBE API] Token untuk akun (${task.accountId}) tidak ditemukan.\n`);
+            return;
+        }
+
+        const tokens = JSON.parse(fs.readFileSync(tokenPath));
+        const oauth2Client = new google.auth.OAuth2(
+            process.env.GOOGLE_CLIENT_ID || creds.clientId,
+            process.env.GOOGLE_CLIENT_SECRET || creds.clientSecret
+        );
+        oauth2Client.setCredentials(tokens);
+
+        const youtube = google.youtube({ version: 'v3', auth: oauth2Client });
+
+        fs.appendFileSync(LOG_FILE, `\n[YOUTUBE API] Menghubungi YouTube Studio untuk sinkronisasi metadata...\n`);
+
+        // Mencari Broadcast yang berstatus 'Ready' atau 'Active' di Channel User
+        const broadcastRes = await youtube.liveBroadcasts.list({
+            part: 'snippet,status',
+            broadcastType: 'all',
+            mine: true
+        });
+
+        let broadcast = broadcastRes.data.items?.find(b => 
+            b.status.lifeCycleStatus === 'ready' || 
+            b.status.lifeCycleStatus === 'active' ||
+            b.status.lifeCycleStatus === 'created'
+        );
+
+        if (!broadcast) {
+            fs.appendFileSync(LOG_FILE, `\n[YOUTUBE API WARNING] Tidak ada Stream/Broadcast yang berstatus 'Ready' atau 'Active' di channel ini. Pastikan Anda sudah membuat jadwal stream / menekan tombol 'Go Live' di Live Control Room YouTube Studio.\n`);
+            return;
+        }
+
+        // Terapkan Spintax
+        const finalTitle = task.youtubeTitle ? parseSpintax(task.youtubeTitle) : broadcast.snippet.title;
+        const finalDesc = task.youtubeDescription ? parseSpintax(task.youtubeDescription) : broadcast.snippet.description;
+        const finalCategory = task.youtubeCategory ? getCategoryId(task.youtubeCategory) : broadcast.snippet.categoryId;
+
+        // 1. Eksekusi Update Metadata Broadcast
+        await youtube.liveBroadcasts.update({
+            part: 'snippet,status',
+            requestBody: {
+                id: broadcast.id,
+                snippet: {
+                    title: finalTitle,
+                    description: finalDesc,
+                    scheduledStartTime: broadcast.snippet.scheduledStartTime,
+                    categoryId: finalCategory,
+                },
+                status: {
+                    privacyStatus: task.youtubePrivacy || broadcast.status.privacyStatus,
+                }
+            }
+        });
+
+        fs.appendFileSync(LOG_FILE, `\n[YOUTUBE API] ✅ Metadata YouTube berhasil diubah! Judul: "${finalTitle}"\n`);
+
+        // 2. Eksekusi Update Thumbnail (Jika user mengupload Thumbnail)
+        if (task.thumbnailUrl) {
+            const thumbFileName = task.thumbnailUrl.split('/').pop();
+            const thumbLocalPath = path.join(THUMB_DIR, thumbFileName);
+
+            if (fs.existsSync(thumbLocalPath)) {
+                await youtube.thumbnails.set({
+                    videoId: broadcast.id, // Video ID dari live stream sama dengan Broadcast ID
+                    media: {
+                        mimeType: 'image/jpeg',
+                        body: fs.createReadStream(thumbLocalPath)
+                    }
+                });
+                fs.appendFileSync(LOG_FILE, `\n[YOUTUBE API] ✅ Thumbnail YouTube berhasil diunggah dan dipasang!\n`);
+            }
+        }
+
+        // 3. Eksekusi Update Tags Video (Tag SEO)
+        if (task.youtubeTags) {
+            const videoRes = await youtube.videos.list({ part: 'snippet', id: broadcast.id });
+            if (videoRes.data.items && videoRes.data.items.length > 0) {
+                const video = videoRes.data.items[0];
+                const tagsArray = task.youtubeTags.split(',').map(t => t.trim()).filter(t => t);
+                
+                await youtube.videos.update({
+                    part: 'snippet',
+                    requestBody: {
+                        id: broadcast.id,
+                        snippet: {
+                            title: finalTitle,
+                            categoryId: finalCategory,
+                            description: finalDesc,
+                            tags: tagsArray
+                        }
+                    }
+                });
+                fs.appendFileSync(LOG_FILE, `\n[YOUTUBE API] ✅ Tags SEO Video berhasil diperbarui!\n`);
+            }
+        }
+    } catch (err) {
+        fs.appendFileSync(LOG_FILE, `\n[YOUTUBE API ERROR] Gagal mengubah metadata otomatis: ${err.message}\n`);
+    }
+}
+
+
 // --- ENGINE FFMPEG (MEMULAI LIVE) ---
 const activeStreams = new Map();
 
@@ -179,53 +320,62 @@ function startStreamInternal(task) {
         return false;
     }
 
-    const timestamp = new Date().toISOString();
-    fs.appendFileSync(LOG_FILE, `\n[${timestamp}] [SYSTEM] Memulai proses Live untuk tugas: ${task.taskName}\n`);
+    // Bungkus ke dalam Async Function agar Mesin bisa memanggil API YouTube dulu sebelum FFmpeg jalan
+    (async () => {
+        const timestamp = new Date().toISOString();
+        fs.appendFileSync(LOG_FILE, `\n[${timestamp}] [SYSTEM] Memulai proses persiapan Live untuk tugas: ${task.taskName}\n`);
 
-    // Pastikan tidak ada spasi tersembunyi di stream key
-    const cleanStreamKey = task.streamKey.trim();
+        // 1. OTOMATISASI METADATA YOUTUBE (Panggil API Pintu Belakang)
+        if (task.accountId) {
+            await updateYouTubeMetadata(task);
+        }
 
-    const ffmpegArgs = ['-re']; 
-    if (task.videoMode === 'Satu Video (Looping)') ffmpegArgs.push('-stream_loop', '-1'); 
-    
-    ffmpegArgs.push(
-        '-i', fullVideoPath,
-        '-c:v', 'copy', // FIX: Mode Direct Copy. Super Ringan, Beban CPU nyaris 0%, Kecepatan ~1.0x
-        '-c:a', 'aac', '-b:a', '128k', '-ar', '44100', '-f', 'flv',
-        `rtmp://a.rtmp.youtube.com/live2/${cleanStreamKey}`
-    );
+        // 2. SETELAH API SUKSES/SELESAI, LANJUT NYALAKAN MESIN FFMPEG
+        const cleanStreamKey = task.streamKey.trim();
 
-    const ffmpegProcess = spawn('ffmpeg', ffmpegArgs);
-    activeStreams.set(task.id, ffmpegProcess);
-
-    // Tangkap log output dari FFmpeg
-    ffmpegProcess.stderr.on('data', (data) => {
-        fs.appendFileSync(LOG_FILE, data.toString());
-    });
-
-    // PENDETEKSI ERROR CRITICAL (Contoh: FFmpeg crash/tidak jalan)
-    ffmpegProcess.on('error', (err) => {
-        fs.appendFileSync(LOG_FILE, `\n[CRITICAL ERROR] Gagal mengeksekusi FFmpeg: ${err.message}. Pastikan FFmpeg sudah diinstal di VPS (sudo apt install ffmpeg).\n`);
-        activeStreams.delete(task.id);
+        const ffmpegArgs = ['-re']; 
+        if (task.videoMode === 'Satu Video (Looping)') ffmpegArgs.push('-stream_loop', '-1'); 
         
-        try {
-            let tasks = JSON.parse(fs.readFileSync(TASKS_FILE));
-            let t = tasks.find(x => x.id === task.id);
-            if (t) { t.status = 'Error'; fs.writeFileSync(TASKS_FILE, JSON.stringify(tasks, null, 2)); }
-        } catch(e) {}
-    });
+        ffmpegArgs.push(
+            '-i', fullVideoPath,
+            '-c:v', 'copy', // FIX: Mode Direct Copy. Super Ringan, Beban CPU nyaris 0%, Kecepatan ~1.0x
+            '-c:a', 'aac', '-b:a', '128k', '-ar', '44100', '-f', 'flv',
+            `rtmp://a.rtmp.youtube.com/live2/${cleanStreamKey}`
+        );
 
-    // Deteksi jika FFmpeg berhenti/crash di tengah jalan
-    ffmpegProcess.on('close', (code) => {
-        activeStreams.delete(task.id);
-        fs.appendFileSync(LOG_FILE, `\n[${new Date().toISOString()}] [SYSTEM] FFmpeg Terhenti (Kode Keluar: ${code})\n`);
-        
-        try {
-            let tasks = JSON.parse(fs.readFileSync(TASKS_FILE));
-            let t = tasks.find(x => x.id === task.id);
-            if (t) { t.status = 'Berhenti'; fs.writeFileSync(TASKS_FILE, JSON.stringify(tasks, null, 2)); }
-        } catch(e) {}
-    });
+        const ffmpegProcess = spawn('ffmpeg', ffmpegArgs);
+        activeStreams.set(task.id, ffmpegProcess);
+
+        // Tangkap log output dari FFmpeg
+        ffmpegProcess.stderr.on('data', (data) => {
+            fs.appendFileSync(LOG_FILE, data.toString());
+        });
+
+        // PENDETEKSI ERROR CRITICAL (Contoh: FFmpeg crash/tidak jalan)
+        ffmpegProcess.on('error', (err) => {
+            fs.appendFileSync(LOG_FILE, `\n[CRITICAL ERROR] Gagal mengeksekusi FFmpeg: ${err.message}. Pastikan FFmpeg sudah diinstal di VPS (sudo apt install ffmpeg).\n`);
+            activeStreams.delete(task.id);
+            
+            try {
+                let tasks = JSON.parse(fs.readFileSync(TASKS_FILE));
+                let t = tasks.find(x => x.id === task.id);
+                if (t) { t.status = 'Error'; fs.writeFileSync(TASKS_FILE, JSON.stringify(tasks, null, 2)); }
+            } catch(e) {}
+        });
+
+        // Deteksi jika FFmpeg berhenti/crash di tengah jalan
+        ffmpegProcess.on('close', (code) => {
+            activeStreams.delete(task.id);
+            fs.appendFileSync(LOG_FILE, `\n[${new Date().toISOString()}] [SYSTEM] FFmpeg Terhenti (Kode Keluar: ${code})\n`);
+            
+            try {
+                let tasks = JSON.parse(fs.readFileSync(TASKS_FILE));
+                let t = tasks.find(x => x.id === task.id);
+                if (t) { t.status = 'Berhenti'; fs.writeFileSync(TASKS_FILE, JSON.stringify(tasks, null, 2)); }
+            } catch(e) {}
+        });
+
+    })(); // Jalankan fungsi Async
 
     return true;
 }
@@ -268,7 +418,7 @@ setInterval(() => {
 
 app.get('/api/status', (req, res) => res.json({ status: 'running', message: 'Backend VStream Aktif' }));
 
-// --- SYSTEM RESOURCE SENSOR (NEW) ---
+// --- SYSTEM RESOURCE SENSOR ---
 let previousCpuTimes = getCpuTimes();
 
 function getCpuTimes() {
