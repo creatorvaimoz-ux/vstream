@@ -179,31 +179,19 @@ function parseSpintax(text) {
 }
 
 function getCategoryId(categoryName) {
-    // Jika input sudah berupa angka (ID), kembalikan langsung
     if (!isNaN(categoryName)) return categoryName;
-    
-    // Fallback jika berupa teks lama
     const map = {
-        'Film & Animation': '1',
-        'Autos & Vehicles': '2',
-        'Music': '10',
-        'Pets & Animals': '15',
-        'Sports': '17',
-        'Travel & Events': '19',
-        'Gaming': '20',
-        'People & Blogs': '22',
-        'Comedy': '23',
-        'Entertainment': '24',
-        'News & Politics': '25',
-        'Howto & Style': '26',
-        'Education': '27',
-        'Science & Technology': '28',
-        'Nonprofits & Activism': '29'
+        'Film & Animation': '1', 'Autos & Vehicles': '2', 'Music': '10', 'Pets & Animals': '15',
+        'Sports': '17', 'Travel & Events': '19', 'Gaming': '20', 'People & Blogs': '22',
+        'Comedy': '23', 'Entertainment': '24', 'News & Politics': '25', 'Howto & Style': '26',
+        'Education': '27', 'Science & Technology': '28', 'Nonprofits & Activism': '29'
     };
     return map[categoryName] || '24';
 }
 
 async function updateYouTubeMetadata(task) {
+    let fetchedStreamKey = null; // Menampung key agar tetap kembali meskipun ada error di tengah jalan
+
     try {
         let creds = cachedCredentials;
         if (!creds && fs.existsSync(CREDENTIALS_FILE)) {
@@ -237,6 +225,7 @@ async function updateYouTubeMetadata(task) {
             mine: true
         });
 
+        // Ambil streaming yang sudah dibuat di YouTube Studio (Ready / Active / Created)
         let broadcast = broadcastRes.data.items?.find(b => 
             b.status.lifeCycleStatus === 'ready' || 
             b.status.lifeCycleStatus === 'active' ||
@@ -244,11 +233,11 @@ async function updateYouTubeMetadata(task) {
         );
 
         if (!broadcast) {
-            fs.appendFileSync(LOG_FILE, `\n[YOUTUBE API WARNING] Tidak ada Stream/Broadcast yang berstatus 'Ready' atau 'Active' di channel ini. Pastikan Anda sudah membuat jadwal stream / menekan tombol 'Go Live' di Live Control Room YouTube Studio.\n`);
+            fs.appendFileSync(LOG_FILE, `\n[YOUTUBE API WARNING] Tidak ada Stream/Broadcast yang berstatus 'Ready' atau 'Active' di channel ini. Pastikan Anda sudah membuat jadwal stream di YouTube Studio.\n`);
             return null;
         }
 
-        let fetchedStreamKey = null;
+        // Otomatis tarik stream key jika terikat dengan broadcast
         if (broadcast.contentDetails && broadcast.contentDetails.boundStreamId) {
             const streamRes = await youtube.liveStreams.list({
                 part: 'cdn',
@@ -256,19 +245,20 @@ async function updateYouTubeMetadata(task) {
             });
             if (streamRes.data.items && streamRes.data.items.length > 0) {
                 fetchedStreamKey = streamRes.data.items[0].cdn.ingestionInfo.streamName;
-                fs.appendFileSync(LOG_FILE, `\n[YOUTUBE API] ✅ Stream Key otomatis ditarik dari server YouTube!\n`);
+                fs.appendFileSync(LOG_FILE, `\n[YOUTUBE API] ✅ Stream Key otomatis berhasil ditarik dari server YouTube!\n`);
             }
         }
 
         let finalTitle = task.youtubeTitle ? parseSpintax(task.youtubeTitle) : broadcast.snippet.title;
         if (finalTitle.length > 100) {
             finalTitle = finalTitle.substring(0, 100);
-            fs.appendFileSync(LOG_FILE, `\n[YOUTUBE API] Info: Judul dipotong menjadi 100 karakter.\n`);
+            fs.appendFileSync(LOG_FILE, `\n[YOUTUBE API] Info: Judul dipotong menjadi 100 karakter agar tidak ditolak YouTube.\n`);
         }
 
         const finalDesc = task.youtubeDescription ? parseSpintax(task.youtubeDescription) : broadcast.snippet.description;
         const finalCategory = task.youtubeCategory ? getCategoryId(task.youtubeCategory) : broadcast.snippet.categoryId;
 
+        // 1. UPDATE BROADCAST (Judul, Deskripsi)
         await youtube.liveBroadcasts.update({
             part: 'snippet,status',
             requestBody: {
@@ -284,50 +274,63 @@ async function updateYouTubeMetadata(task) {
                 }
             }
         });
-
         fs.appendFileSync(LOG_FILE, `\n[YOUTUBE API] ✅ Metadata YouTube berhasil diubah! Judul: "${finalTitle}"\n`);
 
+        // 2. UPDATE THUMBNAIL (Aman dari Crash jika gambar kebesaran)
         if (task.thumbnailUrl) {
-            const thumbFileName = task.thumbnailUrl.split('/').pop();
-            const thumbLocalPath = path.join(THUMB_DIR, thumbFileName);
+            try {
+                const thumbFileName = task.thumbnailUrl.split('/').pop();
+                const thumbLocalPath = path.join(THUMB_DIR, thumbFileName);
 
-            if (fs.existsSync(thumbLocalPath)) {
-                await youtube.thumbnails.set({
-                    videoId: broadcast.id,
-                    media: {
-                        mimeType: 'image/jpeg',
-                        body: fs.createReadStream(thumbLocalPath)
+                if (fs.existsSync(thumbLocalPath)) {
+                    const stats = fs.statSync(thumbLocalPath);
+                    if (stats.size > 2097152) { // 2MB Limit Strict dari YouTube API
+                        fs.appendFileSync(LOG_FILE, `\n[YOUTUBE API WARNING] Thumbnail diabaikan karena ukuran file melebihi 2MB. Live Streaming tetap dilanjutkan.\n`);
+                    } else {
+                        await youtube.thumbnails.set({
+                            videoId: broadcast.id,
+                            media: {
+                                mimeType: 'image/jpeg',
+                                body: fs.createReadStream(thumbLocalPath)
+                            }
+                        });
+                        fs.appendFileSync(LOG_FILE, `\n[YOUTUBE API] ✅ Thumbnail YouTube berhasil diunggah!\n`);
                     }
-                });
-                fs.appendFileSync(LOG_FILE, `\n[YOUTUBE API] ✅ Thumbnail YouTube berhasil diunggah!\n`);
+                }
+            } catch (thumbErr) {
+                fs.appendFileSync(LOG_FILE, `\n[YOUTUBE API WARNING] Gagal mengunggah thumbnail: ${thumbErr.message}. Live Streaming tetap dilanjutkan.\n`);
             }
         }
 
+        // 3. UPDATE TAGS SEO (Aman dari Crash)
         if (task.youtubeTags) {
-            const videoRes = await youtube.videos.list({ part: 'snippet', id: broadcast.id });
-            if (videoRes.data.items && videoRes.data.items.length > 0) {
-                const tagsArray = task.youtubeTags.split(',').map(t => t.trim()).filter(t => t);
-                
-                await youtube.videos.update({
-                    part: 'snippet',
-                    requestBody: {
-                        id: broadcast.id,
-                        snippet: {
-                            title: finalTitle,
-                            categoryId: finalCategory,
-                            description: finalDesc,
-                            tags: tagsArray
+            try {
+                const videoRes = await youtube.videos.list({ part: 'snippet', id: broadcast.id });
+                if (videoRes.data.items && videoRes.data.items.length > 0) {
+                    const tagsArray = task.youtubeTags.split(',').map(t => t.trim()).filter(t => t);
+                    await youtube.videos.update({
+                        part: 'snippet',
+                        requestBody: {
+                            id: broadcast.id,
+                            snippet: {
+                                title: finalTitle,
+                                categoryId: finalCategory,
+                                description: finalDesc,
+                                tags: tagsArray
+                            }
                         }
-                    }
-                });
-                fs.appendFileSync(LOG_FILE, `\n[YOUTUBE API] ✅ Tags SEO Video berhasil diperbarui!\n`);
+                    });
+                    fs.appendFileSync(LOG_FILE, `\n[YOUTUBE API] ✅ Tags SEO Video berhasil diperbarui!\n`);
+                }
+            } catch (tagErr) {
+                fs.appendFileSync(LOG_FILE, `\n[YOUTUBE API WARNING] Gagal memperbarui Tags: ${tagErr.message}\n`);
             }
         }
 
         return fetchedStreamKey;
     } catch (err) {
-        fs.appendFileSync(LOG_FILE, `\n[YOUTUBE API ERROR] Gagal mengubah metadata otomatis: ${err.message}\n`);
-        return null;
+        fs.appendFileSync(LOG_FILE, `\n[YOUTUBE API ERROR] Gagal mengubah metadata otomatis (Error Utama): ${err.message}\n`);
+        return fetchedStreamKey; // Tetap kembalikan key walaupun error, agar FFmpeg tetap bisa nyala
     }
 }
 
@@ -349,6 +352,7 @@ function startStreamInternal(task) {
 
         let finalStreamKey = task.streamKey ? task.streamKey.trim() : '';
 
+        // Panggil API YouTube
         if (task.accountId) {
             const autoKey = await updateYouTubeMetadata(task);
             if (task.streamKeyMode === 'Otomatis (API v3)' && autoKey) {
@@ -356,6 +360,7 @@ function startStreamInternal(task) {
             }
         }
 
+        // Jika mode otomatis namun key tidak didapat
         if (task.streamKeyMode === 'Otomatis (API v3)' && !finalStreamKey) {
             fs.appendFileSync(LOG_FILE, `\n[CRITICAL ERROR] Mode API Otomatis aktif, tapi gagal menarik Stream Key. Pastikan jadwal Live sudah dibuat di YouTube Studio.\n`);
             activeStreams.delete(task.id);
@@ -378,7 +383,7 @@ function startStreamInternal(task) {
         
         ffmpegArgs.push(
             '-i', fullVideoPath,
-            '-c:v', 'copy', 
+            '-c:v', 'copy', // FIX: Mode Direct Copy untuk beban CPU ringan
             '-c:a', 'aac', '-b:a', '128k', '-ar', '44100', '-f', 'flv',
             `rtmp://a.rtmp.youtube.com/live2/${finalStreamKey}`
         );
