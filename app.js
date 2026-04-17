@@ -221,7 +221,7 @@ function downloadStandardUrl(urlStr, destPath, callback, redirectCount = 0) {
     }).on('error', (err) => callback(err));
 }
 
-// --- FUNGSI YOUTUBE METADATA AUTOMATION ---
+// --- FUNGSI YOUTUBE METADATA AUTOMATION (BYPASS STUDIO) ---
 
 function parseSpintax(text) {
     if (!text) return '';
@@ -268,69 +268,97 @@ async function updateYouTubeMetadata(task) {
         
         const youtube = google.youtube({ version: 'v3', auth: oauth2Client });
 
-        writeLog(task.id, `[YOUTUBE API] Menghubungi YouTube Studio untuk sinkronisasi metadata...`);
+        let finalTitle = task.youtubeTitle ? parseSpintax(task.youtubeTitle) : task.taskName;
+        if (finalTitle.length > 100) finalTitle = finalTitle.substring(0, 100);
+        const finalDesc = task.youtubeDescription ? parseSpintax(task.youtubeDescription) : 'Live Stream via VStream';
+        const finalCategory = task.youtubeCategory ? getCategoryId(task.youtubeCategory) : '24';
+        const privacy = task.youtubePrivacy || 'public';
 
-        const broadcastRes = await youtube.liveBroadcasts.list({
+        writeLog(task.id, `[YOUTUBE API] Membangun Ruang Live Studio Otomatis untuk "${finalTitle}"...`);
+
+        // 1. CREATE BROADCAST TERBARU (100% BYPASS YOUTUBE STUDIO)
+        const broadcastRes = await youtube.liveBroadcasts.insert({
             part: 'snippet,status,contentDetails',
-            broadcastType: 'all',
-            mine: true
-        });
-
-        let broadcast = broadcastRes.data.items?.find(b => 
-            b.status.lifeCycleStatus === 'ready' || 
-            b.status.lifeCycleStatus === 'active' ||
-            b.status.lifeCycleStatus === 'created'
-        );
-
-        if (!broadcast) {
-            writeLog(task.id, `[YOUTUBE API WARNING] Tidak ada Stream/Broadcast yang berstatus 'Ready' atau 'Active' di channel ini.`);
-            return resultData;
-        }
-
-        resultData.broadcastId = broadcast.id;
-        resultData.liveChatId = broadcast.snippet.liveChatId;
-
-        // Otomatis tarik stream key jika terikat dengan broadcast
-        if (broadcast.contentDetails && broadcast.contentDetails.boundStreamId) {
-            resultData.streamId = broadcast.contentDetails.boundStreamId;
-            const streamRes = await youtube.liveStreams.list({
-                part: 'cdn',
-                id: broadcast.contentDetails.boundStreamId
-            });
-            if (streamRes.data.items && streamRes.data.items.length > 0) {
-                resultData.streamKey = streamRes.data.items[0].cdn.ingestionInfo.streamName;
-                writeLog(task.id, `[YOUTUBE API] ✅ Stream Key otomatis berhasil ditarik dari server YouTube!`);
-            }
-        }
-
-        let finalTitle = task.youtubeTitle ? parseSpintax(task.youtubeTitle) : broadcast.snippet.title;
-        if (finalTitle.length > 100) {
-            finalTitle = finalTitle.substring(0, 100);
-            writeLog(task.id, `[YOUTUBE API] Info: Judul dipotong menjadi 100 karakter agar tidak ditolak YouTube.`);
-        }
-
-        const finalDesc = task.youtubeDescription ? parseSpintax(task.youtubeDescription) : broadcast.snippet.description;
-        const finalCategory = task.youtubeCategory ? getCategoryId(task.youtubeCategory) : broadcast.snippet.categoryId;
-
-        // 1. UPDATE BROADCAST (Judul, Deskripsi, Visibilitas)
-        await youtube.liveBroadcasts.update({
-            part: 'snippet,status',
             requestBody: {
-                id: broadcast.id,
                 snippet: {
                     title: finalTitle,
                     description: finalDesc,
-                    scheduledStartTime: broadcast.snippet.scheduledStartTime,
-                    categoryId: finalCategory,
+                    scheduledStartTime: new Date().toISOString() // Start sekarang
                 },
                 status: {
-                    privacyStatus: task.youtubePrivacy || broadcast.status.privacyStatus,
+                    privacyStatus: privacy,
+                    selfDeclaredMadeForKids: false
+                },
+                contentDetails: {
+                    enableAutoStart: true, // MAGIC: Saat FFmpeg hidup, video langsung LIVE!
+                    enableAutoStop: true,  // MAGIC: Saat FFmpeg mati, video langsung OFFLINE!
+                    enableClosedCaptions: false,
+                    enableContentEncryption: false,
+                    enableDvr: true,
+                    recordFromStart: true,
+                    startWithSlate: false
                 }
             }
         });
-        writeLog(task.id, `[YOUTUBE API] ✅ Metadata YouTube berhasil diubah! Judul: "${finalTitle}"`);
 
-        // 2. UPDATE THUMBNAIL (Aman dari Crash jika gambar > 2MB)
+        const broadcast = broadcastRes.data;
+        resultData.broadcastId = broadcast.id;
+        resultData.liveChatId = broadcast.snippet.liveChatId;
+
+        writeLog(task.id, `[YOUTUBE API] Ruang Live berhasil dibuat. Membuat Stream Key...`);
+
+        // 2. CREATE STREAM KEY
+        const streamRes = await youtube.liveStreams.insert({
+            part: 'snippet,cdn',
+            requestBody: {
+                snippet: {
+                    title: `VStream Auto Key - ${Date.now()}`
+                },
+                cdn: {
+                    frameRate: 'variable',
+                    ingestionType: 'rtmp',
+                    resolution: 'variable'
+                }
+            }
+        });
+
+        resultData.streamId = streamRes.data.id;
+        resultData.streamKey = streamRes.data.cdn.ingestionInfo.streamName;
+
+        writeLog(task.id, `[YOUTUBE API] Mengikat Stream Key ke Ruang Live...`);
+
+        // 3. BINDING (MENGGABUNGKAN KEDUANYA)
+        await youtube.liveBroadcasts.bind({
+            part: 'id,contentDetails',
+            id: resultData.broadcastId,
+            streamId: resultData.streamId
+        });
+
+        writeLog(task.id, `[YOUTUBE API] ✅ BINDING SUKSES! VStream siap meluncurkan video.`);
+
+        // 4. UPDATE TAGS & KATEGORI VIDEO 
+        try {
+            const videoRes = await youtube.videos.list({ part: 'snippet', id: resultData.broadcastId });
+            if (videoRes.data.items && videoRes.data.items.length > 0) {
+                let videoSnippet = videoRes.data.items[0].snippet;
+                videoSnippet.categoryId = finalCategory;
+                if (task.youtubeTags) {
+                    videoSnippet.tags = task.youtubeTags.split(',').map(t => t.trim()).filter(t => t);
+                }
+                await youtube.videos.update({
+                    part: 'snippet',
+                    requestBody: {
+                        id: resultData.broadcastId,
+                        snippet: videoSnippet
+                    }
+                });
+                writeLog(task.id, `[YOUTUBE API] Tags & Kategori berhasil dipasang.`);
+            }
+        } catch(tagErr) {
+            writeLog(task.id, `[YOUTUBE API WARNING] Gagal set Tags/Kategori (Bisa diabaikan): ${tagErr.message}`);
+        }
+
+        // 5. UPDATE THUMBNAIL (Aman dari Crash jika gambar > 2MB)
         if (task.thumbnailUrl) {
             try {
                 const thumbFileName = task.thumbnailUrl.split('/').pop();
@@ -339,10 +367,10 @@ async function updateYouTubeMetadata(task) {
                 if (fs.existsSync(thumbLocalPath)) {
                     const stats = fs.statSync(thumbLocalPath);
                     if (stats.size > 2097152) { // 2MB Limit Strict
-                        writeLog(task.id, `[YOUTUBE API WARNING] Thumbnail diabaikan karena ukuran file melebihi 2MB. Live Streaming tetap dilanjutkan.`);
+                        writeLog(task.id, `[YOUTUBE API WARNING] Thumbnail diabaikan karena ukuran file melebihi 2MB.`);
                     } else {
                         await youtube.thumbnails.set({
-                            videoId: broadcast.id,
+                            videoId: resultData.broadcastId,
                             media: {
                                 mimeType: 'image/jpeg',
                                 body: fs.createReadStream(thumbLocalPath)
@@ -352,38 +380,13 @@ async function updateYouTubeMetadata(task) {
                     }
                 }
             } catch (thumbErr) {
-                writeLog(task.id, `[YOUTUBE API WARNING] Gagal mengunggah thumbnail: ${thumbErr.message}. Live Streaming tetap dilanjutkan.`);
-            }
-        }
-
-        // 3. UPDATE TAGS SEO (Aman dari Crash)
-        if (task.youtubeTags) {
-            try {
-                const videoRes = await youtube.videos.list({ part: 'snippet', id: broadcast.id });
-                if (videoRes.data.items && videoRes.data.items.length > 0) {
-                    const tagsArray = task.youtubeTags.split(',').map(t => t.trim()).filter(t => t);
-                    await youtube.videos.update({
-                        part: 'snippet',
-                        requestBody: {
-                            id: broadcast.id,
-                            snippet: {
-                                title: finalTitle,
-                                categoryId: finalCategory,
-                                description: finalDesc,
-                                tags: tagsArray
-                            }
-                        }
-                    });
-                    writeLog(task.id, `[YOUTUBE API] ✅ Tags SEO Video berhasil diperbarui!`);
-                }
-            } catch (tagErr) {
-                writeLog(task.id, `[YOUTUBE API WARNING] Gagal memperbarui Tags: ${tagErr.message}`);
+                writeLog(task.id, `[YOUTUBE API WARNING] Gagal mengunggah thumbnail: ${thumbErr.message}`);
             }
         }
 
         return resultData;
     } catch (err) {
-        writeLog(task.id, `[YOUTUBE API ERROR] Gagal mengubah metadata otomatis (Error Utama): ${err.message}`);
+        writeLog(task.id, `[YOUTUBE API ERROR] Gagal membypass YouTube Studio: ${err.message}`);
         return resultData;
     }
 }
@@ -467,28 +470,23 @@ function startStreamInternal(task) {
         let streamId = null;
 
         // Panggil API YouTube
-        if (task.accountId) {
+        if (task.streamKeyMode === 'Otomatis (API v3)' && task.accountId) {
             const apiData = await updateYouTubeMetadata(task);
-            if (apiData) {
-                if (task.streamKeyMode === 'Otomatis (API v3)' && apiData.streamKey) {
-                    finalStreamKey = apiData.streamKey;
-                }
+            if (apiData && apiData.streamKey) {
+                finalStreamKey = apiData.streamKey;
                 liveChatId = apiData.liveChatId;
                 broadcastId = apiData.broadcastId;
                 streamId = apiData.streamId;
+            } else {
+                writeLog(task.id, `[CRITICAL ERROR] Mode API Otomatis aktif, tapi gagal membuat dan menarik Stream Key dari YouTube.`);
+                activeStreams.delete(task.id);
+                try {
+                    let tasks = JSON.parse(fs.readFileSync(TASKS_FILE));
+                    let t = tasks.find(x => x.id === task.id);
+                    if (t) { t.status = 'Error'; fs.writeFileSync(TASKS_FILE, JSON.stringify(tasks, null, 2)); }
+                } catch(e) {}
+                return;
             }
-        }
-
-        // Jika mode otomatis namun key tidak didapat
-        if (task.streamKeyMode === 'Otomatis (API v3)' && !finalStreamKey) {
-            writeLog(task.id, `[CRITICAL ERROR] Mode API Otomatis aktif, tapi gagal menarik Stream Key. Pastikan jadwal Live sudah dibuat di YouTube Studio.`);
-            activeStreams.delete(task.id);
-            try {
-                let tasks = JSON.parse(fs.readFileSync(TASKS_FILE));
-                let t = tasks.find(x => x.id === task.id);
-                if (t) { t.status = 'Error'; fs.writeFileSync(TASKS_FILE, JSON.stringify(tasks, null, 2)); }
-            } catch(e) {}
-            return;
         }
 
         if (!finalStreamKey) {
@@ -1055,7 +1053,6 @@ app.post('/api/notifications/test', (req, res) => {
         res.status(500).json({ success: false, message: e.message }); 
     }
 });
-
 
 // --- SERVE FRONTEND ---
 app.use(express.static(path.join(__dirname, 'frontend/dist')));
