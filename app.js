@@ -204,7 +204,7 @@ function getCategoryId(categoryName) {
 }
 
 async function updateYouTubeMetadata(task) {
-    let resultData = { streamKey: null, broadcastId: null, liveChatId: null };
+    let resultData = { streamKey: null, broadcastId: null, liveChatId: null, streamId: null };
 
     try {
         let creds = cachedCredentials;
@@ -252,6 +252,7 @@ async function updateYouTubeMetadata(task) {
 
         // Otomatis tarik stream key jika terikat dengan broadcast
         if (broadcast.contentDetails && broadcast.contentDetails.boundStreamId) {
+            resultData.streamId = broadcast.contentDetails.boundStreamId;
             const streamRes = await youtube.liveStreams.list({
                 part: 'cdn',
                 id: broadcast.contentDetails.boundStreamId
@@ -419,6 +420,7 @@ function startStreamInternal(task) {
         let finalStreamKey = task.streamKey ? task.streamKey.trim() : '';
         let liveChatId = null;
         let broadcastId = null;
+        let streamId = null;
 
         // Panggil API YouTube
         if (task.accountId) {
@@ -429,6 +431,7 @@ function startStreamInternal(task) {
                 }
                 liveChatId = apiData.liveChatId;
                 broadcastId = apiData.broadcastId;
+                streamId = apiData.streamId;
             }
         }
 
@@ -498,8 +501,10 @@ function startStreamInternal(task) {
         activeStreams.set(task.id, { 
             process: ffmpegProcess, 
             broadcastId: broadcastId, 
+            streamId: streamId, // Disimpan untuk cek health status
             accountId: task.accountId,
             viewers: 0, 
+            healthStatus: 'no_data', // Status awal
             startTime: Date.now(),
             stopTimer: stopTimer
         });
@@ -595,10 +600,10 @@ setInterval(() => {
     } catch (e) { console.error("[CRON LOG CLEANER ERROR] " + e.message); }
 }, 30 * 60 * 1000);
 
-// --- REALTIME YOUTUBE ANALYTICS SENSOR (Tiap 2 Menit) ---
+// --- REALTIME YOUTUBE ANALYTICS & HEALTH SENSOR (Tiap 2 Menit) ---
 setInterval(async () => {
     for (const [taskId, streamData] of activeStreams.entries()) {
-        if (streamData.broadcastId && streamData.accountId) {
+        if (streamData.accountId) {
             try {
                 const tokenPath = path.join(__dirname, streamData.accountId);
                 if (fs.existsSync(tokenPath)) {
@@ -606,10 +611,21 @@ setInterval(async () => {
                     const oauth2Client = getOAuth2Client(tokens);
                     const youtube = google.youtube({ version: 'v3', auth: oauth2Client });
                     
-                    const res = await youtube.videos.list({ part: 'liveStreamingDetails', id: streamData.broadcastId });
-                    if (res.data.items && res.data.items.length > 0) {
-                        const viewers = res.data.items[0].liveStreamingDetails?.concurrentViewers || 0;
-                        streamData.viewers = parseInt(viewers);
+                    // Ambil Viewers
+                    if (streamData.broadcastId) {
+                        const res = await youtube.videos.list({ part: 'liveStreamingDetails', id: streamData.broadcastId });
+                        if (res.data.items && res.data.items.length > 0) {
+                            const viewers = res.data.items[0].liveStreamingDetails?.concurrentViewers || 0;
+                            streamData.viewers = parseInt(viewers);
+                        }
+                    }
+
+                    // Ambil Stream Health (Indikator Kondisi)
+                    if (streamData.streamId) {
+                        const healthRes = await youtube.liveStreams.list({ part: 'status', id: streamData.streamId });
+                        if (healthRes.data.items && healthRes.data.items.length > 0) {
+                            streamData.healthStatus = healthRes.data.items[0].status.healthStatus.status; // 'good', 'ok', 'bad', 'noData'
+                        }
                     }
                 }
             } catch(e) { console.log("Analytics Fetch Error:", e.message); }
@@ -686,13 +702,53 @@ app.get('/api/tasks', (req, res) => {
         const tasks = JSON.parse(fs.readFileSync(TASKS_FILE)); 
         const tasksWithAnalytics = tasks.map(t => {
             const activeData = activeStreams.get(t.id);
+            let resolution = t.outputResolution || 'Source';
+            if (resolution === 'source') resolution = 'Source';
+            let fps = resolution.includes('60') ? '60' : '30';
+
             if (activeData) {
                 const uptimeMs = Date.now() - activeData.startTime;
                 const hours = Math.floor(uptimeMs / 3600000).toString().padStart(2, '0');
                 const minutes = Math.floor((uptimeMs % 3600000) / 60000).toString().padStart(2, '0');
-                return { ...t, viewers: activeData.viewers, uptime: `${hours}:${minutes}` };
+                
+                // Set Condition
+                let condType = 'success';
+                let condTitle = 'Sangat Baik (Good)';
+                let statusText = 'Live';
+
+                if (activeData.healthStatus === 'bad') {
+                    condType = 'error';
+                    condTitle = 'Buruk (Bad) / Putus';
+                } else if (activeData.healthStatus === 'ok') {
+                    condType = 'warning';
+                    condTitle = 'Lemah (Poor)';
+                } else if (activeData.healthStatus === 'noData' || activeData.healthStatus === 'no_data') {
+                    condType = 'gray';
+                    condTitle = 'Menunggu Data';
+                    if (uptimeMs < 30000) statusText = 'Starting'; // Baru nyala
+                }
+
+                return { 
+                    ...t, 
+                    viewers: activeData.viewers, 
+                    uptime: `${hours}:${minutes}`,
+                    condType: condType,
+                    condTitle: condTitle,
+                    statusText: statusText,
+                    resolution: resolution,
+                    fps: fps
+                };
             }
-            return { ...t, viewers: 0, uptime: '00:00' };
+            return { 
+                ...t, 
+                viewers: 0, 
+                uptime: '00:00',
+                condType: 'gray',
+                condTitle: 'Offline',
+                statusText: t.status,
+                resolution: resolution,
+                fps: fps
+            };
         });
         res.json(tasksWithAnalytics);
     } catch (e) { res.json([]); }

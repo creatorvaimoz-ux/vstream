@@ -151,6 +151,15 @@ function DashboardView({ isPreview, API_BASE }) {
       try { await fetch(`${API_BASE}/api/stream/stop`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ streamId: id }) }); fetchTasks(); } catch(e) {}
   };
 
+  const getHealthStyle = (health) => {
+    switch(health) {
+      case 'good': return { dot: 'bg-blue-500', text: 'text-blue-600 dark:text-blue-400', label: 'Bagus (Good)' };
+      case 'poor': return { dot: 'bg-yellow-500', text: 'text-yellow-600 dark:text-yellow-400', label: 'Lemah (Poor)' };
+      case 'bad': return { dot: 'bg-red-500', text: 'text-red-600 dark:text-red-400', label: 'Buruk / No Data' };
+      default: return { dot: 'bg-green-500', text: 'text-green-600 dark:text-green-400', label: 'Sangat Baik' }; // excellent
+    }
+  };
+
   const liveTasks = tasks.filter(t => t.status === 'Live');
   const scheduledTasks = tasks.filter(t => t.status === 'Terjadwal' || t.status === 'Draft');
 
@@ -235,53 +244,59 @@ function DashboardView({ isPreview, API_BASE }) {
                   <td colSpan="5" className="px-5 py-12 text-center text-gray-500 dark:text-slate-400 text-sm">Belum ada tugas live yang dibuat. Silakan buat di menu Tugas Live.</td>
                 </tr>
               ) : (
-                tasks.map((t, idx) => (
-                  <tr key={t.id} className="hover:bg-gray-50/80 dark:hover:bg-slate-700/30 transition-colors group">
-                    <td className="px-5 py-4 align-middle text-center text-xs font-mono text-gray-400">{idx+1}</td>
-                    <td className="px-5 py-4 align-middle">
-                      <div className="font-semibold text-sm text-gray-900 dark:text-slate-100 leading-tight truncate max-w-[200px]">{t.taskName || 'Tanpa Nama'}</div>
-                      <div className="text-[10px] text-gray-500 dark:text-slate-400 mt-1 truncate max-w-[200px] flex items-center gap-1">
-                        <Video className="w-3 h-3 text-gray-400" /> {t.videoPath || t.videoMode}
-                      </div>
-                    </td>
-                    <td className="px-5 py-4 align-middle">
-                      <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-md bg-gray-100 dark:bg-slate-900/50 border border-gray-200 dark:border-slate-700/60 text-xs text-gray-600 dark:text-slate-300">
-                        <Clock className="w-3 h-3 text-gray-400" />
-                        <span>{t.jadwalMode === 'smart-weekly' ? 'Jadwal Mingguan' : t.jadwalMode === 'harian' ? `Harian | ${t.scheduleTime}` : t.jadwalMode === 'sekali' ? `${t.scheduleDate} | ${t.scheduleTime}` : 'Manual'}</span>
-                      </div>
-                      {t.status === 'Live' && (
-                        <div className="text-[11px] font-bold text-blue-600 dark:text-blue-400 mt-1.5 flex items-center gap-1">
-                           <Users className="w-3 h-3" /> {t.viewers || 0} Penonton • {t.uptime || '00:00'}
+                tasks.map((t, idx) => {
+                  const healthStyle = getHealthStyle(t.streamHealth || 'excellent');
+                  return (
+                    <tr key={t.id} className="hover:bg-gray-50/80 dark:hover:bg-slate-700/30 transition-colors group">
+                      <td className="px-5 py-4 align-middle text-center text-xs font-mono text-gray-400">{idx+1}</td>
+                      <td className="px-5 py-4 align-middle">
+                        <div className="font-semibold text-sm text-gray-900 dark:text-slate-100 leading-tight truncate max-w-[200px]">{t.taskName || 'Tanpa Nama'}</div>
+                        <div className="text-[10px] text-gray-500 dark:text-slate-400 mt-1 truncate max-w-[200px] flex items-center gap-1">
+                          <Video className="w-3 h-3 text-gray-400" /> {t.videoPath || t.videoMode}
                         </div>
-                      )}
-                    </td>
-                    <td className="px-5 py-4 align-middle">
-                      <div className="flex items-center gap-2">
-                        <span className="relative flex h-2.5 w-2.5">
-                          {t.status === 'Live' && <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 dark:bg-emerald-400 opacity-75"></span>}
-                          <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${t.status === 'Live' ? 'bg-emerald-500' : t.status === 'Terjadwal' ? 'bg-blue-500' : t.status === 'Error' ? 'bg-red-500' : 'bg-gray-400'}`}></span>
-                        </span>
-                        <div className="flex flex-col">
-                          <span className={`text-sm font-medium leading-none ${t.status === 'Live' ? 'text-emerald-600 dark:text-emerald-400' : t.status === 'Error' ? 'text-red-600 dark:text-rose-400' : 'text-gray-600 dark:text-slate-400'}`}>
-                            {t.status}
+                      </td>
+                      <td className="px-5 py-4 align-middle">
+                        <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-md bg-gray-100 dark:bg-slate-900/50 border border-gray-200 dark:border-slate-700/60 text-xs text-gray-600 dark:text-slate-300">
+                          <Clock className="w-3 h-3 text-gray-400" />
+                          <span>{t.jadwalMode === 'smart-weekly' ? 'Jadwal Mingguan' : t.jadwalMode === 'harian' ? `Harian | ${t.scheduleTime}` : t.jadwalMode === 'sekali' ? `${t.scheduleDate} | ${t.scheduleTime}` : 'Manual'}</span>
+                        </div>
+                        {t.status === 'Live' && (
+                          <div className="mt-2 space-y-1">
+                            <div className="text-[11px] font-bold text-blue-600 dark:text-blue-400 flex items-center gap-1">
+                              <Users className="w-3 h-3" /> {t.viewers || 0} Penonton • {t.uptime || '00:00'}
+                            </div>
+                            <div className={`text-[10px] font-medium flex items-center gap-1.5 ${healthStyle.text}`}>
+                              <span className={`w-2 h-2 rounded-full ${healthStyle.dot} animate-pulse`}></span>
+                              Kondisi: {healthStyle.label}
+                            </div>
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-5 py-4 align-middle">
+                        <div className="flex items-center gap-2">
+                          <span className="relative flex h-2.5 w-2.5">
+                            {t.status === 'Live' && <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 dark:bg-emerald-400 opacity-75"></span>}
+                            <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${t.status === 'Live' ? 'bg-emerald-500' : t.status === 'Terjadwal' ? 'bg-blue-500' : t.status === 'Error' ? 'bg-red-500' : 'bg-gray-400'}`}></span>
                           </span>
+                          <div className="flex flex-col">
+                            <span className={`text-sm font-medium leading-none ${t.status === 'Live' ? 'text-emerald-600 dark:text-emerald-400' : t.status === 'Error' ? 'text-red-600 dark:text-rose-400' : 'text-gray-600 dark:text-slate-400'}`}>
+                              {t.status}
+                            </span>
+                          </div>
                         </div>
-                      </div>
-                    </td>
-                    <td className="px-5 py-4 align-middle text-right">
-                        <div className="flex justify-end gap-2">
-                           {t.status === 'Live' && (
-                               <button onClick={() => handleStopStream(t.id)} className="p-1.5 bg-yellow-50 text-yellow-600 hover:bg-yellow-100 rounded-md transition-colors" title="Hentikan Stream">
-                                   <StopCircle className="w-4 h-4" />
-                               </button>
-                           )}
-                           <button onClick={() => handleDeleteTask(t.id)} className="p-1.5 bg-red-50 text-red-600 hover:bg-red-100 rounded-md transition-colors" title="Hapus Tugas">
-                               <Trash2 className="w-4 h-4" />
-                           </button>
-                        </div>
-                    </td>
-                  </tr>
-                ))
+                      </td>
+                      <td className="px-5 py-4 align-middle text-right">
+                          <TableRowMenu 
+                            t={t}
+                            onStart={() => alert('Memulai Stream... Server akan memanggil FFmpeg untuk tugas ini.')}
+                            onStop={() => handleStopStream(t.id)}
+                            onEdit={() => alert('Membuka form Edit Metadata untuk mengubah Judul, Deskripsi, dan Setelan API.')}
+                            onDelete={() => handleDeleteTask(t.id)}
+                          />
+                      </td>
+                    </tr>
+                  )
+                })
               )}
             </tbody>
           </table>
@@ -1051,7 +1066,12 @@ function AnalyticsView({ accounts, API_BASE }) {
 // -----------------------------------------------------------------------------
 function SettingsView({ accounts, fetchAccounts, isPreview, API_BASE }) {
   const [notifPlatform, setNotifPlatform] = useState('telegram');
-  const [notifEnabled, setNotifEnabled] = useState(false); 
+  const [notifEnabled, setNotifEnabled] = useState(false);
+  const [telegramToken, setTelegramToken] = useState('');
+  const [telegramChatId, setTelegramChatId] = useState('');
+  const [triggerError, setTriggerError] = useState(true);
+  const [triggerCpu, setTriggerCpu] = useState(true);
+  
   const [accountName, setAccountName] = useState('');
   const [authUrl, setAuthUrl] = useState('');
   const [isSaving, setIsSaving] = useState(false);
@@ -1060,6 +1080,43 @@ function SettingsView({ accounts, fetchAccounts, isPreview, API_BASE }) {
   const [isSavingCreds, setIsSavingCreds] = useState(false);
 
   const inputClassName = "w-full bg-gray-50 dark:bg-slate-900/50 border border-gray-300 dark:border-slate-600/60 rounded-lg px-4 py-2.5 outline-none focus:border-emerald-500 dark:focus:border-emerald-400 font-mono text-sm dark:text-slate-200 transition-colors";
+
+  useEffect(() => {
+    if (isPreview) return;
+    fetch(`${API_BASE}/api/settings/notifications`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && data.settings) {
+          setNotifEnabled(data.settings.notifEnabled || false);
+          setNotifPlatform(data.settings.notifPlatform || 'telegram');
+          setTelegramToken(data.settings.telegramToken || '');
+          setTelegramChatId(data.settings.telegramChatId || '');
+          setTriggerError(data.settings.triggerError ?? true);
+          setTriggerCpu(data.settings.triggerCpu ?? true);
+        }
+      }).catch(e => {});
+  }, [API_BASE, isPreview]);
+
+  const handleSaveNotif = async () => {
+    if (isPreview) return alert('Simulasi: Pengaturan notifikasi disimpan.');
+    try {
+      const payload = { notifEnabled, notifPlatform, telegramToken, telegramChatId, triggerError, triggerCpu };
+      await fetch(`${API_BASE}/api/settings/notifications`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+      });
+      alert('Pengaturan notifikasi berhasil disimpan!');
+    } catch(e) { alert('Gagal menyimpan pengaturan notifikasi.'); }
+  };
+
+  const handleTestNotif = async () => {
+    if (isPreview) return alert('Simulasi: Pesan test terkirim.');
+    if (!telegramToken || !telegramChatId) return alert('Silakan isi Token dan Chat ID Telegram terlebih dahulu.');
+    try {
+      const res = await fetch(`${API_BASE}/api/notifications/test`, { method: 'POST' });
+      const data = await res.json();
+      alert(data.message);
+    } catch(e) { alert('Gagal mengirim pesan test.'); }
+  };
 
   const handleSaveGoogleCredentials = async () => {
     if (!clientId || !clientSecret) return alert('Client ID dan Client Secret harus diisi!');
@@ -1149,6 +1206,90 @@ function SettingsView({ accounts, fetchAccounts, isPreview, API_BASE }) {
           <div><label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">3. Tempel URL Lengkap</label><textarea rows="4" value={authUrl} onChange={(e) => setAuthUrl(e.target.value)} className="w-full bg-white dark:bg-slate-900/50 border border-gray-300 dark:border-slate-600/60 rounded-md px-4 py-3 outline-none focus:border-emerald-500 dark:focus:border-emerald-400 font-mono text-xs break-all text-gray-600 dark:text-slate-300 shadow-sm" placeholder="http://localhost/?state=ppVwnH...&code=4/0A..."></textarea></div>
         </div>
         <div className="mt-6"><button onClick={handleSaveAccount} disabled={isSaving} className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-600 dark:hover:bg-emerald-700 text-white font-bold rounded-lg transition-colors shadow-md">{isSaving ? 'Memproses...' : 'Simpan Akun'}</button></div>
+      </div>
+
+      {/* FITUR BARU: NOTIFIKASI TELEGRAM */}
+      <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700/60 p-6 shadow-sm">
+        <div className="flex items-center justify-between mb-4 border-b border-gray-200 dark:border-slate-700/60 pb-4">
+          <div className="flex items-center gap-3">
+            <Bell className="w-6 h-6 text-blue-500 dark:text-blue-400" />
+            <h3 className="text-lg font-semibold dark:text-slate-100">Peringatan & Notifikasi Sistem</h3>
+          </div>
+          <label className="relative inline-flex items-center cursor-pointer">
+            <input type="checkbox" className="sr-only peer" checked={notifEnabled} onChange={(e) => setNotifEnabled(e.target.checked)} />
+            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-600 peer-checked:bg-emerald-600 dark:peer-checked:bg-emerald-500"></div>
+          </label>
+        </div>
+        
+        <p className="text-sm text-gray-500 dark:text-slate-400 mb-5">
+          Kirim peringatan otomatis ke ponsel Anda jika terjadi kendala pada VPS atau Streaming.
+        </p>
+
+        <div className={`transition-opacity ${notifEnabled ? 'opacity-100' : 'opacity-40 pointer-events-none'}`}>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Platform Notifikasi</label>
+              <select 
+                value={notifPlatform}
+                onChange={(e) => setNotifPlatform(e.target.value)}
+                className={inputClassName}
+              >
+                <option value="telegram">Telegram Bot</option>
+              </select>
+            </div>
+            
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Bot Token</label>
+                <input 
+                   type="password" 
+                   value={telegramToken}
+                   onChange={(e) => setTelegramToken(e.target.value)}
+                   placeholder="123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11" 
+                   className={inputClassName} 
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Chat ID (Target Group/User)</label>
+                <input 
+                   type="text" 
+                   value={telegramChatId}
+                   onChange={(e) => setTelegramChatId(e.target.value)}
+                   placeholder="123456789" 
+                   className={inputClassName} 
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-gray-50 dark:bg-slate-900/30 rounded-xl p-4 border border-gray-200 dark:border-slate-700/50">
+            <h4 className="text-sm font-semibold mb-3 dark:text-slate-200">Pemicu Peringatan (Triggers)</h4>
+            <div className="space-y-3">
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input type="checkbox" checked={triggerError} onChange={(e) => setTriggerError(e.target.checked)} className="w-4 h-4 text-emerald-600 dark:text-emerald-500 rounded border-gray-300 dark:border-slate-600 focus:ring-emerald-500 bg-white dark:bg-slate-800" />
+                <span className="text-sm text-gray-700 dark:text-slate-300">Stream dimulai, terputus (Error), atau dihentikan.</span>
+              </label>
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input type="checkbox" checked={triggerCpu} onChange={(e) => setTriggerCpu(e.target.checked)} className="w-4 h-4 text-emerald-600 dark:text-emerald-500 rounded border-gray-300 dark:border-slate-600 focus:ring-emerald-500 bg-white dark:bg-slate-800" />
+                <span className="text-sm text-gray-700 dark:text-slate-300">Penggunaan CPU VPS melebihi 85%</span>
+              </label>
+            </div>
+            <div className="mt-5 pt-4 border-t border-gray-200 dark:border-slate-700/60 flex flex-wrap gap-3 justify-end">
+              <button 
+                onClick={handleSaveNotif}
+                className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg transition-colors shadow-sm"
+              >
+                💾 Simpan Pengaturan
+              </button>
+              <button 
+                onClick={handleTestNotif}
+                className="flex items-center gap-2 px-4 py-2 bg-gray-200 dark:bg-slate-700 hover:bg-gray-300 dark:hover:bg-slate-600 text-gray-800 dark:text-slate-200 text-xs font-bold rounded-lg transition-colors shadow-sm"
+              >
+                <Send className="w-3.5 h-3.5" /> Test Kirim Pesan
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
 
     </div>
@@ -1320,6 +1461,7 @@ function LogView({ isPreview, API_BASE }) {
 
                 return (
                   <div key={index} className={`${colorClass} break-all hover:bg-white/5 dark:hover:bg-white/10 px-1 rounded transition-colors`}>
+                    {/* Menghapus timestamp statis agar menyesuaikan dengan format baru dari backend */}
                     {log.text}
                   </div>
                 );
@@ -1376,7 +1518,6 @@ function VideoFile({ name, size, onEdit, onDelete }) {
         </div>
       </div>
       
-      {/* Action Buttons */}
       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-gradient-to-l from-white dark:from-slate-800 via-white dark:via-slate-800 pl-4 pr-1">
         <button 
           onClick={(e) => { e.stopPropagation(); onEdit && onEdit(); }} 
@@ -1397,36 +1538,48 @@ function VideoFile({ name, size, onEdit, onDelete }) {
   );
 }
 
-function TableRowMenu({ onDelete }) {
+function TableRowMenu({ t, onStart, onStop, onEdit, onDelete }) {
   const [isOpen, setIsOpen] = useState(false);
+  const menuRef = useRef(null);
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (menuRef.current && !menuRef.current.contains(event.target)) setIsOpen(false);
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   return (
-    <div className="relative">
+    <div className="relative inline-block text-left" ref={menuRef}>
       <button 
         onClick={() => setIsOpen(!isOpen)} 
-        onBlur={() => setTimeout(() => setIsOpen(false), 200)}
-        className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 dark:bg-slate-700/50 hover:bg-gray-200 dark:hover:bg-slate-700 text-gray-700 dark:text-slate-300 rounded-lg text-sm font-medium transition-colors"
+        className="flex items-center justify-between gap-2 px-3 py-1.5 bg-gray-100 dark:bg-slate-700/50 hover:bg-gray-200 dark:hover:bg-slate-700 text-gray-700 dark:text-slate-300 rounded-lg text-sm font-medium transition-colors border border-gray-200 dark:border-slate-600"
       >
-        <Settings className="w-4 h-4" /> Menu
+        <Settings className="w-4 h-4" /> Pengaturan <ChevronDown className={`w-3 h-3 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </button>
       
       {isOpen && (
-        <div className="absolute right-0 top-full mt-1 w-48 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700/60 rounded-xl shadow-lg dark:shadow-black/30 z-50 py-2">
-          <button className="w-full text-left px-4 py-2 text-sm flex items-center gap-2 text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
+        <div className="absolute right-0 top-full mt-1.5 w-48 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700/60 rounded-xl shadow-xl dark:shadow-black/40 z-50 py-2 overflow-hidden">
+          {t && t.status !== 'Live' && (
+              <button onClick={() => { setIsOpen(false); onStart && onStart(); }} className="w-full text-left px-4 py-2.5 text-sm flex items-center gap-3 text-emerald-600 dark:text-emerald-400 hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors font-medium">
+                <PlayCircle className="w-4 h-4" /> Mulai Live
+              </button>
+          )}
+          {t && t.status === 'Live' && (
+              <button onClick={() => { setIsOpen(false); onStop && onStop(); }} className="w-full text-left px-4 py-2.5 text-sm flex items-center gap-3 text-yellow-600 dark:text-amber-400 hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors font-medium">
+                <StopCircle className="w-4 h-4" /> Hentikan Live
+              </button>
+          )}
+          <button onClick={() => { setIsOpen(false); onEdit && onEdit(); }} className="w-full text-left px-4 py-2.5 text-sm flex items-center gap-3 text-blue-600 dark:text-blue-400 hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors font-medium">
             <Edit className="w-4 h-4" /> Edit Metadata
-          </button>
-          <button className="w-full text-left px-4 py-2 text-sm flex items-center gap-2 text-green-600 dark:text-emerald-400 hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
-            <PlayCircle className="w-4 h-4" /> Play Live
-          </button>
-          <button className="w-full text-left px-4 py-2 text-sm flex items-center gap-2 text-yellow-600 dark:text-amber-400 hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
-            <StopCircle className="w-4 h-4" /> Stop Live
           </button>
           <div className="h-px bg-gray-200 dark:bg-slate-700/60 my-1"></div>
           <button 
-            onClick={onDelete}
-            className="w-full text-left px-4 py-2 text-sm flex items-center gap-2 text-red-600 dark:text-rose-400 hover:bg-red-50 dark:hover:bg-rose-500/10 transition-colors"
+            onClick={() => { setIsOpen(false); onDelete && onDelete(); }}
+            className="w-full text-left px-4 py-2.5 text-sm flex items-center gap-3 text-red-600 dark:text-rose-400 hover:bg-red-50 dark:hover:bg-rose-500/10 transition-colors font-medium"
           >
-            <Trash2 className="w-4 h-4" /> Hapus Live
+            <Trash2 className="w-4 h-4" /> Hapus Tugas
           </button>
         </div>
       )}
