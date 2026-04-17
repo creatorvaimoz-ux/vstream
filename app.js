@@ -431,7 +431,7 @@ async function startYoutubeChatbot(task, liveChatId) {
 // --- ENGINE FFMPEG (MEMULAI LIVE) ---
 const activeStreams = new Map();
 
-function stopStreamById(id) {
+function stopStreamById(id, isError = false) {
     const processData = activeStreams.get(id);
     if (processData) {
         if (processData.process) processData.process.kill('SIGKILL');
@@ -441,7 +441,11 @@ function stopStreamById(id) {
     try {
         let tasks = JSON.parse(fs.readFileSync(TASKS_FILE));
         let t = tasks.find(x => x.id === id);
-        if (t) { t.status = 'Berhenti'; fs.writeFileSync(TASKS_FILE, JSON.stringify(tasks, null, 2)); }
+        if (t) { 
+            // Memastikan status di database berubah menjadi Error atau Berhenti
+            t.status = isError ? 'Error' : 'Berhenti'; 
+            fs.writeFileSync(TASKS_FILE, JSON.stringify(tasks, null, 2)); 
+        }
     } catch(e) {}
 }
 
@@ -534,7 +538,7 @@ function startStreamInternal(task) {
             
             stopTimer = setTimeout(() => {
                 writeLog(task.id, `[SYSTEM] Waktu habis! Menghentikan tugas otomatis: ${task.taskName}`);
-                stopStreamById(task.id);
+                stopStreamById(task.id, false); // Berhenti Normal
                 
                 // TELEGRAM NOTIF: STOP OTOMATIS
                 const notifSettings = fs.existsSync(NOTIF_FILE) ? JSON.parse(fs.readFileSync(NOTIF_FILE)) : {};
@@ -572,7 +576,7 @@ function startStreamInternal(task) {
 
         ffmpegProcess.on('error', (err) => {
             writeLog(task.id, `[CRITICAL ERROR] Gagal mengeksekusi FFmpeg: ${err.message}`);
-            stopStreamById(task.id);
+            stopStreamById(task.id, true); // Mark as Error
             
             // TRIGGGER TELEGRAM BOT (JIKA ERROR)
             const notifSettings = fs.existsSync(NOTIF_FILE) ? JSON.parse(fs.readFileSync(NOTIF_FILE)) : {};
@@ -583,10 +587,11 @@ function startStreamInternal(task) {
 
         ffmpegProcess.on('close', (code) => {
             writeLog(task.id, `[SYSTEM] FFmpeg Terhenti (Kode Keluar: ${code})`);
-            stopStreamById(task.id);
+            const isError = (code !== 0 && code !== 255 && code !== null);
+            stopStreamById(task.id, isError); // Update status sesuai kode exit
             
             // TRIGGER TELEGRAM BOT (JIKA TERHENTI MENDADAK BUKAN KARENA STOP MANUAL)
-            if (code !== 0 && code !== 255 && code !== null) {
+            if (isError) {
                 const notifSettings = fs.existsSync(NOTIF_FILE) ? JSON.parse(fs.readFileSync(NOTIF_FILE)) : {};
                 if (notifSettings.triggerError) {
                     sendTelegramMessage(`🔴 <b>Streaming Terputus!</b>\n\nTugas: <b>${escapeHtml(task.taskName)}</b>\nTerputus secara tiba-tiba (Kode Exit: ${code}).\nSilakan periksa server atau koneksi internet VPS.`);
@@ -794,8 +799,20 @@ app.post('/api/tasks', (req, res) => {
 app.get('/api/tasks', (req, res) => {
     try { 
         const tasks = JSON.parse(fs.readFileSync(TASKS_FILE)); 
+        let needsSave = false;
+
         const tasksWithAnalytics = tasks.map(t => {
             const activeData = activeStreams.get(t.id);
+            
+            // AUTO-KOREKSI: Sinkronisasi paksa jika status file JSON ketinggalan dengan Engine Live
+            if (activeData && t.status !== 'Live') {
+                t.status = 'Live'; // Paksa jadi Live untuk memastikan dia masuk tab Utama
+                needsSave = true;
+            } else if (!activeData && t.status === 'Live') {
+                t.status = 'Berhenti'; // Paksa jadi Berhenti jika mesin mati tapi JSON nyangkut
+                needsSave = true;
+            }
+
             let resolution = t.outputResolution || 'Source';
             if (resolution === 'source') resolution = 'Source';
             let fps = resolution.includes('60') ? '60' : '30';
@@ -846,18 +863,24 @@ app.get('/api/tasks', (req, res) => {
                 fps: fps
             };
         });
+
+        // Simpan jika ada perubahan status dari Auto-Koreksi
+        if (needsSave) {
+            fs.writeFileSync(TASKS_FILE, JSON.stringify(tasksWithAnalytics, null, 2));
+        }
+
         res.json(tasksWithAnalytics);
     } catch (e) { res.json([]); }
 });
 
 app.post('/api/stream/stop', (req, res) => {
-    stopStreamById(req.body.streamId);
+    stopStreamById(req.body.streamId, false);
     res.json({ success: true, message: 'Streaming dihentikan.' });
 });
 
 app.delete('/api/tasks/:id', (req, res) => {
     try {
-        stopStreamById(req.params.id);
+        stopStreamById(req.params.id, false);
         let tasks = JSON.parse(fs.readFileSync(TASKS_FILE));
         tasks = tasks.filter(t => t.id !== req.params.id);
         fs.writeFileSync(TASKS_FILE, JSON.stringify(tasks, null, 2));
