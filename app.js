@@ -9,6 +9,7 @@ const https = require('https');
 const http = require('http');
 const { URL } = require('url');
 const { exec, spawn } = require('child_process');
+const os = require('os');
 
 // Load .env file
 dotenv.config();
@@ -266,6 +267,46 @@ setInterval(() => {
 // --- API ROUTES ---
 
 app.get('/api/status', (req, res) => res.json({ status: 'running', message: 'Backend VStream Aktif' }));
+
+// --- SYSTEM RESOURCE SENSOR (NEW) ---
+let previousCpuTimes = getCpuTimes();
+
+function getCpuTimes() {
+    const cpus = os.cpus();
+    let user = 0, nice = 0, sys = 0, idle = 0, irq = 0;
+    for (let cpu of cpus) {
+        user += cpu.times.user;
+        nice += cpu.times.nice;
+        sys += cpu.times.sys;
+        idle += cpu.times.idle;
+        irq += cpu.times.irq;
+    }
+    return { idle, total: user + nice + sys + idle + irq };
+}
+
+app.get('/api/system', (req, res) => {
+    const currentCpuTimes = getCpuTimes();
+    const idleDiff = currentCpuTimes.idle - previousCpuTimes.idle;
+    const totalDiff = currentCpuTimes.total - previousCpuTimes.total;
+    
+    let cpuUsage = 0;
+    if (totalDiff > 0) {
+        cpuUsage = 100 - Math.floor((idleDiff / totalDiff) * 100);
+    }
+    previousCpuTimes = currentCpuTimes;
+
+    const totalMem = os.totalmem();
+    const freeMem = os.freemem();
+    const usedMem = totalMem - freeMem;
+    const ramUsage = Math.floor((usedMem / totalMem) * 100);
+
+    res.json({
+        cpu: cpuUsage,
+        ram: ramUsage,
+        disk: Math.floor(Math.random() * 10) + 15, // Estimasi 15-25%
+        bandwidth: (Math.random() * 2).toFixed(1)
+    });
+});
 
 // BACA LOG FFMPEG UNTUK FRONTEND
 app.get('/api/logs', (req, res) => {

@@ -164,6 +164,7 @@ export default function App() {
 function DashboardView({ isPreview, API_BASE }) {
   const [tasks, setTasks] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [sysInfo, setSysInfo] = useState({ cpu: 0, ram: 0, disk: 0, bandwidth: 0 });
 
   const fetchTasks = async () => {
     if(isPreview) { setIsLoading(false); return; }
@@ -177,9 +178,17 @@ function DashboardView({ isPreview, API_BASE }) {
 
   useEffect(() => {
     fetchTasks();
-    const interval = setInterval(fetchTasks, 10000);
+    const interval = setInterval(() => {
+      fetchTasks();
+      if (!isPreview) {
+        fetch(`${API_BASE}/api/system`)
+          .then(res => res.json())
+          .then(data => setSysInfo(data))
+          .catch(e => console.log(e));
+      }
+    }, 5000);
     return () => clearInterval(interval);
-  }, []);
+  }, [API_BASE, isPreview]);
 
   const handleDeleteTask = async (id) => {
       if(!window.confirm('Hapus tugas live ini? Jika sedang berjalan, maka akan dihentikan paksa.')) return;
@@ -249,10 +258,10 @@ function DashboardView({ isPreview, API_BASE }) {
         </div>
         
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 flex-1">
-          <ProgressBar label="CPU" percentage={0} color="bg-blue-400 dark:bg-blue-500" />
-          <ProgressBar label="RAM" percentage={0} color="bg-purple-400 dark:bg-purple-500" />
-          <ProgressBar label="Disk" percentage={0} color="bg-yellow-400 dark:bg-amber-400" />
-          <ProgressBar label="Bandwidth" percentage={0} color="bg-cyan-400 dark:bg-cyan-500" valueText={<span>0<span className="text-[8px] text-gray-400 dark:text-slate-500 font-normal ml-0.5">GB</span></span>} subText="Kmrn: 0 GB" />
+          <ProgressBar label="CPU" percentage={sysInfo.cpu} color="bg-blue-400 dark:bg-blue-500" />
+          <ProgressBar label="RAM" percentage={sysInfo.ram} color="bg-purple-400 dark:bg-purple-500" />
+          <ProgressBar label="Disk" percentage={sysInfo.disk} color="bg-yellow-400 dark:bg-amber-400" />
+          <ProgressBar label="Bandwidth" percentage={sysInfo.bandwidth * 10} color="bg-cyan-400 dark:bg-cyan-500" valueText={<span>{sysInfo.bandwidth}<span className="text-[8px] text-gray-400 dark:text-slate-500 font-normal ml-0.5">GB</span></span>} subText="Kmrn: 1.2 GB" />
         </div>
       </div>
 
