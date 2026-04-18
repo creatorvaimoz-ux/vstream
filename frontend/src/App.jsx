@@ -7,8 +7,14 @@ import {
   AlertTriangle, XCircle, ChevronDown, TrendingUp, MessageSquare, ThumbsUp,
   Menu, Image, Monitor, Radio, Calendar, ShieldAlert,
   Wifi, Zap, TerminalSquare, Cpu, Bell, Bot, Send, MessageCircle,
-  Cast, Film, LineChart, Sliders, ScrollText, Link as LinkIcon, ListVideo, ArrowDown, Archive
+  Cast, Film, LineChart, Sliders, ScrollText, Link as LinkIcon, ListVideo, ArrowDown, Archive, Pencil
 } from 'lucide-react';
+
+// === KONFIGURASI BRANDING APLIKASI ===
+const BRAND_PREFIX = "V";           // Huruf pertama (warna gelap)
+const BRAND_SUFFIX = "Stream";      // Sisa huruf (warna hijau)
+const BRAND_TAGLINE = "Vaimoz Youtube Stream V.1"; // Teks kecil di bawah logo
+// =====================================
 
 export default function App() {
   const [isDarkMode, setIsDarkMode] = useState(true);
@@ -56,8 +62,8 @@ export default function App() {
                 <PlayCircle className="text-white w-5 h-5" />
               </div>
               <div className="hidden sm:flex flex-col justify-center">
-                <h1 className="text-xl font-bold tracking-tight leading-none mb-1">V<span className="text-emerald-600 dark:text-emerald-400">Stream</span></h1>
-                <span className="text-[9px] font-bold tracking-widest text-gray-500 dark:text-slate-400 uppercase leading-none">Vaimoz Youtube Stream V.1</span>
+                <h1 className="text-xl font-bold tracking-tight leading-none mb-1">{BRAND_PREFIX}<span className="text-emerald-600 dark:text-emerald-400">{BRAND_SUFFIX}</span></h1>
+                <span className="text-[9px] font-bold tracking-widest text-gray-500 dark:text-slate-400 uppercase leading-none">{BRAND_TAGLINE}</span>
               </div>
             </div>
 
@@ -904,12 +910,10 @@ function TugasLiveView({ accounts, isPreview, API_BASE, onNavigate }) {
               </div>
             </div>
           </div>
-          
         </div>
       </div>
 
-      {/* Tombol Simpan ditaruh di paling bawah & Tidak Mengambang lagi */}
-      <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700/60 p-5 md:p-6 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4 mt-6">
+      <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700/60 p-5 md:p-6 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4 mt-2 sticky bottom-4 z-50">
          <div className="flex items-center gap-4 w-full sm:w-auto">
            <div className="w-10 h-10 rounded-full bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center shrink-0"><div className="w-3 h-3 rounded-full bg-blue-500 dark:bg-blue-400 animate-pulse"></div></div>
            <div><p className="text-xs text-gray-500 dark:text-slate-400 font-medium mb-0.5">Status Tugas Live</p><p className="text-sm font-bold text-blue-600 dark:text-blue-400">Siap Disimpan</p></div>
@@ -924,7 +928,7 @@ function TugasLiveView({ accounts, isPreview, API_BASE, onNavigate }) {
 }
 
 // -----------------------------------------------------------------------------
-// TAB 3: MEDIA
+// TAB 3: MEDIA (DENGAN PREVIEW VIDEO BESAR & RENAME)
 // -----------------------------------------------------------------------------
 function MediaView({ isPreview, API_BASE }) {
   const [isUploading, setIsUploading] = useState(false);
@@ -940,6 +944,11 @@ function MediaView({ isPreview, API_BASE }) {
   const [activeFolder, setActiveFolder] = useState('Video Berita Utama');
   const [fileToDelete, setFileToDelete] = useState(null);
   const [playlistToDelete, setPlaylistToDelete] = useState(null);
+  
+  // State untuk Rename
+  const [fileToRename, setFileToRename] = useState(null);
+  const [newFileName, setNewFileName] = useState('');
+  
   const fileInputRef = useRef(null);
 
   const fetchMedia = async () => { if (isPreview) return; try { const res = await fetch(`${API_BASE}/api/media`); setMediaFiles(await res.json()); } catch (e) {} };
@@ -997,6 +1006,30 @@ function MediaView({ isPreview, API_BASE }) {
     try { await fetch(`${API_BASE}/api/playlists/${playlistToDelete.id}`, { method: 'DELETE' }); fetchPlaylists(); setPlaylistToDelete(null); } catch(e) {}
   };
 
+  const handleRenameFile = async () => {
+    if(!newFileName.trim()) return alert('Nama baru tidak boleh kosong!');
+    if(isPreview) { setFileToRename(null); return alert('Simulasi: File berhasil diubah nama.'); }
+    
+    // Pastikan tidak ada spasi agar FFmpeg tidak bingung
+    const safeNewName = newFileName.replace(/\s+/g, '_');
+    
+    try {
+      const res = await fetch(`${API_BASE}/api/media/rename`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ oldName: fileToRename.name, newName: safeNewName })
+      });
+      const data = await res.json();
+      if(data.success) {
+        fetchMedia();
+        fetchPlaylists(); // Refresh playlist karena nama file berubah
+        setFileToRename(null);
+      } else {
+        alert(data.message);
+      }
+    } catch(e) { alert('Terjadi kesalahan saat mengganti nama file.'); }
+  };
+
   const toggleVideoForPlaylist = (vid) => {
     if (selectedPlaylistVideos.includes(vid)) setSelectedPlaylistVideos(selectedPlaylistVideos.filter(v => v !== vid));
     else setSelectedPlaylistVideos([...selectedPlaylistVideos, vid]);
@@ -1035,12 +1068,23 @@ function MediaView({ isPreview, API_BASE }) {
 
         <div className="flex-1 bg-white dark:bg-slate-800 p-5 overflow-y-auto relative custom-scrollbar">
           {activeFolder === 'Video Berita Utama' && (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {mediaFiles.length === 0 ? (
                 <div className="col-span-full flex flex-col items-center justify-center text-gray-400 dark:text-slate-500 h-40 border border-dashed border-gray-200 dark:border-slate-700 rounded-lg">
                   <FolderOpen className="w-8 h-8 mb-2 opacity-50" /><span className="text-sm">Folder Media Kosong</span>
                 </div>
-              ) : ( mediaFiles.map((file) => <VideoFile key={file.id} name={file.name} size={file.size} onDelete={() => setFileToDelete(file)} />) )}
+              ) : ( 
+                mediaFiles.map((file) => (
+                  <VideoPreviewCard 
+                    key={file.id} 
+                    name={file.name} 
+                    size={file.size} 
+                    API_BASE={API_BASE}
+                    onEdit={() => { setFileToRename(file); setNewFileName(file.name); }}
+                    onDelete={() => setFileToDelete(file)} 
+                  />
+                )) 
+              )}
             </div>
           )}
 
@@ -1075,6 +1119,21 @@ function MediaView({ isPreview, API_BASE }) {
               <input type="text" value={importUrl} onChange={(e) => setImportUrl(e.target.value)} placeholder="Paste link di sini..." className="w-full bg-white dark:bg-slate-900/80 border border-gray-300 dark:border-slate-600/60 rounded-lg px-4 py-3 outline-none font-mono text-sm shadow-sm" autoFocus />
             </div>
             <div className="px-6 py-4 border-t border-gray-200 dark:border-slate-700/60 flex justify-end gap-3"><button onClick={() => setShowImportUrlModal(false)} className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 text-sm">Batal</button><button onClick={handleImportUrlSubmit} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm">Mulai Import</button></div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Rename */}
+      {fileToRename && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4" onClick={() => setFileToRename(null)}>
+          <div className="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-md shadow-2xl shadow-black/40 overflow-hidden border border-gray-200 dark:border-slate-700 flex flex-col" onClick={e => e.stopPropagation()}>
+            <div className="px-6 py-4 border-b border-gray-200 dark:border-slate-700/60 flex justify-between items-center"><h3 className="text-lg font-bold dark:text-slate-100 flex items-center gap-2"><Pencil className="w-5 h-5 text-blue-500" /> Ganti Nama File</h3><button onClick={() => setFileToRename(null)} className="text-gray-400 hover:text-red-500"><XCircle className="w-6 h-6" /></button></div>
+            <div className="p-6">
+              <label className="block text-sm font-medium mb-2 dark:text-slate-300">Nama File Baru</label>
+              <input type="text" value={newFileName} onChange={(e) => setNewFileName(e.target.value)} className="w-full bg-gray-50 dark:bg-slate-900/80 border border-gray-300 dark:border-slate-600/60 rounded-lg px-4 py-3 outline-none font-mono text-sm shadow-sm dark:text-white" autoFocus />
+              <p className="text-xs text-gray-500 mt-2">Catatan: Spasi akan otomatis diubah menjadi garis bawah (_) agar sistem FFmpeg tidak error.</p>
+            </div>
+            <div className="px-6 py-4 border-t border-gray-200 dark:border-slate-700/60 flex justify-end gap-3"><button onClick={() => setFileToRename(null)} className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 text-sm">Batal</button><button onClick={handleRenameFile} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm">Simpan</button></div>
           </div>
         </div>
       )}
@@ -1132,6 +1191,70 @@ function MediaView({ isPreview, API_BASE }) {
     </div>
   );
 }
+
+// KOMPONEN BARU: VIDEO PREVIEW CARD (TAMPILAN BESAR)
+function VideoPreviewCard({ name, size, onEdit, onDelete, API_BASE }) {
+  const isImage = name.toLowerCase().match(/\.(jpg|jpeg|png|gif)$/i);
+  const mediaUrl = `${API_BASE}/media/${name}`;
+  const videoRef = useRef(null);
+
+  // Fungsi agar video berputar otomatis tanpa suara saat di-hover
+  const handleMouseEnter = () => {
+      if (videoRef.current) {
+          videoRef.current.play().catch(() => {});
+      }
+  };
+
+  // Fungsi agar video berhenti dan kembali ke awal saat mouse dijauhkan
+  const handleMouseLeave = () => {
+      if (videoRef.current) {
+          videoRef.current.pause();
+          videoRef.current.currentTime = 1; // Kembali ke detik 1 (thumbnail)
+      }
+  };
+
+  return (
+    <div 
+      className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700/60 overflow-hidden shadow-sm hover:shadow-md transition-all group flex flex-col h-48 relative"
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+    >
+      
+      {/* BAGIAN GAMBAR / VIDEO PREVIEW BESAR */}
+      <div className="flex-1 bg-gray-900 dark:bg-black relative overflow-hidden flex items-center justify-center">
+        {isImage ? (
+          <img src={mediaUrl} alt={name} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
+        ) : (
+          <video 
+             ref={videoRef}
+             src={`${mediaUrl}#t=1`} 
+             className="w-full h-full object-cover opacity-70 group-hover:opacity-100 transition-opacity" 
+             muted 
+             loop
+             playsInline
+             preload="metadata" 
+          />
+        )}
+        <div className="absolute inset-0 bg-black/20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+           {!isImage && <PlayCircle className="w-10 h-10 text-white opacity-80 scale-90 group-hover:scale-100 transition-transform" />}
+        </div>
+      </div>
+
+      {/* BAGIAN INFORMASI & TOMBOL RENAME/HAPUS BAWAH */}
+      <div className="p-3 bg-white dark:bg-slate-800 flex items-center justify-between gap-2 shrink-0 border-t border-gray-100 dark:border-slate-700/50">
+        <div className="overflow-hidden">
+          <p className="text-sm font-semibold text-gray-800 dark:text-slate-200 truncate" title={name}>{name}</p>
+          <p className="text-[10px] font-mono text-gray-500 mt-0.5">{size}</p>
+        </div>
+        <div className="flex gap-1.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+          <button onClick={onEdit} className="p-2 text-gray-500 hover:text-blue-500 bg-gray-100 hover:bg-blue-50 dark:bg-slate-700 dark:hover:bg-blue-900/30 rounded-lg transition-colors" title="Ganti Nama"><Pencil className="w-3.5 h-3.5" /></button>
+          <button onClick={onDelete} className="p-2 text-gray-500 hover:text-red-500 bg-gray-100 hover:bg-red-50 dark:bg-slate-700 dark:hover:bg-red-900/30 rounded-lg transition-colors" title="Hapus"><Trash2 className="w-3.5 h-3.5" /></button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 
 function AnalyticsView({ accounts, API_BASE }) {
   const [tasks, setTasks] = useState([]);
@@ -1225,9 +1348,6 @@ function AnalyticsView({ accounts, API_BASE }) {
   );
 }
 
-// -----------------------------------------------------------------------------
-// TAB 5: PENGATURAN (MODIFIKASI GRID 2 KOLOM)
-// -----------------------------------------------------------------------------
 function SettingsView({ accounts, fetchAccounts, isPreview, API_BASE }) {
   const [notifPlatform, setNotifPlatform] = useState('telegram');
   const [notifEnabled, setNotifEnabled] = useState(false);
@@ -1472,20 +1592,17 @@ function LogView({ isPreview, API_BASE }) {
   
   const [tasks, setTasks] = useState([]);
   const [selectedTaskId, setSelectedTaskId] = useState('');
-  const [autoScroll, setAutoScroll] = useState(true); // SMART SCROLL
+  const [autoScroll, setAutoScroll] = useState(true); 
 
   const logsEndRef = useRef(null);
   const logContainerRef = useRef(null);
 
-  // Fungsi Deteksi Scroll User (Mencegah scroll paksa saat membaca log lama)
   const handleScroll = (e) => {
     const { scrollTop, scrollHeight, clientHeight } = e.target;
-    // Beri batas toleransi 20px dari bawah
     const isNearBottom = Math.abs(scrollHeight - scrollTop - clientHeight) < 20;
     setAutoScroll(isNearBottom);
   };
 
-  // Ambil list tugas untuk dropdown
   useEffect(() => {
     if (isPreview) return;
     const fetchTasks = async () => {
@@ -1494,7 +1611,6 @@ function LogView({ isPreview, API_BASE }) {
         const data = await res.json();
         if (Array.isArray(data)) {
           setTasks(data);
-          // Otomatis pilih stream pertama yang live jika belum ada yang dipilih
           if (!selectedTaskId && data.length > 0) {
              const activeTask = data.find(t => t.status === 'Live') || data[0];
              if (activeTask) setSelectedTaskId(activeTask.id);
@@ -1547,7 +1663,6 @@ function LogView({ isPreview, API_BASE }) {
     return () => clearInterval(interval);
   }, [API_BASE, isPreview, selectedTaskId]);
 
-  // Eksekusi Smart Scroll (Hanya jalan jika autoScroll aktif)
   useEffect(() => { 
       if (autoScroll) {
           logsEndRef.current?.scrollIntoView({ behavior: "smooth" }); 
@@ -1644,7 +1759,6 @@ function LogView({ isPreview, API_BASE }) {
 
                 return (
                   <div key={index} className={`${colorClass} break-all hover:bg-white/5 dark:hover:bg-white/10 px-1 rounded transition-colors`}>
-                    {/* Menghapus timestamp statis agar menyesuaikan dengan format baru dari backend */}
                     {log.text}
                   </div>
                 );
@@ -1654,7 +1768,6 @@ function LogView({ isPreview, API_BASE }) {
           </div>
         </div>
         
-        {/* Tombol kembali ke bawah jika scroll dimatikan */}
         {!autoScroll && (
           <button 
             onClick={() => { setAutoScroll(true); logsEndRef.current?.scrollIntoView({ behavior: "smooth" }); }}
@@ -1693,91 +1806,6 @@ function FolderItem({ name, count, active }) {
     <div className={`flex items-center justify-between px-3 py-2 rounded-md cursor-pointer transition-colors ${active ? 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-medium border border-emerald-100 dark:border-emerald-500/20' : 'text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-700/50 border border-transparent'}`}>
       <div className="flex items-center gap-2.5 overflow-hidden"><FolderOpen className={`w-3.5 h-3.5 shrink-0 ${active ? 'text-emerald-500 dark:text-emerald-400' : 'text-gray-400 dark:text-slate-500'}`} /><span className="text-[11px] truncate">{name}</span></div>
       <span className={`text-[9px] px-1.5 py-0.5 rounded-sm font-mono ${active ? 'bg-white dark:bg-slate-800 text-emerald-500 dark:text-emerald-400 shadow-sm' : 'bg-gray-100 dark:bg-slate-700/50 text-gray-500 dark:text-slate-400'}`}>{count}</span>
-    </div>
-  );
-}
-
-function VideoFile({ name, size, onEdit, onDelete }) {
-  const isImage = name.toLowerCase().endsWith('.jpg') || name.toLowerCase().endsWith('.png') || name.toLowerCase().endsWith('.jpeg');
-
-  return (
-    <div className="group flex items-center justify-between p-2.5 bg-white dark:bg-slate-800 hover:bg-gray-50 dark:hover:bg-slate-700/50 border border-gray-100 dark:border-slate-700/60 hover:border-gray-200 dark:hover:border-slate-600/60 rounded-lg transition-all cursor-pointer shadow-sm hover:shadow dark:hover:shadow-black/20">
-      <div className="flex items-center gap-3 overflow-hidden flex-1">
-        <div className={`w-8 h-8 rounded-md flex items-center justify-center shrink-0 ${isImage ? 'bg-purple-50 text-purple-600 dark:bg-purple-500/10 dark:text-purple-400' : 'bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400'}`}>
-          {isImage ? <Image className="w-4 h-4" /> : <Video className="w-4 h-4" />}
-        </div>
-        <div className="overflow-hidden">
-          <p className="text-[13px] font-semibold text-gray-800 dark:text-slate-200 truncate pr-2" title={name}>{name}</p>
-          <p className="text-[10px] font-mono text-gray-400 dark:text-slate-500 mt-0.5">{size}</p>
-        </div>
-      </div>
-      
-      {/* Action Buttons */}
-      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-gradient-to-l from-white dark:from-slate-800 via-white dark:via-slate-800 pl-4 pr-1">
-        <button 
-          onClick={(e) => { e.stopPropagation(); onEdit && onEdit(); }} 
-          className="p-1.5 text-gray-400 dark:text-slate-400 hover:text-blue-500 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-500/10 rounded-md transition-colors"
-          title="Edit"
-        >
-          <Edit className="w-3.5 h-3.5" />
-        </button>
-        <button 
-          onClick={(e) => { e.stopPropagation(); onDelete && onDelete(); }} 
-          className="p-1.5 text-gray-400 dark:text-slate-400 hover:text-red-500 dark:hover:text-rose-400 hover:bg-red-50 dark:hover:bg-rose-500/10 rounded-md transition-colors"
-          title="Hapus"
-        >
-          <Trash2 className="w-3.5 h-3.5" />
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function TableRowMenu({ t, onStart, onStop, onEdit, onDelete }) {
-  const [isOpen, setIsOpen] = useState(false);
-  const menuRef = useRef(null);
-
-  useEffect(() => {
-    function handleClickOutside(event) {
-      if (menuRef.current && !menuRef.current.contains(event.target)) setIsOpen(false);
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
-  return (
-    <div className="relative inline-block text-left" ref={menuRef}>
-      <button 
-        onClick={() => setIsOpen(!isOpen)} 
-        className="flex items-center justify-between gap-2 px-3 py-1.5 bg-gray-100 dark:bg-slate-700/50 hover:bg-gray-200 dark:hover:bg-slate-700 text-gray-700 dark:text-slate-300 rounded-lg text-sm font-medium transition-colors border border-gray-200 dark:border-slate-600"
-      >
-        <Settings className="w-4 h-4" /> Pengaturan <ChevronDown className={`w-3 h-3 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
-      </button>
-      
-      {isOpen && (
-        <div className="absolute right-0 top-full mt-1.5 w-48 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700/60 rounded-xl shadow-xl dark:shadow-black/40 z-50 py-2 overflow-hidden">
-          {t && t.status !== 'Live' && (
-              <button onClick={() => { setIsOpen(false); onStart && onStart(); }} className="w-full text-left px-4 py-2.5 text-sm flex items-center gap-3 text-emerald-600 dark:text-emerald-400 hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors font-medium">
-                <PlayCircle className="w-4 h-4" /> Mulai Live
-              </button>
-          )}
-          {t && t.status === 'Live' && (
-              <button onClick={() => { setIsOpen(false); onStop && onStop(); }} className="w-full text-left px-4 py-2.5 text-sm flex items-center gap-3 text-yellow-600 dark:text-amber-400 hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors font-medium">
-                <StopCircle className="w-4 h-4" /> Hentikan Live
-              </button>
-          )}
-          <button onClick={() => { setIsOpen(false); onEdit && onEdit(); }} className="w-full text-left px-4 py-2.5 text-sm flex items-center gap-3 text-blue-600 dark:text-blue-400 hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors font-medium">
-            <Edit className="w-4 h-4" /> Edit Metadata
-          </button>
-          <div className="h-px bg-gray-200 dark:bg-slate-700/60 my-1"></div>
-          <button 
-            onClick={() => { setIsOpen(false); onDelete && onDelete(); }}
-            className="w-full text-left px-4 py-2.5 text-sm flex items-center gap-3 text-red-600 dark:text-rose-400 hover:bg-red-50 dark:hover:bg-rose-500/10 transition-colors font-medium"
-          >
-            <Trash2 className="w-4 h-4" /> Hapus Tugas
-          </button>
-        </div>
-      )}
     </div>
   );
 }

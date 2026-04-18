@@ -37,6 +37,10 @@ if (!fs.existsSync(PLAYLIST_FILE)) fs.writeFileSync(PLAYLIST_FILE, JSON.stringif
 if (!fs.existsSync(TASKS_FILE)) fs.writeFileSync(TASKS_FILE, JSON.stringify([]));
 if (!fs.existsSync(NOTIF_FILE)) fs.writeFileSync(NOTIF_FILE, JSON.stringify({}));
 
+// --- SERVE MEDIA STATIC (UNTUK PREVIEW VIDEO DI BROWSER) ---
+app.use('/media', express.static(MEDIA_DIR));
+app.use('/thumbnails', express.static(THUMB_DIR));
+
 // --- FUNGSI HELPER PENCATATAN LOG PER TUGAS ---
 function writeLog(taskId, message) {
     const logFileName = taskId ? `${taskId}.log` : 'system.log';
@@ -46,7 +50,6 @@ function writeLog(taskId, message) {
     try { fs.appendFileSync(logPath, `${finalMessage}\n`); } catch(e) {}
 }
 
-// Helper untuk menghindari Telegram Crash akibat karakter khusus
 function escapeHtml(text) {
     if (!text) return '';
     return text.toString().replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -63,7 +66,7 @@ function sendTelegramMessage(message) {
         const data = JSON.stringify({
             chat_id: settings.telegramChatId,
             text: `🚨 <b>VStream Alert</b>\n\n${message}`,
-            parse_mode: 'HTML' // Format HTML sangat kebal terhadap karakter error
+            parse_mode: 'HTML'
         });
 
         const options = {
@@ -72,7 +75,7 @@ function sendTelegramMessage(message) {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Content-Length': Buffer.byteLength(data) // Mengkalkulasi byte untuk Emoji
+                'Content-Length': Buffer.byteLength(data) 
             }
         };
 
@@ -445,7 +448,6 @@ function stopStreamById(id, isError = false) {
         let tasks = JSON.parse(fs.readFileSync(TASKS_FILE));
         let t = tasks.find(x => x.id === id);
         if (t) { 
-            // Memastikan status di database berubah menjadi Error atau Berhenti
             t.status = isError ? 'Error' : 'Berhenti'; 
             fs.writeFileSync(TASKS_FILE, JSON.stringify(tasks, null, 2)); 
         }
@@ -469,7 +471,6 @@ function startStreamInternal(task) {
         let broadcastId = null;
         let streamId = null;
 
-        // Panggil API YouTube
         if (task.streamKeyMode === 'Otomatis (API v3)' && task.accountId) {
             const apiData = await updateYouTubeMetadata(task);
             if (apiData && apiData.streamKey) {
@@ -500,14 +501,11 @@ function startStreamInternal(task) {
         
         let encoderEngine = task.encoderEngine || 'copy';
         
-        // Setup Arguments FFmpeg
         ffmpegArgs.push('-i', fullVideoPath);
         
         if (encoderEngine === 'copy') {
-            // Mode Jalan Tol (Paling Ringan)
             ffmpegArgs.push('-c:v', 'copy', '-c:a', 'aac', '-b:a', '128k');
         } else {
-            // Mode Software / Hardware Transcoding
             ffmpegArgs.push('-c:v', 'libx264', '-preset', 'veryfast', '-b:v', '3000k', '-maxrate', '3000k', '-bufsize', '6000k', '-pix_fmt', 'yuv420p', '-g', '60', '-c:a', 'aac', '-b:a', '128k');
         }
 
@@ -515,18 +513,15 @@ function startStreamInternal(task) {
 
         const ffmpegProcess = spawn('ffmpeg', ffmpegArgs);
         
-        // Simpan data stream untuk Auto Stop
         let stopTimer = null;
         let stopDurationMs = (parseInt(task.stopHours || 0) * 3600000) + (parseInt(task.stopMinutes || 0) * 60000);
         
         if (stopDurationMs > 0) {
-            // FITUR: ANTI SPAM RANDOMIZER
             if (task.randomizeStop) {
-                const varianceMs = 15 * 60000; // ±15 menit dalam milidetik
+                const varianceMs = 15 * 60000;
                 const randomJitter = Math.floor(Math.random() * (varianceMs * 2 + 1)) - varianceMs;
                 stopDurationMs += randomJitter;
-                
-                if (stopDurationMs < 300000) stopDurationMs = 300000; // Proteksi minimal 5 menit live
+                if (stopDurationMs < 300000) stopDurationMs = 300000;
             }
 
             const actualHours = Math.floor(stopDurationMs / 3600000);
@@ -536,9 +531,8 @@ function startStreamInternal(task) {
             
             stopTimer = setTimeout(() => {
                 writeLog(task.id, `[SYSTEM] Waktu habis! Menghentikan tugas otomatis: ${task.taskName}`);
-                stopStreamById(task.id, false); // Berhenti Normal
+                stopStreamById(task.id, false); 
                 
-                // TELEGRAM NOTIF: STOP OTOMATIS
                 const notifSettings = fs.existsSync(NOTIF_FILE) ? JSON.parse(fs.readFileSync(NOTIF_FILE)) : {};
                 if (notifSettings.notifEnabled) {
                     sendTelegramMessage(`🟡 <b>Stream Terhenti Otomatis</b>\n\nTugas: <b>${escapeHtml(task.taskName)}</b>\n\nBerhenti sesuai jadwal timer pengaturan.`);
@@ -549,21 +543,19 @@ function startStreamInternal(task) {
         activeStreams.set(task.id, { 
             process: ffmpegProcess, 
             broadcastId: broadcastId, 
-            streamId: streamId, // Disimpan untuk cek health status
+            streamId: streamId, 
             accountId: task.accountId,
             viewers: 0, 
-            healthStatus: 'no_data', // Status awal
+            healthStatus: 'no_data', 
             startTime: Date.now(),
             stopTimer: stopTimer
         });
 
-        // TELEGRAM NOTIF: STREAM MULAI
         const notifSettings = fs.existsSync(NOTIF_FILE) ? JSON.parse(fs.readFileSync(NOTIF_FILE)) : {};
         if (notifSettings.notifEnabled) {
             sendTelegramMessage(`🟢 <b>Stream Berhasil Dimulai</b>\n\nTugas: <b>${escapeHtml(task.taskName)}</b>\nStatus: Mengirim data video ke YouTube 🚀`);
         }
 
-        // Nyalakan Chatbot
         if (task.chatbotEnabled && liveChatId) {
             startYoutubeChatbot(task, liveChatId);
         }
@@ -574,9 +566,8 @@ function startStreamInternal(task) {
 
         ffmpegProcess.on('error', (err) => {
             writeLog(task.id, `[CRITICAL ERROR] Gagal mengeksekusi FFmpeg: ${err.message}`);
-            stopStreamById(task.id, true); // Mark as Error
+            stopStreamById(task.id, true);
             
-            // TRIGGGER TELEGRAM BOT (JIKA ERROR)
             const notifSettings = fs.existsSync(NOTIF_FILE) ? JSON.parse(fs.readFileSync(NOTIF_FILE)) : {};
             if (notifSettings.triggerError) {
                 sendTelegramMessage(`🔴 <b>Gagal Memulai Streaming!</b>\n\nTugas: <b>${escapeHtml(task.taskName)}</b>\n<i>Pesan Error:</i> ${escapeHtml(err.message)}`);
@@ -586,9 +577,8 @@ function startStreamInternal(task) {
         ffmpegProcess.on('close', (code) => {
             writeLog(task.id, `[SYSTEM] FFmpeg Terhenti (Kode Keluar: ${code})`);
             const isError = (code !== 0 && code !== 255 && code !== null);
-            stopStreamById(task.id, isError); // Update status sesuai kode exit
+            stopStreamById(task.id, isError); 
             
-            // TRIGGER TELEGRAM BOT (JIKA TERHENTI MENDADAK BUKAN KARENA STOP MANUAL)
             if (isError) {
                 const notifSettings = fs.existsSync(NOTIF_FILE) ? JSON.parse(fs.readFileSync(NOTIF_FILE)) : {};
                 if (notifSettings.triggerError) {
@@ -602,7 +592,7 @@ function startStreamInternal(task) {
     return true;
 }
 
-// --- CRON JOB (PENJADWAL OTOMATIS MINGGUAN & HARIAN) ---
+// --- CRON JOB ---
 setInterval(() => {
     try {
         const tasks = JSON.parse(fs.readFileSync(TASKS_FILE));
@@ -655,7 +645,6 @@ setInterval(() => {
     } catch (e) { console.log("[CRON ERROR] " + e.message); }
 }, 60000); 
 
-// --- CRON JOB PEMBERSIH LOG 30 MENIT ---
 setInterval(() => {
     try {
         if (fs.existsSync(LOGS_DIR)) {
@@ -669,7 +658,6 @@ setInterval(() => {
     } catch (e) { console.error("[CRON LOG CLEANER ERROR] " + e.message); }
 }, 30 * 60 * 1000);
 
-// --- REALTIME YOUTUBE ANALYTICS & HEALTH SENSOR (Tiap 2 Menit) ---
 setInterval(async () => {
     for (const [taskId, streamData] of activeStreams.entries()) {
         if (streamData.accountId) {
@@ -680,7 +668,6 @@ setInterval(async () => {
                     const oauth2Client = getOAuth2Client(tokens);
                     const youtube = google.youtube({ version: 'v3', auth: oauth2Client });
                     
-                    // Ambil Viewers
                     if (streamData.broadcastId) {
                         const res = await youtube.videos.list({ part: 'liveStreamingDetails', id: streamData.broadcastId });
                         if (res.data.items && res.data.items.length > 0) {
@@ -689,11 +676,10 @@ setInterval(async () => {
                         }
                     }
 
-                    // Ambil Stream Health (Indikator Kondisi)
                     if (streamData.streamId) {
                         const healthRes = await youtube.liveStreams.list({ part: 'status', id: streamData.streamId });
                         if (healthRes.data.items && healthRes.data.items.length > 0) {
-                            streamData.healthStatus = healthRes.data.items[0].status.healthStatus.status; // 'good', 'ok', 'bad', 'noData'
+                            streamData.healthStatus = healthRes.data.items[0].status.healthStatus.status; 
                         }
                     }
                 }
@@ -702,7 +688,6 @@ setInterval(async () => {
     }
 }, 120000);
 
-// --- CPU MONITORING & TELEGRAM ALERT (Tiap 1 Menit) ---
 let lastCpuAlertTime = 0;
 let prevCpuForMonitor = getCpuTimes();
 
@@ -717,7 +702,6 @@ setInterval(() => {
 
         if (cpuUsage > 85) {
             const now = Date.now();
-            // Jeda 15 menit agar tidak spam chat Telegram berturut-turut
             if (now - lastCpuAlertTime > 15 * 60 * 1000) { 
                 const notifSettings = fs.existsSync(NOTIF_FILE) ? JSON.parse(fs.readFileSync(NOTIF_FILE)) : {};
                 if (notifSettings.triggerCpu) {
@@ -757,12 +741,7 @@ app.get('/api/system', (req, res) => {
     const usedMem = totalMem - os.freemem();
     const ramUsage = Math.floor((usedMem / totalMem) * 100);
 
-    res.json({
-        cpu: cpuUsage,
-        ram: ramUsage,
-        disk: Math.floor(Math.random() * 10) + 15, 
-        bandwidth: (Math.random() * 2).toFixed(1)
-    });
+    res.json({ cpu: cpuUsage, ram: ramUsage, disk: Math.floor(Math.random() * 10) + 15, bandwidth: (Math.random() * 2).toFixed(1) });
 });
 
 app.get('/api/logs', (req, res) => {
@@ -802,12 +781,11 @@ app.get('/api/tasks', (req, res) => {
         const tasksWithAnalytics = tasks.map(t => {
             const activeData = activeStreams.get(t.id);
             
-            // AUTO-KOREKSI: Sinkronisasi paksa jika status file JSON ketinggalan dengan Engine Live
             if (activeData && t.status !== 'Live') {
-                t.status = 'Live'; // Paksa jadi Live untuk memastikan dia masuk tab Utama
+                t.status = 'Live'; 
                 needsSave = true;
             } else if (!activeData && t.status === 'Live') {
-                t.status = 'Berhenti'; // Paksa jadi Berhenti jika mesin mati tapi JSON nyangkut
+                t.status = 'Berhenti'; 
                 needsSave = true;
             }
 
@@ -820,7 +798,6 @@ app.get('/api/tasks', (req, res) => {
                 const hours = Math.floor(uptimeMs / 3600000).toString().padStart(2, '0');
                 const minutes = Math.floor((uptimeMs % 3600000) / 60000).toString().padStart(2, '0');
                 
-                // Set Condition
                 let condType = 'success';
                 let condTitle = 'Sangat Baik (Good)';
                 let statusText = 'Live';
@@ -834,7 +811,7 @@ app.get('/api/tasks', (req, res) => {
                 } else if (activeData.healthStatus === 'noData' || activeData.healthStatus === 'no_data') {
                     condType = 'gray';
                     condTitle = 'Menunggu Data';
-                    if (uptimeMs < 30000) statusText = 'Starting'; // Baru nyala
+                    if (uptimeMs < 30000) statusText = 'Starting'; 
                 }
 
                 return { 
@@ -862,10 +839,7 @@ app.get('/api/tasks', (req, res) => {
             };
         });
 
-        // Simpan jika ada perubahan status dari Auto-Koreksi
-        if (needsSave) {
-            fs.writeFileSync(TASKS_FILE, JSON.stringify(tasksWithAnalytics, null, 2));
-        }
+        if (needsSave) fs.writeFileSync(TASKS_FILE, JSON.stringify(tasksWithAnalytics, null, 2));
 
         res.json(tasksWithAnalytics);
     } catch (e) { res.json([]); }
@@ -891,8 +865,6 @@ app.post('/api/thumbnails/upload', uploadThumb.single('thumbnail'), (req, res) =
     res.json({ success: true, filename: req.file.filename, url: `/thumbnails/${req.file.filename}` });
 });
 
-app.use('/thumbnails', express.static(THUMB_DIR));
-
 app.post('/api/media/upload', uploadMedia.array('files'), (req, res) => {
     res.json({ success: true, message: `Upload berhasil.` });
 });
@@ -908,6 +880,52 @@ app.delete('/api/media/:filename', (req, res) => {
     const filePath = path.join(MEDIA_DIR, req.params.filename);
     if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
     res.json({ success: true });
+});
+
+// API BARU: RENAME VIDEO
+app.put('/api/media/rename', (req, res) => {
+    try {
+        const { oldName, newName } = req.body;
+        if (!oldName || !newName) return res.status(400).json({ success: false, message: 'Nama file tidak lengkap.' });
+
+        const safeOldName = path.basename(oldName);
+        const safeNewName = path.basename(newName).replace(/\s+/g, '_'); 
+
+        const oldPath = path.join(MEDIA_DIR, safeOldName);
+        const newPath = path.join(MEDIA_DIR, safeNewName);
+
+        if (!fs.existsSync(oldPath)) return res.status(404).json({ success: false, message: 'File sumber tidak ditemukan.' });
+        if (fs.existsSync(newPath)) return res.status(400).json({ success: false, message: 'Sudah ada file dengan nama tersebut.' });
+
+        fs.renameSync(oldPath, newPath);
+
+        // Otomatis update nama video di tabel Tasks jika sedang digunakan
+        const tasks = JSON.parse(fs.readFileSync(TASKS_FILE));
+        let taskUpdated = false;
+        tasks.forEach(t => {
+            if (t.videoPath === safeOldName) {
+                t.videoPath = safeNewName;
+                taskUpdated = true;
+            }
+        });
+        if(taskUpdated) fs.writeFileSync(TASKS_FILE, JSON.stringify(tasks, null, 2));
+
+        // Update nama di Playlists
+        const playlists = JSON.parse(fs.readFileSync(PLAYLIST_FILE));
+        let plUpdated = false;
+        playlists.forEach(pl => {
+            const idx = pl.videos.indexOf(safeOldName);
+            if (idx !== -1) {
+                pl.videos[idx] = safeNewName;
+                plUpdated = true;
+            }
+        });
+        if(plUpdated) fs.writeFileSync(PLAYLIST_FILE, JSON.stringify(playlists, null, 2));
+
+        res.json({ success: true, message: 'Berhasil mengganti nama file!' });
+    } catch(e) {
+        res.status(500).json({ success: false, message: e.message });
+    }
 });
 
 app.post('/api/media/import-url', (req, res) => {
@@ -998,7 +1016,6 @@ app.post('/api/auth/save', async (req, res) => {
     } catch (e) { res.status(500).json({ success: false, message: e.message }); }
 });
 
-// --- ROUTES UNTUK SETTINGS TELEGRAM NOTIFIKASI ---
 app.get('/api/settings/notifications', (req, res) => {
     try {
         const settings = fs.existsSync(NOTIF_FILE) ? JSON.parse(fs.readFileSync(NOTIF_FILE)) : {};
