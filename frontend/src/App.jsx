@@ -163,7 +163,6 @@ function DashboardView({ isPreview, API_BASE }) {
   const [isLoading, setIsLoading] = useState(true);
   const [sysInfo, setSysInfo] = useState({ cpu: 0, ram: 0, disk: 0, bandwidth: 0 });
   
-  // STATE BARU: Filter Tab di Dashboard
   const [tableFilter, setTableFilter] = useState('utama'); // 'utama' | 'history'
 
   const fetchTasks = async () => {
@@ -217,14 +216,11 @@ function DashboardView({ isPreview, API_BASE }) {
   const liveTasks = tasks.filter(t => t.status === 'Live');
   const scheduledTasks = tasks.filter(t => t.status === 'Terjadwal' || t.status === 'Draft' || t.status === 'Berhenti');
 
-  // Logika Filter Tabel
   const filteredTasks = tasks.filter(t => {
       if (tableFilter === 'utama') {
-          // Utama: Live sekarang, atau Terjadwal yang cuma 1x jalan
-          return t.status === 'Live' || t.status === 'Starting' || (t.status === 'Terjadwal' && ['sekali', 'manual'].includes(t.jadwalMode));
+          return t.status === 'Live' || t.status === 'Starting' || t.status === 'Error' || (t.status === 'Terjadwal' && ['sekali', 'manual'].includes(t.jadwalMode));
       } else {
-          // History & Rutin: Yang sudah berhenti, error, atau jadwal looping (harian/mingguan) yang sedang standby
-          return t.status === 'Berhenti' || t.status === 'Error' || (t.status !== 'Live' && ['harian', 'smart-weekly'].includes(t.jadwalMode));
+          return t.status === 'Berhenti' || (t.status !== 'Live' && t.status !== 'Error' && ['harian', 'smart-weekly'].includes(t.jadwalMode));
       }
   });
 
@@ -281,7 +277,6 @@ function DashboardView({ isPreview, API_BASE }) {
       </div>
 
       <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700/60 shadow-sm overflow-hidden flex flex-col">
-        {/* HEADER & TAB FILTER */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 border-b border-gray-200 dark:border-slate-700/60 bg-gray-50/50 dark:bg-slate-800/50 gap-4">
           <h3 className="text-base font-semibold text-gray-900 dark:text-slate-100 flex items-center gap-2">
             <Radio className="w-4 h-4 text-emerald-500 dark:text-emerald-400" /> Daftar Tugas & Streaming
@@ -336,7 +331,6 @@ function DashboardView({ isPreview, API_BASE }) {
                     <tr key={t.id} className="hover:bg-gray-50/80 dark:hover:bg-slate-700/30 transition-colors group">
                       <td className="px-5 py-4 align-middle text-center text-xs font-mono text-gray-400">{idx+1}</td>
                       
-                      {/* Informasi Stream */}
                       <td className="px-5 py-4 align-middle">
                         <div className="font-semibold text-sm text-gray-900 dark:text-slate-100 leading-tight truncate max-w-[200px]" title={t.taskName}>
                           {t.taskName || 'Tanpa Nama'}
@@ -347,7 +341,6 @@ function DashboardView({ isPreview, API_BASE }) {
                         </div>
                       </td>
                       
-                      {/* Mode & Viewers */}
                       <td className="px-5 py-4 align-middle">
                         <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-md bg-gray-100 dark:bg-slate-900/50 border border-gray-200 dark:border-slate-700/60 text-xs text-gray-600 dark:text-slate-300">
                           <Clock className="w-3 h-3 text-gray-400" />
@@ -367,7 +360,6 @@ function DashboardView({ isPreview, API_BASE }) {
                         )}
                       </td>
                       
-                      {/* Status Sistem */}
                       <td className="px-5 py-4 align-middle">
                         <div className="flex items-start gap-2">
                           <span className="relative flex h-2.5 w-2.5 mt-1 shrink-0">
@@ -392,7 +384,6 @@ function DashboardView({ isPreview, API_BASE }) {
                         </div>
                       </td>
                       
-                      {/* AKSI CEPAT (INLINE BUTTONS) */}
                       <td className="px-5 py-4 align-middle text-right">
                           <div className="flex items-center justify-end gap-1.5">
                              {t.status !== 'Live' && (
@@ -461,7 +452,6 @@ function TugasLiveView({ accounts, isPreview, API_BASE, onNavigate }) {
   const [stopMinutes, setStopMinutes] = useState(0);
   const [randomizeStop, setRandomizeStop] = useState(true);
   
-  const [thumbnailMode, setThumbnailMode] = useState('single');
   const [thumbnailUrl, setThumbnailUrl] = useState('');
   const [isUploadingThumb, setIsUploadingThumb] = useState(false);
   const thumbInputRef = useRef(null);
@@ -480,7 +470,6 @@ function TugasLiveView({ accounts, isPreview, API_BASE, onNavigate }) {
   const [chatbotEnabled, setChatbotEnabled] = useState(false);
   const [scheduledMessages, setScheduledMessages] = useState([]);
 
-  // STATE BARU: Untuk Encoder, Visibilitas, Fallback
   const [enableFallback, setEnableFallback] = useState(false);
   const [fallbackVideo, setFallbackVideo] = useState('');
   const [encoderEngine, setEncoderEngine] = useState('copy');
@@ -551,7 +540,7 @@ function TugasLiveView({ accounts, isPreview, API_BASE, onNavigate }) {
     <div className="flex flex-col gap-6 pb-10">
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         
-        {/* KOLOM KIRI */}
+        {/* KOLOM KIRI: MAIN SETTINGS & METADATA */}
         <div className="lg:col-span-7 flex flex-col gap-6">
           <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700/60 p-5 md:p-6 shadow-sm">
             <h3 className="text-lg font-bold flex items-center gap-2 border-b border-gray-100 dark:border-slate-700/60 pb-4 mb-5 text-gray-800 dark:text-slate-100">
@@ -644,7 +633,6 @@ function TugasLiveView({ accounts, isPreview, API_BASE, onNavigate }) {
             </div>
           </div>
 
-          {/* Blok Metadata */}
           <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700/60 p-5 md:p-6 shadow-sm">
             <h3 className="text-lg font-bold flex items-center gap-2 border-b border-gray-100 dark:border-slate-700/60 pb-4 mb-5 text-gray-800 dark:text-slate-100">
               <LayoutDashboard className="w-5 h-5 text-emerald-500 dark:text-emerald-400" /> Metadata YouTube Studio
@@ -694,7 +682,6 @@ function TugasLiveView({ accounts, isPreview, API_BASE, onNavigate }) {
                 <input type="text" value={youtubeTags} onChange={e => setYoutubeTags(e.target.value)} placeholder="berita, live stream, update" className={`${inputClassName} font-mono`} />
               </div>
 
-              {/* Aturan Publikasi & Visibilitas */}
               <div className="mt-2 bg-gray-50 dark:bg-slate-900/40 p-4 rounded-xl border border-gray-200 dark:border-slate-700/50">
                 <h4 className="text-sm font-bold text-gray-800 dark:text-slate-200 mb-4 flex items-center gap-2">
                   <Settings className="w-4 h-4 text-gray-500 dark:text-slate-400" /> Aturan Publikasi & Visibilitas
@@ -732,44 +719,9 @@ function TugasLiveView({ accounts, isPreview, API_BASE, onNavigate }) {
               </div>
             </div>
           </div>
-
-          <div className="bg-gradient-to-br from-white to-emerald-50/30 dark:from-slate-800 dark:to-emerald-900/10 rounded-xl border border-gray-200 dark:border-slate-700/60 p-5 md:p-6 shadow-sm">
-            <div className="flex items-center justify-between mb-4 border-b border-gray-200 dark:border-slate-700/60 pb-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-500/15 flex items-center justify-center"><Bot className="w-6 h-6 text-emerald-600 dark:text-emerald-400" /></div>
-                <div><h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100">YouTube Chatbot Terintegrasi</h3><p className="text-xs text-gray-500 dark:text-slate-400">Pesan otomatis di Live Chat</p></div>
-              </div>
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input type="checkbox" className="sr-only peer" checked={chatbotEnabled} onChange={() => setChatbotEnabled(!chatbotEnabled)} />
-                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600 dark:peer-checked:bg-emerald-500"></div>
-              </label>
-            </div>
-            <div className={`space-y-4 transition-opacity ${chatbotEnabled ? 'opacity-100' : 'opacity-40 pointer-events-none'}`}>
-              <div className="flex justify-between items-center">
-                <h4 className="text-sm font-semibold flex items-center gap-2 dark:text-slate-200"><Clock className="w-4 h-4 text-gray-500" /> Timeline Pesan Bot</h4>
-                <button onClick={() => setScheduledMessages([...scheduledMessages, { id: Date.now(), hour: 0, minute: 5, text: "" }])} className="text-xs text-emerald-600 font-medium">+ Tambah Jadwal</button>
-              </div>
-              <div className="space-y-3">
-                {scheduledMessages.map((msg) => (
-                  <div key={msg.id} className="flex items-start gap-3 bg-white dark:bg-slate-900/50 p-3 rounded-lg border border-gray-200 dark:border-slate-700/50">
-                    <div className="flex-1 space-y-2">
-                      <div className="flex items-center gap-2">
-                        <span className="text-[10px] font-bold uppercase text-gray-500">Kirim setelah stream jalan:</span>
-                        <input type="number" min="0" value={msg.hour} onChange={(e) => setScheduledMessages(scheduledMessages.map(m => m.id === msg.id ? { ...m, hour: e.target.value } : m))} className="w-14 bg-gray-50 dark:bg-slate-800 border border-gray-300 dark:border-slate-600 rounded px-2 py-1 text-sm outline-none text-center dark:text-slate-200" /> <span className="text-xs font-medium dark:text-slate-300">Jam</span>
-                        <input type="number" min="0" max="59" value={msg.minute} onChange={(e) => setScheduledMessages(scheduledMessages.map(m => m.id === msg.id ? { ...m, minute: e.target.value } : m))} className="w-14 bg-gray-50 dark:bg-slate-800 border border-gray-300 dark:border-slate-600 rounded px-2 py-1 text-sm outline-none text-center dark:text-slate-200" /> <span className="text-xs font-medium dark:text-slate-300">Menit</span>
-                      </div>
-                      <textarea rows="2" value={msg.text} onChange={(e) => setScheduledMessages(scheduledMessages.map(m => m.id === msg.id ? { ...m, text: e.target.value } : m))} placeholder="Isi pesan bot..." className="w-full bg-gray-50 dark:bg-slate-800 border border-gray-300 dark:border-slate-600 rounded px-3 py-2 text-sm outline-none resize-none dark:text-slate-200"></textarea>
-                    </div>
-                    <button onClick={() => setScheduledMessages(scheduledMessages.filter(m => m.id !== msg.id))} className="mt-6 p-1.5 text-gray-400 hover:text-red-500 transition-colors"><Trash2 className="w-4 h-4" /></button>
-                  </div>
-                ))}
-                {scheduledMessages.length === 0 && <div className="text-center py-3 text-sm text-gray-500 border border-dashed border-gray-300 dark:border-slate-700 rounded-lg">Belum ada jadwal pesan bot.</div>}
-              </div>
-            </div>
-          </div>
         </div>
 
-        {/* KOLOM KANAN */}
+        {/* KOLOM KANAN: JADWAL, ENCODER, PERLINDUNGAN & CHATBOT */}
         <div className="lg:col-span-5 flex flex-col gap-6">
           <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700/60 p-5 md:p-6 shadow-sm">
             <h3 className="text-lg font-bold flex items-center gap-2 border-b border-gray-100 dark:border-slate-700/60 pb-4 mb-5 text-gray-800 dark:text-slate-100"><Calendar className="w-5 h-5 text-blue-500 dark:text-blue-400" /> Jadwal Live</h3>
@@ -917,11 +869,47 @@ function TugasLiveView({ accounts, isPreview, API_BASE, onNavigate }) {
                </div>
             )}
           </div>
+
+          <div className="bg-gradient-to-br from-white to-emerald-50/30 dark:from-slate-800 dark:to-emerald-900/10 rounded-xl border border-gray-200 dark:border-slate-700/60 p-5 md:p-6 shadow-sm">
+            <div className="flex items-center justify-between mb-4 border-b border-gray-200 dark:border-slate-700/60 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-500/15 flex items-center justify-center"><Bot className="w-6 h-6 text-emerald-600 dark:text-emerald-400" /></div>
+                <div><h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100">YouTube Chatbot Terintegrasi</h3><p className="text-xs text-gray-500 dark:text-slate-400">Pesan otomatis di Live Chat</p></div>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input type="checkbox" className="sr-only peer" checked={chatbotEnabled} onChange={() => setChatbotEnabled(!chatbotEnabled)} />
+                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600 dark:peer-checked:bg-emerald-500"></div>
+              </label>
+            </div>
+            <div className={`space-y-4 transition-opacity ${chatbotEnabled ? 'opacity-100' : 'opacity-40 pointer-events-none'}`}>
+              <div className="flex justify-between items-center">
+                <h4 className="text-sm font-semibold flex items-center gap-2 dark:text-slate-200"><Clock className="w-4 h-4 text-gray-500" /> Timeline Pesan Bot</h4>
+                <button onClick={() => setScheduledMessages([...scheduledMessages, { id: Date.now(), hour: 0, minute: 5, text: "" }])} className="text-xs text-emerald-600 font-medium">+ Tambah Jadwal</button>
+              </div>
+              <div className="space-y-3">
+                {scheduledMessages.map((msg) => (
+                  <div key={msg.id} className="flex items-start gap-3 bg-white dark:bg-slate-900/50 p-3 rounded-lg border border-gray-200 dark:border-slate-700/50">
+                    <div className="flex-1 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-bold uppercase text-gray-500">Kirim setelah stream jalan:</span>
+                        <input type="number" min="0" value={msg.hour} onChange={(e) => setScheduledMessages(scheduledMessages.map(m => m.id === msg.id ? { ...m, hour: e.target.value } : m))} className="w-14 bg-gray-50 dark:bg-slate-800 border border-gray-300 dark:border-slate-600 rounded px-2 py-1 text-sm outline-none text-center dark:text-slate-200" /> <span className="text-xs font-medium dark:text-slate-300">Jam</span>
+                        <input type="number" min="0" max="59" value={msg.minute} onChange={(e) => setScheduledMessages(scheduledMessages.map(m => m.id === msg.id ? { ...m, minute: e.target.value } : m))} className="w-14 bg-gray-50 dark:bg-slate-800 border border-gray-300 dark:border-slate-600 rounded px-2 py-1 text-sm outline-none text-center dark:text-slate-200" /> <span className="text-xs font-medium dark:text-slate-300">Menit</span>
+                      </div>
+                      <textarea rows="2" value={msg.text} onChange={(e) => setScheduledMessages(scheduledMessages.map(m => m.id === msg.id ? { ...m, text: e.target.value } : m))} placeholder="Isi pesan bot..." className="w-full bg-gray-50 dark:bg-slate-800 border border-gray-300 dark:border-slate-600 rounded px-3 py-2 text-sm outline-none resize-none dark:text-slate-200"></textarea>
+                    </div>
+                    <button onClick={() => setScheduledMessages(scheduledMessages.filter(m => m.id !== msg.id))} className="mt-6 p-1.5 text-gray-400 hover:text-red-500 transition-colors"><Trash2 className="w-4 h-4" /></button>
+                  </div>
+                ))}
+                {scheduledMessages.length === 0 && <div className="text-center py-3 text-sm text-gray-500 border border-dashed border-gray-300 dark:border-slate-700 rounded-lg">Belum ada jadwal pesan bot.</div>}
+              </div>
+            </div>
+          </div>
           
         </div>
       </div>
 
-      <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700/60 p-5 md:p-6 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4 mt-2 sticky bottom-4 z-50">
+      {/* Tombol Simpan ditaruh di paling bawah & Tidak Mengambang lagi */}
+      <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700/60 p-5 md:p-6 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4 mt-6">
          <div className="flex items-center gap-4 w-full sm:w-auto">
            <div className="w-10 h-10 rounded-full bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center shrink-0"><div className="w-3 h-3 rounded-full bg-blue-500 dark:bg-blue-400 animate-pulse"></div></div>
            <div><p className="text-xs text-gray-500 dark:text-slate-400 font-medium mb-0.5">Status Tugas Live</p><p className="text-sm font-bold text-blue-600 dark:text-blue-400">Siap Disimpan</p></div>
@@ -1237,6 +1225,9 @@ function AnalyticsView({ accounts, API_BASE }) {
   );
 }
 
+// -----------------------------------------------------------------------------
+// TAB 5: PENGATURAN (MODIFIKASI GRID 2 KOLOM)
+// -----------------------------------------------------------------------------
 function SettingsView({ accounts, fetchAccounts, isPreview, API_BASE }) {
   const [notifPlatform, setNotifPlatform] = useState('telegram');
   const [notifEnabled, setNotifEnabled] = useState(false);
@@ -1326,92 +1317,95 @@ function SettingsView({ accounts, fetchAccounts, isPreview, API_BASE }) {
 
   const deleteAccount = async (id) => {
     if (isPreview) return;
-    if (!confirm('Anda yakin ingin menghapus sambungan akun ini?')) return;
+    if (!window.confirm('Anda yakin ingin menghapus sambungan akun ini?')) return;
     try { await fetch(`${API_BASE}/api/settings/account/${id}`, { method: 'DELETE' }); fetchAccounts(); } catch (e) {}
   };
 
   return (
-    <div className="max-w-4xl space-y-6 pb-10">
+    <div className="w-full max-w-7xl mx-auto pb-10 grid grid-cols-1 lg:grid-cols-2 gap-6">
       
-      <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700/60 p-6 shadow-sm">
-        <div className="border-b border-gray-200 dark:border-slate-700/60 pb-4 mb-4"><h3 className="text-lg font-bold text-gray-800 dark:text-slate-100 flex items-center gap-2"><Sliders className="w-5 h-5 text-emerald-500" /> Setup Kredensial Google API</h3></div>
-        {accounts?.length > 0 && (
-          <div className="mb-5 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800/30 rounded-xl p-4 flex items-start gap-3">
-            <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
-            <div><p className="text-sm text-emerald-800 dark:text-emerald-300 font-bold">Kredensial Valid & Aktif</p><p className="text-xs text-emerald-600 dark:text-emerald-400/90 mt-1">Sistem telah terhubung dengan <strong>{accounts.length} Channel YouTube</strong>. API siap digunakan untuk Live Streaming Otomatis dan Fitur Chatbot.</p></div>
-          </div>
-        )}
-        <div className="space-y-4">
-          <div><label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Client ID</label><input type="text" value={clientId} onChange={(e) => setClientId(e.target.value)} placeholder="Contoh: 123456789-xxxxxx.apps.googleusercontent.com" className={inputClassName} /></div>
-          <div><label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Client Secret</label><input type="password" value={clientSecret} onChange={(e) => setClientSecret(e.target.value)} placeholder="Contoh: GOCSPX-xxxxxx_xxxxxxxxxx" className={inputClassName} /></div>
-          <div className="pt-2"><button onClick={handleSaveGoogleCredentials} disabled={isSavingCreds} className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors text-sm shadow-sm disabled:opacity-50 flex items-center justify-center gap-2">{isSavingCreds ? 'Menyimpan...' : 'Simpan Kredensial API'}</button></div>
-        </div>
-      </div>
-
-      <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700/60 p-6 shadow-sm">
-        <div className="flex justify-between items-center border-b border-gray-200 dark:border-slate-700/60 pb-4 mb-5"><h3 className="text-lg font-bold text-gray-800 dark:text-slate-100 flex items-center gap-2"><PlayCircle className="w-5 h-5 text-red-500" /> Channel YouTube Terhubung</h3></div>
-        {accounts?.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {accounts.map(acc => (
-              <div key={acc.id} className="flex justify-between items-center p-4 bg-gray-50 dark:bg-slate-900/50 rounded-xl border border-gray-200 dark:border-slate-700 hover:border-emerald-300 dark:hover:border-emerald-500/50 transition-all shadow-sm group">
-                <div className="flex items-center gap-3 overflow-hidden">
-                  <div className="w-10 h-10 rounded-full bg-red-100 dark:bg-red-500/15 flex items-center justify-center text-red-600 dark:text-red-400 shrink-0"><PlayCircle className="w-5 h-5" /></div>
-                  <div className="overflow-hidden"><p className="text-sm font-bold text-gray-800 dark:text-slate-200 truncate">{acc.name}</p><p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1 mt-0.5"><CheckCircle2 className="w-3 h-3" /> Siap digunakan</p></div>
-                </div>
-                <button onClick={() => deleteAccount(acc.id)} className="text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 p-2 rounded-lg transition-colors sm:opacity-0 sm:group-hover:opacity-100" title="Putus Koneksi Akun"><Trash2 size={18} /></button>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="text-sm text-gray-500 dark:text-slate-400 p-8 text-center border border-dashed border-gray-300 dark:border-slate-700/60 rounded-xl bg-gray-50/50 dark:bg-slate-900/20"><Users className="w-10 h-10 mx-auto text-gray-400 mb-3 opacity-50" /><p className="font-semibold text-gray-700 dark:text-slate-300 mb-1">Belum Ada Channel Terhubung</p></div>
-        )}
-      </div>
-
-      <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700/60 p-6 shadow-sm">
-        <div className="border-b border-gray-200 dark:border-slate-700/60 pb-4 mb-4"><h3 className="text-lg font-bold text-gray-800 dark:text-slate-100 flex items-center gap-2"><Radio className="w-5 h-5 text-emerald-500" /> Autentikasi Manual (Login)</h3></div>
-        <div className="flex justify-center mb-8">
-          <button onClick={handleLoginGoogle} className="flex items-center gap-3 px-6 py-2.5 border-2 border-gray-200 dark:border-slate-600/60 text-gray-700 dark:text-slate-200 font-medium rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors shadow-sm">
-            <span className="text-blue-600 dark:text-blue-400 font-semibold">1. Buka Login Google</span>
-          </button>
-        </div>
-        <div className="space-y-5 bg-gray-50 dark:bg-slate-900/30 p-5 rounded-xl border border-gray-100 dark:border-slate-700/50">
-          <div><label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">2. Nama Akun</label><input type="text" value={accountName} onChange={(e) => setAccountName(e.target.value)} placeholder="Contoh: ChannelGaming01" className={inputClassName} /></div>
-          <div><label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">3. Tempel URL Lengkap</label><textarea rows="4" value={authUrl} onChange={(e) => setAuthUrl(e.target.value)} className="w-full bg-white dark:bg-slate-900/50 border border-gray-300 dark:border-slate-600/60 rounded-md px-4 py-3 outline-none focus:border-emerald-500 dark:focus:border-emerald-400 font-mono text-xs break-all text-gray-600 dark:text-slate-300 shadow-sm" placeholder="http://localhost/?state=ppVwnH...&code=4/0A..."></textarea></div>
-        </div>
-        <div className="mt-6"><button onClick={handleSaveAccount} disabled={isSaving} className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-600 dark:hover:bg-emerald-700 text-white font-bold rounded-lg transition-colors shadow-md">{isSaving ? 'Memproses...' : 'Simpan Akun'}</button></div>
-      </div>
-
-      {/* FITUR BARU: NOTIFIKASI TELEGRAM */}
-      <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700/60 p-6 shadow-sm">
-        <div className="flex items-center justify-between mb-4 border-b border-gray-200 dark:border-slate-700/60 pb-4">
-          <div className="flex items-center gap-3">
-            <Bell className="w-6 h-6 text-blue-500 dark:text-blue-400" />
-            <h3 className="text-lg font-semibold dark:text-slate-100">Peringatan & Notifikasi Sistem</h3>
-          </div>
-          <label className="relative inline-flex items-center cursor-pointer">
-            <input type="checkbox" className="sr-only peer" checked={notifEnabled} onChange={(e) => setNotifEnabled(e.target.checked)} />
-            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-600 peer-checked:bg-emerald-600 dark:peer-checked:bg-emerald-500"></div>
-          </label>
-        </div>
-        
-        <p className="text-sm text-gray-500 dark:text-slate-400 mb-5">
-          Kirim peringatan otomatis ke ponsel Anda jika terjadi kendala pada VPS atau Streaming.
-        </p>
-
-        <div className={`transition-opacity ${notifEnabled ? 'opacity-100' : 'opacity-40 pointer-events-none'}`}>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Platform Notifikasi</label>
-              <select 
-                value={notifPlatform}
-                onChange={(e) => setNotifPlatform(e.target.value)}
-                className={inputClassName}
-              >
-                <option value="telegram">Telegram Bot</option>
-              </select>
+      {/* Kolom Kiri */}
+      <div className="space-y-6">
+        <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700/60 p-6 shadow-sm">
+          <div className="border-b border-gray-200 dark:border-slate-700/60 pb-4 mb-4"><h3 className="text-lg font-bold text-gray-800 dark:text-slate-100 flex items-center gap-2"><Sliders className="w-5 h-5 text-emerald-500" /> Setup Kredensial Google API</h3></div>
+          {accounts?.length > 0 && (
+            <div className="mb-5 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800/30 rounded-xl p-4 flex items-start gap-3">
+              <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+              <div><p className="text-sm text-emerald-800 dark:text-emerald-300 font-bold">Kredensial Valid & Aktif</p><p className="text-xs text-emerald-600 dark:text-emerald-400/90 mt-1">Sistem telah terhubung dengan <strong>{accounts.length} Channel YouTube</strong>. API siap digunakan untuk Live Streaming Otomatis dan Fitur Chatbot.</p></div>
             </div>
-            
-            <div className="space-y-3">
+          )}
+          <div className="space-y-4">
+            <div><label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Client ID</label><input type="text" value={clientId} onChange={(e) => setClientId(e.target.value)} placeholder="Contoh: 123456789-xxxxxx.apps.googleusercontent.com" className={inputClassName} /></div>
+            <div><label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Client Secret</label><input type="password" value={clientSecret} onChange={(e) => setClientSecret(e.target.value)} placeholder="Contoh: GOCSPX-xxxxxx_xxxxxxxxxx" className={inputClassName} /></div>
+            <div className="pt-2"><button onClick={handleSaveGoogleCredentials} disabled={isSavingCreds} className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors text-sm shadow-sm disabled:opacity-50 flex items-center justify-center gap-2">{isSavingCreds ? 'Menyimpan...' : 'Simpan Kredensial API'}</button></div>
+          </div>
+        </div>
+
+        <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700/60 p-6 shadow-sm">
+          <div className="border-b border-gray-200 dark:border-slate-700/60 pb-4 mb-4"><h3 className="text-lg font-bold text-gray-800 dark:text-slate-100 flex items-center gap-2"><Radio className="w-5 h-5 text-emerald-500" /> Autentikasi Manual (Login)</h3></div>
+          <div className="flex justify-center mb-8">
+            <button onClick={handleLoginGoogle} className="flex items-center gap-3 px-6 py-2.5 border-2 border-gray-200 dark:border-slate-600/60 text-gray-700 dark:text-slate-200 font-medium rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors shadow-sm">
+              <span className="text-blue-600 dark:text-blue-400 font-semibold">1. Buka Login Google</span>
+            </button>
+          </div>
+          <div className="space-y-5 bg-gray-50 dark:bg-slate-900/30 p-5 rounded-xl border border-gray-100 dark:border-slate-700/50">
+            <div><label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">2. Nama Akun</label><input type="text" value={accountName} onChange={(e) => setAccountName(e.target.value)} placeholder="Contoh: ChannelGaming01" className={inputClassName} /></div>
+            <div><label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">3. Tempel URL Lengkap</label><textarea rows="4" value={authUrl} onChange={(e) => setAuthUrl(e.target.value)} className="w-full bg-white dark:bg-slate-900/50 border border-gray-300 dark:border-slate-600/60 rounded-md px-4 py-3 outline-none focus:border-emerald-500 dark:focus:border-emerald-400 font-mono text-xs break-all text-gray-600 dark:text-slate-300 shadow-sm" placeholder="http://localhost/?state=ppVwnH...&code=4/0A..."></textarea></div>
+          </div>
+          <div className="mt-6"><button onClick={handleSaveAccount} disabled={isSaving} className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-600 dark:hover:bg-emerald-700 text-white font-bold rounded-lg transition-colors shadow-md">{isSaving ? 'Memproses...' : 'Simpan Akun'}</button></div>
+        </div>
+
+        <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700/60 p-6 shadow-sm">
+          <div className="flex justify-between items-center border-b border-gray-200 dark:border-slate-700/60 pb-4 mb-5"><h3 className="text-lg font-bold text-gray-800 dark:text-slate-100 flex items-center gap-2"><PlayCircle className="w-5 h-5 text-red-500" /> Channel YouTube Terhubung</h3></div>
+          {accounts?.length > 0 ? (
+            <div className="grid grid-cols-1 gap-4">
+              {accounts.map(acc => (
+                <div key={acc.id} className="flex justify-between items-center p-4 bg-gray-50 dark:bg-slate-900/50 rounded-xl border border-gray-200 dark:border-slate-700 hover:border-emerald-300 dark:hover:border-emerald-500/50 transition-all shadow-sm group">
+                  <div className="flex items-center gap-3 overflow-hidden">
+                    <div className="w-10 h-10 rounded-full bg-red-100 dark:bg-red-500/15 flex items-center justify-center text-red-600 dark:text-red-400 shrink-0"><PlayCircle className="w-5 h-5" /></div>
+                    <div className="overflow-hidden"><p className="text-sm font-bold text-gray-800 dark:text-slate-200 truncate">{acc.name}</p><p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1 mt-0.5"><CheckCircle2 className="w-3 h-3" /> Siap digunakan</p></div>
+                  </div>
+                  <button onClick={() => deleteAccount(acc.id)} className="text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 p-2 rounded-lg transition-colors sm:opacity-0 sm:group-hover:opacity-100" title="Putus Koneksi Akun"><Trash2 size={18} /></button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-sm text-gray-500 dark:text-slate-400 p-8 text-center border border-dashed border-gray-300 dark:border-slate-700/60 rounded-xl bg-gray-50/50 dark:bg-slate-900/20"><Users className="w-10 h-10 mx-auto text-gray-400 mb-3 opacity-50" /><p className="font-semibold text-gray-700 dark:text-slate-300 mb-1">Belum Ada Channel Terhubung</p></div>
+          )}
+        </div>
+      </div>
+
+      {/* Kolom Kanan */}
+      <div className="space-y-6">
+        <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700/60 p-6 shadow-sm h-fit">
+          <div className="flex items-center justify-between mb-4 border-b border-gray-200 dark:border-slate-700/60 pb-4">
+            <div className="flex items-center gap-3">
+              <Bell className="w-6 h-6 text-blue-500 dark:text-blue-400" />
+              <h3 className="text-lg font-semibold dark:text-slate-100">Peringatan & Notifikasi Sistem</h3>
+            </div>
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input type="checkbox" className="sr-only peer" checked={notifEnabled} onChange={(e) => setNotifEnabled(e.target.checked)} />
+              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-600 peer-checked:bg-emerald-600 dark:peer-checked:bg-emerald-500"></div>
+            </label>
+          </div>
+          
+          <p className="text-sm text-gray-500 dark:text-slate-400 mb-5">
+            Kirim peringatan otomatis ke ponsel Anda jika terjadi kendala pada VPS atau Streaming.
+          </p>
+
+          <div className={`transition-opacity ${notifEnabled ? 'opacity-100' : 'opacity-40 pointer-events-none'}`}>
+            <div className="space-y-5 mb-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Platform Notifikasi</label>
+                <select 
+                  value={notifPlatform}
+                  onChange={(e) => setNotifPlatform(e.target.value)}
+                  className={inputClassName}
+                >
+                  <option value="telegram">Telegram Bot</option>
+                </select>
+              </div>
+              
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Bot Token</label>
                 <input 
@@ -1433,33 +1427,33 @@ function SettingsView({ accounts, fetchAccounts, isPreview, API_BASE }) {
                 />
               </div>
             </div>
-          </div>
 
-          <div className="bg-gray-50 dark:bg-slate-900/30 rounded-xl p-4 border border-gray-200 dark:border-slate-700/50">
-            <h4 className="text-sm font-semibold mb-3 dark:text-slate-200">Pemicu Peringatan (Triggers)</h4>
-            <div className="space-y-3">
-              <label className="flex items-center gap-3 cursor-pointer">
-                <input type="checkbox" checked={triggerError} onChange={(e) => setTriggerError(e.target.checked)} className="w-4 h-4 text-emerald-600 dark:text-emerald-500 rounded border-gray-300 dark:border-slate-600 focus:ring-emerald-500 bg-white dark:bg-slate-800" />
-                <span className="text-sm text-gray-700 dark:text-slate-300">Stream dimulai, terputus (Error), atau dihentikan.</span>
-              </label>
-              <label className="flex items-center gap-3 cursor-pointer">
-                <input type="checkbox" checked={triggerCpu} onChange={(e) => setTriggerCpu(e.target.checked)} className="w-4 h-4 text-emerald-600 dark:text-emerald-500 rounded border-gray-300 dark:border-slate-600 focus:ring-emerald-500 bg-white dark:bg-slate-800" />
-                <span className="text-sm text-gray-700 dark:text-slate-300">Penggunaan CPU VPS melebihi 85%</span>
-              </label>
-            </div>
-            <div className="mt-5 pt-4 border-t border-gray-200 dark:border-slate-700/60 flex flex-wrap gap-3 justify-end">
-              <button 
-                onClick={handleSaveNotif}
-                className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg transition-colors shadow-sm"
-              >
-                💾 Simpan Pengaturan
-              </button>
-              <button 
-                onClick={handleTestNotif}
-                className="flex items-center gap-2 px-4 py-2 bg-gray-200 dark:bg-slate-700 hover:bg-gray-300 dark:hover:bg-slate-600 text-gray-800 dark:text-slate-200 text-xs font-bold rounded-lg transition-colors shadow-sm"
-              >
-                <Send className="w-3.5 h-3.5" /> Test Kirim Pesan
-              </button>
+            <div className="bg-gray-50 dark:bg-slate-900/30 rounded-xl p-4 border border-gray-200 dark:border-slate-700/50">
+              <h4 className="text-sm font-semibold mb-3 dark:text-slate-200">Pemicu Peringatan (Triggers)</h4>
+              <div className="space-y-3">
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input type="checkbox" checked={triggerError} onChange={(e) => setTriggerError(e.target.checked)} className="w-4 h-4 text-emerald-600 dark:text-emerald-500 rounded border-gray-300 dark:border-slate-600 focus:ring-emerald-500 bg-white dark:bg-slate-800" />
+                  <span className="text-sm text-gray-700 dark:text-slate-300">Stream dimulai, terputus (Error), atau dihentikan.</span>
+                </label>
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input type="checkbox" checked={triggerCpu} onChange={(e) => setTriggerCpu(e.target.checked)} className="w-4 h-4 text-emerald-600 dark:text-emerald-500 rounded border-gray-300 dark:border-slate-600 focus:ring-emerald-500 bg-white dark:bg-slate-800" />
+                  <span className="text-sm text-gray-700 dark:text-slate-300">Penggunaan CPU VPS melebihi 85%</span>
+                </label>
+              </div>
+              <div className="mt-5 pt-4 border-t border-gray-200 dark:border-slate-700/60 flex flex-wrap gap-3 justify-end">
+                <button 
+                  onClick={handleSaveNotif}
+                  className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg transition-colors shadow-sm"
+                >
+                  💾 Simpan Pengaturan
+                </button>
+                <button 
+                  onClick={handleTestNotif}
+                  className="flex items-center gap-2 px-4 py-2 bg-gray-200 dark:bg-slate-700 hover:bg-gray-300 dark:hover:bg-slate-600 text-gray-800 dark:text-slate-200 text-xs font-bold rounded-lg transition-colors shadow-sm"
+                >
+                  <Send className="w-3.5 h-3.5" /> Test Kirim Pesan
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -1735,6 +1729,55 @@ function VideoFile({ name, size, onEdit, onDelete }) {
           <Trash2 className="w-3.5 h-3.5" />
         </button>
       </div>
+    </div>
+  );
+}
+
+function TableRowMenu({ t, onStart, onStop, onEdit, onDelete }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const menuRef = useRef(null);
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (menuRef.current && !menuRef.current.contains(event.target)) setIsOpen(false);
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  return (
+    <div className="relative inline-block text-left" ref={menuRef}>
+      <button 
+        onClick={() => setIsOpen(!isOpen)} 
+        className="flex items-center justify-between gap-2 px-3 py-1.5 bg-gray-100 dark:bg-slate-700/50 hover:bg-gray-200 dark:hover:bg-slate-700 text-gray-700 dark:text-slate-300 rounded-lg text-sm font-medium transition-colors border border-gray-200 dark:border-slate-600"
+      >
+        <Settings className="w-4 h-4" /> Pengaturan <ChevronDown className={`w-3 h-3 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+      </button>
+      
+      {isOpen && (
+        <div className="absolute right-0 top-full mt-1.5 w-48 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700/60 rounded-xl shadow-xl dark:shadow-black/40 z-50 py-2 overflow-hidden">
+          {t && t.status !== 'Live' && (
+              <button onClick={() => { setIsOpen(false); onStart && onStart(); }} className="w-full text-left px-4 py-2.5 text-sm flex items-center gap-3 text-emerald-600 dark:text-emerald-400 hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors font-medium">
+                <PlayCircle className="w-4 h-4" /> Mulai Live
+              </button>
+          )}
+          {t && t.status === 'Live' && (
+              <button onClick={() => { setIsOpen(false); onStop && onStop(); }} className="w-full text-left px-4 py-2.5 text-sm flex items-center gap-3 text-yellow-600 dark:text-amber-400 hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors font-medium">
+                <StopCircle className="w-4 h-4" /> Hentikan Live
+              </button>
+          )}
+          <button onClick={() => { setIsOpen(false); onEdit && onEdit(); }} className="w-full text-left px-4 py-2.5 text-sm flex items-center gap-3 text-blue-600 dark:text-blue-400 hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors font-medium">
+            <Edit className="w-4 h-4" /> Edit Metadata
+          </button>
+          <div className="h-px bg-gray-200 dark:bg-slate-700/60 my-1"></div>
+          <button 
+            onClick={() => { setIsOpen(false); onDelete && onDelete(); }}
+            className="w-full text-left px-4 py-2.5 text-sm flex items-center gap-3 text-red-600 dark:text-rose-400 hover:bg-red-50 dark:hover:bg-rose-500/10 transition-colors font-medium"
+          >
+            <Trash2 className="w-4 h-4" /> Hapus Tugas
+          </button>
+        </div>
+      )}
     </div>
   );
 }
