@@ -7,13 +7,13 @@ import {
   AlertTriangle, XCircle, ChevronDown, TrendingUp, MessageSquare, ThumbsUp,
   Menu, Image, Monitor, Radio, Calendar, ShieldAlert,
   Wifi, Zap, TerminalSquare, Cpu, Bell, Bot, Send, MessageCircle,
-  Cast, Film, LineChart, Sliders, ScrollText, Link as LinkIcon, ListVideo, ArrowDown, Archive, Pencil
+  Cast, Film, LineChart, Sliders, ScrollText, Link as LinkIcon, ListVideo, ArrowDown, Archive, Pencil, Globe
 } from 'lucide-react';
 
 // === KONFIGURASI BRANDING APLIKASI ===
-const BRAND_PREFIX = "V";           // Huruf pertama (warna gelap)
-const BRAND_SUFFIX = "Stream";      // Sisa huruf (warna hijau)
-const BRAND_TAGLINE = "Vaimoz Youtube Stream V.1"; // Teks kecil di bawah logo
+const BRAND_PREFIX = "V";           
+const BRAND_SUFFIX = "Stream";      
+const BRAND_TAGLINE = "Vaimoz Youtube Stream V.1"; 
 // =====================================
 
 export default function App() {
@@ -21,8 +21,19 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [accounts, setAccounts] = useState([]);
+  
+  const [taskToEdit, setTaskToEdit] = useState(null);
 
   const toggleTheme = () => setIsDarkMode(!isDarkMode);
+
+  const handleEditTask = (task) => {
+    setTaskToEdit(task);
+    setActiveTab('tugas-live');
+  };
+
+  const clearEditTask = () => {
+    setTaskToEdit(null);
+  };
 
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -99,7 +110,10 @@ export default function App() {
                 return (
                   <button
                     key={item.id}
-                    onClick={() => setActiveTab(item.id)}
+                    onClick={() => {
+                      setActiveTab(item.id);
+                      if (item.id !== 'tugas-live') clearEditTask(); 
+                    }}
                     className={`flex items-center gap-2 px-3.5 py-2 rounded-lg transition-all text-sm font-medium whitespace-nowrap ${
                       isActive
                         ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-500/20'
@@ -126,6 +140,7 @@ export default function App() {
                     key={item.id}
                     onClick={() => {
                       setActiveTab(item.id);
+                      if (item.id !== 'tugas-live') clearEditTask();
                       setIsMobileMenuOpen(false);
                     }}
                     className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-sm font-medium ${
@@ -151,8 +166,8 @@ export default function App() {
         )}
 
         <main className="flex-1 overflow-y-auto p-4 md:p-6 relative z-10 w-full mx-auto">
-          {activeTab === 'dashboard' && <DashboardView isPreview={isPreview} API_BASE={API_BASE} />}
-          {activeTab === 'tugas-live' && <TugasLiveView accounts={accounts} isPreview={isPreview} API_BASE={API_BASE} onNavigate={setActiveTab} />}
+          {activeTab === 'dashboard' && <DashboardView isPreview={isPreview} API_BASE={API_BASE} onEditTask={handleEditTask} />}
+          {activeTab === 'tugas-live' && <TugasLiveView accounts={accounts} isPreview={isPreview} API_BASE={API_BASE} onNavigate={setActiveTab} taskToEdit={taskToEdit} clearEditTask={clearEditTask} />}
           {activeTab === 'media' && <MediaView isPreview={isPreview} API_BASE={API_BASE} />}
           {activeTab === 'analytics' && <AnalyticsView accounts={accounts} isPreview={isPreview} API_BASE={API_BASE} />}
           {activeTab === 'pengaturan' && <SettingsView accounts={accounts} fetchAccounts={fetchAccounts} isPreview={isPreview} API_BASE={API_BASE} />}
@@ -164,12 +179,12 @@ export default function App() {
   );
 }
 
-function DashboardView({ isPreview, API_BASE }) {
+function DashboardView({ isPreview, API_BASE, onEditTask }) {
   const [tasks, setTasks] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [sysInfo, setSysInfo] = useState({ cpu: 0, ram: 0, disk: 0, bandwidth: 0 });
   
-  const [tableFilter, setTableFilter] = useState('utama'); // 'utama' | 'history'
+  const [tableFilter, setTableFilter] = useState('utama');
 
   const fetchTasks = async () => {
     if(isPreview) { setIsLoading(false); return; }
@@ -215,7 +230,7 @@ function DashboardView({ isPreview, API_BASE }) {
       case 'good': return { dot: 'bg-blue-500', text: 'text-blue-600 dark:text-blue-400', label: 'Bagus (Good)' };
       case 'poor': return { dot: 'bg-yellow-500', text: 'text-yellow-600 dark:text-yellow-400', label: 'Lemah (Poor)' };
       case 'bad': return { dot: 'bg-red-500', text: 'text-red-600 dark:text-red-400', label: 'Buruk / Putus' };
-      default: return { dot: 'bg-emerald-500', text: 'text-emerald-600 dark:text-emerald-400', label: 'Sangat Baik' }; // excellent
+      default: return { dot: 'bg-emerald-500', text: 'text-emerald-600 dark:text-emerald-400', label: 'Sangat Baik' };
     }
   };
 
@@ -411,7 +426,7 @@ function DashboardView({ isPreview, API_BASE }) {
                                </button>
                              )}
                              <button 
-                               onClick={() => alert('Fitur Edit Metadata sedang dikembangkan')} 
+                               onClick={() => onEditTask(t)} 
                                className="p-2 bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-500/20 rounded-md transition-colors" 
                                title="Edit Tugas"
                              >
@@ -438,7 +453,7 @@ function DashboardView({ isPreview, API_BASE }) {
   );
 }
 
-function TugasLiveView({ accounts, isPreview, API_BASE, onNavigate }) {
+function TugasLiveView({ accounts, isPreview, API_BASE, onNavigate, taskToEdit, clearEditTask }) {
   const [taskName, setTaskName] = useState('');
   const [streamKeyMode, setStreamKeyMode] = useState('Otomatis (API v3)'); 
   const [manualStreamKey, setManualStreamKey] = useState(''); 
@@ -459,6 +474,7 @@ function TugasLiveView({ accounts, isPreview, API_BASE, onNavigate }) {
   const [randomizeStop, setRandomizeStop] = useState(true);
   
   const [thumbnailUrl, setThumbnailUrl] = useState('');
+  const [randomizeThumbnail, setRandomizeThumbnail] = useState(false); 
   const [isUploadingThumb, setIsUploadingThumb] = useState(false);
   const thumbInputRef = useRef(null);
 
@@ -467,11 +483,15 @@ function TugasLiveView({ accounts, isPreview, API_BASE, onNavigate }) {
   const [playlists, setPlaylists] = useState([]);
 
   const [accountId, setAccountId] = useState('');
+  const [youtubePlaylists, setYoutubePlaylists] = useState([]); 
   const [youtubeCategory, setYoutubeCategory] = useState('24');
   const [youtubeTitle, setYoutubeTitle] = useState('');
   const [youtubeDescription, setYoutubeDescription] = useState('');
   const [youtubeTags, setYoutubeTags] = useState('');
   const [youtubePrivacy, setYoutubePrivacy] = useState('public');
+
+  const [localizations, setLocalizations] = useState({});
+  const [showLocalizations, setShowLocalizations] = useState(false);
 
   const [chatbotEnabled, setChatbotEnabled] = useState(false);
   const [scheduledMessages, setScheduledMessages] = useState([]);
@@ -480,13 +500,121 @@ function TugasLiveView({ accounts, isPreview, API_BASE, onNavigate }) {
   const [fallbackVideo, setFallbackVideo] = useState('');
   const [encoderEngine, setEncoderEngine] = useState('copy');
   const [outputResolution, setOutputResolution] = useState('source');
-  const [syntheticContent, setSyntheticContent] = useState('no');
   const [monetization, setMonetization] = useState('on');
   const [targetPlaylist, setTargetPlaylist] = useState('none');
+  const [videoLanguage, setVideoLanguage] = useState('id'); 
+
+  const AVAILABLE_LANGUAGES = [
+    { code: 'id', name: 'Indonesia (Bahasa Indonesia)' },
+    { code: 'en', name: 'Inggris (English)' },
+    { code: 'ms', name: 'Melayu (Malaysia)' },
+    { code: 'ja', name: 'Jepang (日本語)' },
+    { code: 'ko', name: 'Korea (한국어)' },
+    { code: 'zh-TW', name: 'Mandarin (Taiwan)' },
+    { code: 'zh-CN', name: 'Mandarin (China)' },
+    { code: 'hi', name: 'Hindi (हिन्दी)' },
+    { code: 'bn', name: 'Bengali (বাংলা)' },
+    { code: 'ta', name: 'Tamil (தமிழ்)' },
+    { code: 'te', name: 'Telugu (తెలుగు)' },
+    { code: 'kn', name: 'Kannada (ಕನ್ನಡ)' },
+    { code: 'ur', name: 'Urdu (اردو)' },
+    { code: 'ar', name: 'Arab (العربية)' },
+    { code: 'th', name: 'Thailand (ไทย)' },
+    { code: 'vi', name: 'Vietnam (Tiếng Việt)' },
+    { code: 'fil', name: 'Filipina (Tagalog)' },
+    { code: 'es', name: 'Spanyol (Español)' },
+    { code: 'pt', name: 'Portugis (Português)' },
+    { code: 'fr', name: 'Prancis (Français)' },
+    { code: 'de', name: 'Jerman (Deutsch)' },
+    { code: 'it', name: 'Italia (Italiano)' },
+    { code: 'ru', name: 'Rusia (Русский)' },
+    { code: 'tr', name: 'Turki (Türkçe)' },
+    { code: 'nl', name: 'Belanda (Nederlands)' },
+    { code: 'pl', name: 'Polandia (Polski)' },
+    { code: 'uk', name: 'Ukraina (Українська)' }
+  ];
+
+  const getFlagCode = (lang) => {
+    const map = { en: 'gb', ja: 'jp', ko: 'kr', ms: 'my', 'zh-TW': 'tw', 'zh-CN': 'cn', hi: 'in', bn: 'bd', ta: 'in', te: 'in', kn: 'in', ur: 'pk', ar: 'sa', th: 'th', vi: 'vn', fil: 'ph', es: 'es', pt: 'pt', fr: 'fr', de: 'de', it: 'it', ru: 'ru', tr: 'tr', nl: 'nl', pl: 'pl', uk: 'ua', id: 'id' };
+    return map[lang] || 'id';
+  };
+
+  useEffect(() => {
+    if (accountId && streamKeyMode === 'Otomatis (API v3)' && !isPreview) {
+      fetch(`${API_BASE}/api/youtube/playlists?accountId=${accountId}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.success && Array.isArray(data.playlists)) {
+            setYoutubePlaylists(data.playlists);
+          } else {
+            setYoutubePlaylists([]);
+          }
+        }).catch(e => console.error("Gagal menarik playlist:", e));
+    } else {
+      setYoutubePlaylists([]);
+    }
+  }, [accountId, streamKeyMode, API_BASE, isPreview]);
+
+  useEffect(() => {
+    if (taskToEdit) {
+      setTaskName(taskToEdit.taskName || '');
+      setStreamKeyMode(taskToEdit.streamKeyMode || 'Otomatis (API v3)');
+      setManualStreamKey(taskToEdit.streamKey || '');
+      setVideoMode(taskToEdit.videoMode || 'Satu Video (Looping)');
+      setSelectedVideos(taskToEdit.videoPath ? [taskToEdit.videoPath] : []);
+      setJadwalMode(taskToEdit.jadwalMode || 'manual');
+      setScheduleDate(taskToEdit.scheduleDate || '');
+      setScheduleTime(taskToEdit.scheduleTime || '');
+      if (taskToEdit.scheduleGrid) setScheduleGrid(taskToEdit.scheduleGrid);
+      setStopHours(taskToEdit.stopHours || 0);
+      setStopMinutes(taskToEdit.stopMinutes || 0);
+      setRandomizeStop(taskToEdit.randomizeStop !== undefined ? taskToEdit.randomizeStop : true);
+      setThumbnailUrl(taskToEdit.thumbnailUrl || '');
+      setRandomizeThumbnail(taskToEdit.randomizeThumbnail || false);
+      setAccountId(taskToEdit.accountId || '');
+      setYoutubeCategory(taskToEdit.youtubeCategory || '24');
+      setYoutubeTitle(taskToEdit.youtubeTitle || '');
+      setYoutubeDescription(taskToEdit.youtubeDescription || '');
+      setYoutubeTags(taskToEdit.youtubeTags || '');
+      setYoutubePrivacy(taskToEdit.youtubePrivacy || 'public');
+      setLocalizations(taskToEdit.localizations || {}); 
+      if (taskToEdit.localizations && Object.keys(taskToEdit.localizations).length > 0) setShowLocalizations(true);
+      setChatbotEnabled(taskToEdit.chatbotEnabled || false);
+      setScheduledMessages(taskToEdit.scheduledMessages || []);
+      setEnableFallback(taskToEdit.enableFallback || false);
+      setFallbackVideo(taskToEdit.fallbackVideo || '');
+      setEncoderEngine(taskToEdit.encoderEngine || 'copy');
+      setOutputResolution(taskToEdit.outputResolution || 'source');
+      setMonetization(taskToEdit.monetization || 'on');
+      setTargetPlaylist(taskToEdit.targetPlaylist || 'none');
+      setVideoLanguage(taskToEdit.videoLanguage || 'id'); 
+    } else {
+      setTaskName('');
+      setManualStreamKey('');
+      setSelectedVideos([]);
+      setScheduleDate('');
+      setScheduleTime('');
+      setThumbnailUrl('');
+      setRandomizeThumbnail(false);
+      setYoutubeTitle('');
+      setYoutubeDescription('');
+      setYoutubeTags('');
+      setLocalizations({});
+      setShowLocalizations(false);
+      setScheduledMessages([]);
+      setFallbackVideo('');
+      setVideoLanguage('id'); 
+    }
+  }, [taskToEdit]);
 
   useEffect(() => {
     if (isPreview) return;
-    fetch(`${API_BASE}/api/media`).then(res => res.json()).then(data => { if(Array.isArray(data)) setAvailableVideos(data.map(d => d.name)); }).catch(e => {});
+    fetch(`${API_BASE}/api/media`).then(res => res.json()).then(data => { 
+      if(Array.isArray(data)) {
+        const onlyVideos = data.map(d => d.name).filter(name => !name.toLowerCase().match(/\.(jpg|jpeg|png|gif|webp)$/i));
+        setAvailableVideos(onlyVideos); 
+      }
+    }).catch(e => {});
     fetch(`${API_BASE}/api/playlists`).then(res => res.json()).then(data => { if(Array.isArray(data)) setPlaylists(data); }).catch(e => {});
   }, [API_BASE, isPreview]);
 
@@ -500,10 +628,38 @@ function TugasLiveView({ accounts, isPreview, API_BASE, onNavigate }) {
       try {
           const res = await fetch(`${API_BASE}/api/thumbnails/upload`, { method: 'POST', body: formData });
           const data = await res.json();
-          if(data.success) setThumbnailUrl(API_BASE + data.url); 
+          if(data.success) {
+             setThumbnailUrl(API_BASE + data.url); 
+             setRandomizeThumbnail(false); 
+          }
           else alert(data.message);
       } catch(e) {}
       setIsUploadingThumb(false);
+  };
+
+  const handleToggleLocalization = (langCode) => {
+    setLocalizations(prev => {
+      const newLocs = { ...prev };
+      if (newLocs[langCode]) {
+        delete newLocs[langCode]; 
+      } else {
+        newLocs[langCode] = { 
+          title: youtubeTitle || '', 
+          description: youtubeDescription || '' 
+        }; 
+      }
+      return newLocs;
+    });
+  };
+
+  const handleUpdateLocalization = (langCode, field, value) => {
+    setLocalizations(prev => ({
+      ...prev,
+      [langCode]: {
+        ...prev[langCode],
+        [field]: value
+      }
+    }));
   };
 
   const handleSaveTask = async (isMulaiSekarang = false) => {
@@ -521,15 +677,23 @@ function TugasLiveView({ accounts, isPreview, API_BASE, onNavigate }) {
 
       const payload = {
           taskName, videoMode, videoPath: selectedVideos[0], streamKeyMode, streamKey: manualStreamKey, jadwalMode, scheduleDate, scheduleTime,
-          scheduleGrid, stopHours, stopMinutes, randomizeStop, thumbnailUrl, isMulaiSekarang, accountId, youtubeCategory, youtubeTitle, youtubeDescription, youtubeTags,
+          scheduleGrid, stopHours, stopMinutes, randomizeStop, thumbnailUrl, randomizeThumbnail, isMulaiSekarang, accountId, youtubeCategory, youtubeTitle, youtubeDescription, youtubeTags,
+          localizations,
           youtubePrivacy, chatbotEnabled, scheduledMessages,
-          enableFallback, fallbackVideo, encoderEngine, outputResolution, syntheticContent, monetization, targetPlaylist
+          enableFallback, fallbackVideo, encoderEngine, outputResolution, monetization, targetPlaylist, videoLanguage
       };
 
       try {
-          const res = await fetch(`${API_BASE}/api/tasks`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+          const url = taskToEdit ? `${API_BASE}/api/tasks/${taskToEdit.id}` : `${API_BASE}/api/tasks`;
+          const method = taskToEdit ? 'PUT' : 'POST';
+          
+          const res = await fetch(url, { method: method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
           const data = await res.json();
-          if(data.success) { alert(`✅ Sukses! ${data.message}`); onNavigate('dashboard'); } 
+          if(data.success) { 
+              alert(`✅ Sukses! ${data.message}`); 
+              if (clearEditTask) clearEditTask();
+              onNavigate('dashboard'); 
+          } 
           else alert(`❌ Gagal: ${data.message}`);
       } catch(e) { alert('Terjadi kesalahan saat menghubungi server.'); }
   };
@@ -546,7 +710,6 @@ function TugasLiveView({ accounts, isPreview, API_BASE, onNavigate }) {
     <div className="flex flex-col gap-6 pb-10">
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         
-        {/* KOLOM KIRI: MAIN SETTINGS & METADATA */}
         <div className="lg:col-span-7 flex flex-col gap-6">
           <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700/60 p-5 md:p-6 shadow-sm">
             <h3 className="text-lg font-bold flex items-center gap-2 border-b border-gray-100 dark:border-slate-700/60 pb-4 mb-5 text-gray-800 dark:text-slate-100">
@@ -674,15 +837,86 @@ function TugasLiveView({ accounts, isPreview, API_BASE, onNavigate }) {
                 </div>
               </div>
 
-              <div>
-                <label className={labelClassName}>Judul Video <span className="text-xs font-normal ml-1 font-mono">(Spintax Supported)</span></label>
-                <input type="text" value={youtubeTitle} onChange={e => setYoutubeTitle(e.target.value)} placeholder="{Live|Update} Judul Video Anda..." className={`${inputClassName} ${youtubeTitle.length > 100 ? 'border-red-500 focus:border-red-500' : ''} font-mono`} />
-                <p className={`text-[10px] mt-1.5 font-medium ${youtubeTitle.length > 100 ? 'text-red-500' : 'text-gray-500 dark:text-slate-400'}`}>{youtubeTitle.length} / 100 karakter {youtubeTitle.length > 100 && '(Terlalu panjang!)'}</p>
+              <div className="bg-gray-50/50 dark:bg-slate-900/30 p-4 rounded-xl border border-gray-100 dark:border-slate-700/50">
+                <h4 className="text-sm font-bold text-gray-800 dark:text-slate-200 mb-4 flex items-center gap-2 border-b border-gray-200 dark:border-slate-700/50 pb-2">
+                   <img src={`https://flagcdn.com/w20/${getFlagCode(videoLanguage)}.png`} alt="flag" className="w-4" />
+                   Teks Default (Bahasa Asli)
+                </h4>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-semibold mb-1.5 text-gray-600 dark:text-slate-400">Judul Video Utama <span className="font-normal font-mono text-[10px] ml-1">(Spintax Supported)</span></label>
+                    <input type="text" value={youtubeTitle} onChange={e => setYoutubeTitle(e.target.value)} placeholder="{Live|Update} Judul Video Anda..." className={`${inputClassName} ${youtubeTitle.length > 100 ? 'border-red-500 focus:border-red-500' : ''} font-mono`} />
+                    <p className={`text-[10px] mt-1.5 font-medium ${youtubeTitle.length > 100 ? 'text-red-500' : 'text-gray-500 dark:text-slate-400'}`}>{youtubeTitle.length} / 100 karakter</p>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold mb-1.5 text-gray-600 dark:text-slate-400">Deskripsi Utama <span className="font-normal font-mono text-[10px] ml-1">(Spintax Supported)</span></label>
+                    <textarea rows="3" value={youtubeDescription} onChange={e => setYoutubeDescription(e.target.value)} placeholder="Deskripsi video stream..." className={`${inputClassName} font-mono resize-none`}></textarea>
+                  </div>
+                </div>
               </div>
-              <div>
-                <label className={labelClassName}>Deskripsi <span className="text-xs font-normal ml-1 font-mono">(Spintax Supported)</span></label>
-                <textarea rows="3" value={youtubeDescription} onChange={e => setYoutubeDescription(e.target.value)} placeholder="Deskripsi video stream..." className={`${inputClassName} font-mono resize-none`}></textarea>
+
+              <div className="border border-gray-200 dark:border-slate-700/60 rounded-xl overflow-hidden">
+                <button 
+                  onClick={() => setShowLocalizations(!showLocalizations)}
+                  className={`w-full flex items-center justify-between p-4 text-sm font-bold transition-colors ${showLocalizations ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 border-b border-blue-100 dark:border-blue-800/30' : 'bg-gray-50 dark:bg-slate-900/30 text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-800/50'}`}
+                >
+                  <div className="flex items-center gap-2">
+                    <Globe className="w-4 h-4" /> Tambah Terjemahan Judul & Deskripsi (Localizations)
+                  </div>
+                  <ChevronDown className={`w-4 h-4 transition-transform ${showLocalizations ? 'rotate-180' : ''}`} />
+                </button>
+                
+                {showLocalizations && (
+                  <div className="p-4 bg-white dark:bg-slate-800 space-y-5 animate-in fade-in">
+                    <div className="space-y-2">
+                       <label className="block text-xs font-semibold text-gray-600 dark:text-slate-400">Pilih Bahasa Target Terjemahan:</label>
+                       <div className="flex flex-wrap gap-2 p-3 bg-gray-50 dark:bg-slate-900/50 rounded-lg border border-gray-100 dark:border-slate-700/50">
+                          {AVAILABLE_LANGUAGES.map(lang => {
+                            if (lang.code === videoLanguage) return null; 
+                            const isChecked = !!localizations[lang.code];
+                            return (
+                              <label key={lang.code} className={`flex items-center gap-2 px-3 py-1.5 rounded-md border cursor-pointer transition-colors text-xs font-medium ${isChecked ? 'bg-blue-50 border-blue-200 text-blue-700 dark:bg-blue-500/10 dark:border-blue-500/30 dark:text-blue-400' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50 dark:bg-slate-800 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700'}`}>
+                                <input 
+                                  type="checkbox" 
+                                  checked={isChecked} 
+                                  onChange={() => handleToggleLocalization(lang.code)} 
+                                  className="w-3 h-3 text-blue-600 rounded bg-white dark:bg-slate-900 border-gray-300 dark:border-slate-600 focus:ring-blue-500" 
+                                />
+                                {lang.name}
+                              </label>
+                            )
+                          })}
+                       </div>
+                    </div>
+
+                    <div className="space-y-4">
+                       {Object.keys(localizations).map(langCode => {
+                          const langInfo = AVAILABLE_LANGUAGES.find(l => l.code === langCode);
+                          return (
+                            <div key={langCode} className="p-4 bg-gray-50/80 dark:bg-slate-900/40 rounded-xl border border-gray-200 dark:border-slate-700/60 relative">
+                               <button onClick={() => handleToggleLocalization(langCode)} className="absolute top-3 right-3 text-gray-400 hover:text-red-500"><XCircle className="w-4 h-4"/></button>
+                               <h5 className="text-sm font-bold text-blue-700 dark:text-blue-400 mb-3 flex items-center gap-1.5"><Globe className="w-3.5 h-3.5"/> Terjemahan: {langInfo?.name}</h5>
+                               <div className="space-y-3">
+                                  <div>
+                                    <label className="block text-[11px] font-semibold mb-1 text-gray-500 dark:text-slate-400">Judul ({langInfo?.name})</label>
+                                    <input type="text" value={localizations[langCode].title} onChange={e => handleUpdateLocalization(langCode, 'title', e.target.value)} placeholder={`Ketik judul dalam bahasa ${langInfo?.name}...`} className="w-full bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600/60 rounded-md px-3 py-2 outline-none focus:border-blue-500 text-sm font-mono dark:text-slate-200 shadow-sm" />
+                                  </div>
+                                  <div>
+                                    <label className="block text-[11px] font-semibold mb-1 text-gray-500 dark:text-slate-400">Deskripsi ({langInfo?.name})</label>
+                                    <textarea rows="2" value={localizations[langCode].description} onChange={e => handleUpdateLocalization(langCode, 'description', e.target.value)} placeholder={`Ketik deskripsi dalam bahasa ${langInfo?.name}...`} className="w-full bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600/60 rounded-md px-3 py-2 outline-none focus:border-blue-500 text-sm font-mono resize-none dark:text-slate-200 shadow-sm"></textarea>
+                                  </div>
+                               </div>
+                            </div>
+                          )
+                       })}
+                       {Object.keys(localizations).length === 0 && (
+                         <div className="text-center py-6 border border-dashed border-gray-300 dark:border-slate-700 rounded-xl text-gray-400 text-xs">Centang kotak bahasa di atas untuk mulai menambahkan terjemahan spesifik.</div>
+                       )}
+                    </div>
+                  </div>
+                )}
               </div>
+
               <div>
                 <label className={labelClassName}>Tag Video <span className="text-xs font-normal ml-1">(Pisahkan dengan koma)</span></label>
                 <input type="text" value={youtubeTags} onChange={e => setYoutubeTags(e.target.value)} placeholder="berita, live stream, update" className={`${inputClassName} font-mono`} />
@@ -702,10 +936,11 @@ function TugasLiveView({ accounts, isPreview, API_BASE, onNavigate }) {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-gray-600 dark:text-slate-400 mb-1.5">Konten Sintetis (AI)</label>
-                    <select value={syntheticContent} onChange={e => setSyntheticContent(e.target.value)} className="w-full bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600/60 rounded-lg px-3 py-2 outline-none focus:border-emerald-500 dark:focus:border-emerald-400 text-sm dark:text-slate-200">
-                      <option value="no">Tidak (Konten Asli)</option>
-                      <option value="yes">Ya (Menggunakan AI)</option>
+                    <label className="block text-xs font-semibold text-gray-600 dark:text-slate-400 mb-1.5">Bahasa Asli Video</label>
+                    <select value={videoLanguage} onChange={e => setVideoLanguage(e.target.value)} className="w-full bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600/60 rounded-lg px-3 py-2 outline-none focus:border-emerald-500 dark:focus:border-emerald-400 text-sm dark:text-slate-200">
+                      {AVAILABLE_LANGUAGES.map(lang => (
+                        <option key={`orig-${lang.code}`} value={lang.code}>{lang.name}</option>
+                      ))}
                     </select>
                   </div>
                   <div>
@@ -719,6 +954,9 @@ function TugasLiveView({ accounts, isPreview, API_BASE, onNavigate }) {
                     <label className="block text-xs font-semibold text-gray-600 dark:text-slate-400 mb-1.5">Playlist Target</label>
                     <select value={targetPlaylist} onChange={e => setTargetPlaylist(e.target.value)} className="w-full bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600/60 rounded-lg px-3 py-2 outline-none focus:border-emerald-500 dark:focus:border-emerald-400 text-sm truncate dark:text-slate-200">
                       <option value="none">-- Jangan tambahkan --</option>
+                      {youtubePlaylists.map(pl => (
+                        <option key={pl.id} value={pl.id}>{pl.title}</option>
+                      ))}
                     </select>
                   </div>
                 </div>
@@ -788,7 +1026,7 @@ function TugasLiveView({ accounts, isPreview, API_BASE, onNavigate }) {
                    <span className="text-sm font-semibold text-gray-700 dark:text-slate-300">Stop Otomatis</span>
                    <label className="flex items-center gap-1.5 mt-1 cursor-pointer">
                       <input type="checkbox" checked={randomizeStop} onChange={() => setRandomizeStop(!randomizeStop)} className="w-3 h-3 text-emerald-600 rounded bg-white dark:bg-slate-900 border-gray-300 dark:border-slate-600 focus:ring-emerald-500" />
-                      <span className="text-[10px] text-gray-500 dark:text-slate-400 font-medium">Acak ±15 mnt (Anti-Spam)</span>
+                      <span className="text-[10px] text-gray-500 dark:text-slate-400 font-medium">Acak ±10 mnt (Anti-Spam)</span>
                    </label>
                 </div>
                 <div className="flex items-center gap-2">
@@ -838,13 +1076,19 @@ function TugasLiveView({ accounts, isPreview, API_BASE, onNavigate }) {
             <h3 className="text-lg font-bold flex items-center gap-2 border-b border-gray-100 dark:border-slate-700/60 pb-4 mb-5 text-gray-800 dark:text-slate-100"><Image className="w-5 h-5 text-emerald-500 dark:text-emerald-400" /> Pengaturan Thumbnail</h3>
             <input type="file" ref={thumbInputRef} accept="image/*" onChange={handleThumbUploadChange} className="hidden" />
             <div onClick={() => thumbInputRef.current?.click()} className="flex-1 min-h-[160px] border-2 border-dashed border-gray-300 dark:border-slate-600/60 rounded-xl p-2 flex flex-col items-center justify-center hover:bg-gray-50 dark:hover:bg-slate-700/30 transition-all cursor-pointer group overflow-hidden relative">
-              {isUploadingThumb ? ( <span className="text-sm font-semibold text-gray-500 animate-pulse">Mengupload...</span> ) : thumbnailUrl ? ( <img src={thumbnailUrl} alt="Thumbnail Preview" className="w-full h-full object-cover rounded-lg" /> ) : (
+              {isUploadingThumb ? ( <span className="text-sm font-semibold text-gray-500 animate-pulse">Mengupload...</span> ) : thumbnailUrl && !randomizeThumbnail ? ( <img src={thumbnailUrl} alt="Thumbnail Preview" className="w-full h-full object-cover rounded-lg" /> ) : (
                 <>
                   <Upload className="w-8 h-8 text-gray-400 group-hover:text-emerald-500 mb-3 transition-colors" />
-                  <p className="text-sm font-bold text-gray-700 dark:text-slate-300 mb-1">Pilih File Gambar Thumbnail</p>
-                  <p className="text-xs text-gray-500 dark:text-slate-400">Klik di sini untuk upload</p>
+                  <p className="text-sm font-bold text-gray-700 dark:text-slate-300 mb-1">{randomizeThumbnail ? 'Mode Acak Thumbnail Aktif' : 'Pilih File Gambar Thumbnail'}</p>
+                  <p className="text-xs text-gray-500 dark:text-slate-400">Klik di sini untuk upload gambar statis</p>
                 </>
               )}
+            </div>
+            <div className="flex items-center justify-between mt-4 px-1 border-t border-gray-100 dark:border-slate-700/50 pt-4">
+               <label className="flex items-center gap-2 cursor-pointer group">
+                  <input type="checkbox" checked={randomizeThumbnail} onChange={(e) => setRandomizeThumbnail(e.target.checked)} className="w-4 h-4 text-emerald-600 rounded bg-gray-50 dark:bg-slate-900 border-gray-300 dark:border-slate-600 focus:ring-emerald-50 cursor-pointer" />
+                  <span className="text-xs font-semibold text-gray-700 dark:text-slate-300 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">Acak Thumbnail Otomatis (Dari direktori Media Anda)</span>
+               </label>
             </div>
           </div>
           
@@ -913,14 +1157,17 @@ function TugasLiveView({ accounts, isPreview, API_BASE, onNavigate }) {
         </div>
       </div>
 
-      <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700/60 p-5 md:p-6 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4 mt-2 sticky bottom-4 z-50">
+      <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700/60 p-5 md:p-6 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4 mt-6">
          <div className="flex items-center gap-4 w-full sm:w-auto">
            <div className="w-10 h-10 rounded-full bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center shrink-0"><div className="w-3 h-3 rounded-full bg-blue-500 dark:bg-blue-400 animate-pulse"></div></div>
-           <div><p className="text-xs text-gray-500 dark:text-slate-400 font-medium mb-0.5">Status Tugas Live</p><p className="text-sm font-bold text-blue-600 dark:text-blue-400">Siap Disimpan</p></div>
+           <div><p className="text-xs text-gray-500 dark:text-slate-400 font-medium mb-0.5">Status Tugas Live</p><p className="text-sm font-bold text-blue-600 dark:text-blue-400">{taskToEdit ? 'Sedang Mode Edit' : 'Siap Disimpan'}</p></div>
          </div>
          <div className="flex w-full sm:w-auto gap-3">
-           <button onClick={() => handleSaveTask(false)} className="flex-1 sm:flex-none px-6 py-2.5 rounded-xl border border-gray-300 hover:bg-gray-100 text-gray-700 font-semibold transition-colors text-sm bg-white">💾 Simpan ke Database</button>
-           <button onClick={() => handleSaveTask(true)} className="flex-1 sm:flex-none px-8 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl flex items-center justify-center gap-2 font-semibold transition-colors text-sm shadow-md"><PlayCircle className="w-5 h-5" /> Simpan & Mulai Live</button>
+           {taskToEdit && (
+             <button onClick={() => { if(clearEditTask) clearEditTask(); onNavigate('dashboard'); }} className="flex-1 sm:flex-none px-6 py-2.5 rounded-xl border border-gray-300 hover:bg-gray-100 text-gray-700 font-semibold transition-colors text-sm bg-white dark:bg-slate-700 dark:text-slate-200 dark:border-slate-600 dark:hover:bg-slate-600">Batalkan Edit</button>
+           )}
+           <button onClick={() => handleSaveTask(false)} className="flex-1 sm:flex-none px-6 py-2.5 rounded-xl border border-gray-300 hover:bg-gray-100 text-gray-700 font-semibold transition-colors text-sm bg-white dark:bg-slate-800 dark:text-slate-200 dark:border-slate-600">💾 {taskToEdit ? 'Simpan Perubahan' : 'Simpan ke Database'}</button>
+           <button onClick={() => handleSaveTask(true)} className="flex-1 sm:flex-none px-8 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl flex items-center justify-center gap-2 font-semibold transition-colors text-sm shadow-md"><PlayCircle className="w-5 h-5" /> {taskToEdit ? 'Simpan & Mulai Ulang' : 'Simpan & Mulai Live'}</button>
          </div>
       </div>
     </div>
@@ -945,7 +1192,6 @@ function MediaView({ isPreview, API_BASE }) {
   const [fileToDelete, setFileToDelete] = useState(null);
   const [playlistToDelete, setPlaylistToDelete] = useState(null);
   
-  // State untuk Rename
   const [fileToRename, setFileToRename] = useState(null);
   const [newFileName, setNewFileName] = useState('');
   
@@ -955,6 +1201,9 @@ function MediaView({ isPreview, API_BASE }) {
   const fetchPlaylists = async () => { if (isPreview) return; try { const res = await fetch(`${API_BASE}/api/playlists`); setPlaylists(await res.json()); } catch (e) {} };
 
   useEffect(() => { fetchMedia(); fetchPlaylists(); }, [API_BASE, isPreview]);
+
+  const videoList = mediaFiles.filter(file => !file.name.toLowerCase().match(/\.(jpg|jpeg|png|gif|webp)$/i));
+  const imageList = mediaFiles.filter(file => file.name.toLowerCase().match(/\.(jpg|jpeg|png|gif|webp)$/i));
 
   const handleActualUpload = async (e) => {
     const files = e.target.files; if (!files || files.length === 0) return;
@@ -1010,7 +1259,6 @@ function MediaView({ isPreview, API_BASE }) {
     if(!newFileName.trim()) return alert('Nama baru tidak boleh kosong!');
     if(isPreview) { setFileToRename(null); return alert('Simulasi: File berhasil diubah nama.'); }
     
-    // Pastikan tidak ada spasi agar FFmpeg tidak bingung
     const safeNewName = newFileName.replace(/\s+/g, '_');
     
     try {
@@ -1022,17 +1270,12 @@ function MediaView({ isPreview, API_BASE }) {
       const data = await res.json();
       if(data.success) {
         fetchMedia();
-        fetchPlaylists(); // Refresh playlist karena nama file berubah
+        fetchPlaylists(); 
         setFileToRename(null);
       } else {
         alert(data.message);
       }
     } catch(e) { alert('Terjadi kesalahan saat mengganti nama file.'); }
-  };
-
-  const toggleVideoForPlaylist = (vid) => {
-    if (selectedPlaylistVideos.includes(vid)) setSelectedPlaylistVideos(selectedPlaylistVideos.filter(v => v !== vid));
-    else setSelectedPlaylistVideos([...selectedPlaylistVideos, vid]);
   };
 
   return (
@@ -1058,7 +1301,8 @@ function MediaView({ isPreview, API_BASE }) {
         <div className="w-60 flex flex-col border-r border-gray-100 dark:border-slate-700/60 bg-gray-50/30 dark:bg-slate-900/30 shrink-0">
           <div className="p-3 flex-1 overflow-y-auto space-y-0.5 custom-scrollbar">
             <div className="text-[9px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-widest px-2 pb-2 pt-1">Direktori Penyimpanan</div>
-            <div onClick={() => setActiveFolder('Video Berita Utama')}><FolderItem name="Semua Video / Media" count={mediaFiles.length} active={activeFolder === 'Video Berita Utama'} /></div>
+            <div onClick={() => setActiveFolder('Video Berita Utama')}><FolderItem name="Semua Video" count={videoList.length} active={activeFolder === 'Video Berita Utama'} /></div>
+            <div onClick={() => setActiveFolder('Thumbnail & Gambar')}><FolderItem name="Thumbnail & Gambar" count={imageList.length} active={activeFolder === 'Thumbnail & Gambar'} /></div>
             <div onClick={() => setActiveFolder('Playlist Looping')}><FolderItem name="Playlist Tersimpan" count={playlists.length} active={activeFolder === 'Playlist Looping'} /></div>
           </div>
           <div className="p-3 border-t border-gray-100 dark:border-slate-700/60 space-y-1.5 bg-white dark:bg-slate-800/50 shrink-0">
@@ -1069,12 +1313,33 @@ function MediaView({ isPreview, API_BASE }) {
         <div className="flex-1 bg-white dark:bg-slate-800 p-5 overflow-y-auto relative custom-scrollbar">
           {activeFolder === 'Video Berita Utama' && (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {mediaFiles.length === 0 ? (
+              {videoList.length === 0 ? (
                 <div className="col-span-full flex flex-col items-center justify-center text-gray-400 dark:text-slate-500 h-40 border border-dashed border-gray-200 dark:border-slate-700 rounded-lg">
-                  <FolderOpen className="w-8 h-8 mb-2 opacity-50" /><span className="text-sm">Folder Media Kosong</span>
+                  <FolderOpen className="w-8 h-8 mb-2 opacity-50" /><span className="text-sm">Folder Video Kosong</span>
                 </div>
               ) : ( 
-                mediaFiles.map((file) => (
+                videoList.map((file) => (
+                  <VideoPreviewCard 
+                    key={file.id} 
+                    name={file.name} 
+                    size={file.size} 
+                    API_BASE={API_BASE}
+                    onEdit={() => { setFileToRename(file); setNewFileName(file.name); }}
+                    onDelete={() => setFileToDelete(file)} 
+                  />
+                )) 
+              )}
+            </div>
+          )}
+
+          {activeFolder === 'Thumbnail & Gambar' && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {imageList.length === 0 ? (
+                <div className="col-span-full flex flex-col items-center justify-center text-gray-400 dark:text-slate-500 h-40 border border-dashed border-gray-200 dark:border-slate-700 rounded-lg">
+                  <Image className="w-8 h-8 mb-2 opacity-50" /><span className="text-sm">Belum Ada Thumbnail/Gambar</span>
+                </div>
+              ) : ( 
+                imageList.map((file) => (
                   <VideoPreviewCard 
                     key={file.id} 
                     name={file.name} 
@@ -1148,7 +1413,7 @@ function MediaView({ isPreview, API_BASE }) {
                 <label className="block text-sm font-medium dark:text-slate-300 mb-2">Pilih Video</label>
                 <div className="border border-gray-200 dark:border-slate-700/60 rounded-xl overflow-hidden">
                   <div className="max-h-48 overflow-y-auto p-2 space-y-1 custom-scrollbar">
-                    {mediaFiles.map((file) => {
+                    {videoList.map((file) => {
                       const isSelected = selectedPlaylistVideos.includes(file.name);
                       return (
                         <label key={file.id} className={`flex items-center gap-3 p-2.5 rounded-lg cursor-pointer border ${isSelected ? 'bg-emerald-50 border-emerald-200' : 'border-transparent hover:bg-gray-100'}`}>
@@ -1198,18 +1463,16 @@ function VideoPreviewCard({ name, size, onEdit, onDelete, API_BASE }) {
   const mediaUrl = `${API_BASE}/media/${name}`;
   const videoRef = useRef(null);
 
-  // Fungsi agar video berputar otomatis tanpa suara saat di-hover
   const handleMouseEnter = () => {
       if (videoRef.current) {
           videoRef.current.play().catch(() => {});
       }
   };
 
-  // Fungsi agar video berhenti dan kembali ke awal saat mouse dijauhkan
   const handleMouseLeave = () => {
       if (videoRef.current) {
           videoRef.current.pause();
-          videoRef.current.currentTime = 1; // Kembali ke detik 1 (thumbnail)
+          videoRef.current.currentTime = 1; 
       }
   };
 
@@ -1289,7 +1552,7 @@ function AnalyticsView({ accounts, API_BASE }) {
          </div>
          <div className="text-sm text-gray-500 dark:text-slate-400 flex items-center gap-2 bg-green-50 dark:bg-emerald-900/20 px-3 py-1.5 rounded-lg border border-green-200 dark:border-emerald-800/30">
             <div className="w-2 h-2 rounded-full bg-green-500 dark:bg-emerald-400 animate-pulse"></div>
-            Sinkronisasi API: Real-time (2 Min)
+            Sinkronisasi API: Real-time (1 Menit)
          </div>
       </div>
 
@@ -1806,6 +2069,42 @@ function FolderItem({ name, count, active }) {
     <div className={`flex items-center justify-between px-3 py-2 rounded-md cursor-pointer transition-colors ${active ? 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-medium border border-emerald-100 dark:border-emerald-500/20' : 'text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-700/50 border border-transparent'}`}>
       <div className="flex items-center gap-2.5 overflow-hidden"><FolderOpen className={`w-3.5 h-3.5 shrink-0 ${active ? 'text-emerald-500 dark:text-emerald-400' : 'text-gray-400 dark:text-slate-500'}`} /><span className="text-[11px] truncate">{name}</span></div>
       <span className={`text-[9px] px-1.5 py-0.5 rounded-sm font-mono ${active ? 'bg-white dark:bg-slate-800 text-emerald-500 dark:text-emerald-400 shadow-sm' : 'bg-gray-100 dark:bg-slate-700/50 text-gray-500 dark:text-slate-400'}`}>{count}</span>
+    </div>
+  );
+}
+
+function VideoFile({ name, size, onEdit, onDelete }) {
+  const isImage = name.toLowerCase().endsWith('.jpg') || name.toLowerCase().endsWith('.png') || name.toLowerCase().endsWith('.jpeg');
+
+  return (
+    <div className="group flex items-center justify-between p-2.5 bg-white dark:bg-slate-800 hover:bg-gray-50 dark:hover:bg-slate-700/50 border border-gray-100 dark:border-slate-700/60 hover:border-gray-200 dark:hover:border-slate-600/60 rounded-lg transition-all cursor-pointer shadow-sm hover:shadow dark:hover:shadow-black/20">
+      <div className="flex items-center gap-3 overflow-hidden flex-1">
+        <div className={`w-8 h-8 rounded-md flex items-center justify-center shrink-0 ${isImage ? 'bg-purple-50 text-purple-600 dark:bg-purple-500/10 dark:text-purple-400' : 'bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400'}`}>
+          {isImage ? <Image className="w-4 h-4" /> : <Video className="w-4 h-4" />}
+        </div>
+        <div className="overflow-hidden">
+          <p className="text-[13px] font-semibold text-gray-800 dark:text-slate-200 truncate pr-2" title={name}>{name}</p>
+          <p className="text-[10px] font-mono text-gray-400 dark:text-slate-500 mt-0.5">{size}</p>
+        </div>
+      </div>
+      
+      {/* Action Buttons */}
+      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-gradient-to-l from-white dark:from-slate-800 via-white dark:via-slate-800 pl-4 pr-1">
+        <button 
+          onClick={(e) => { e.stopPropagation(); onEdit && onEdit(); }} 
+          className="p-1.5 text-gray-400 dark:text-slate-400 hover:text-blue-500 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-500/10 rounded-md transition-colors"
+          title="Edit"
+        >
+          <Edit className="w-3.5 h-3.5" />
+        </button>
+        <button 
+          onClick={(e) => { e.stopPropagation(); onDelete && onDelete(); }} 
+          className="p-1.5 text-gray-400 dark:text-slate-400 hover:text-red-500 dark:hover:text-rose-400 hover:bg-red-50 dark:hover:bg-rose-500/10 rounded-md transition-colors"
+          title="Hapus"
+        >
+          <Trash2 className="w-3.5 h-3.5" />
+        </button>
+      </div>
     </div>
   );
 }

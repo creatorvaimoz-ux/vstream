@@ -279,22 +279,27 @@ async function updateYouTubeMetadata(task) {
 
         writeLog(task.id, `[YOUTUBE API] Membangun Ruang Live Studio Otomatis untuk "${finalTitle}"...`);
 
-        // 1. CREATE BROADCAST TERBARU (100% BYPASS YOUTUBE STUDIO)
+        // 1. CREATE BROADCAST TERBARU (DENGAN MULTI-BAHASA & LOCALIZATIONS)
         const broadcastRes = await youtube.liveBroadcasts.insert({
             part: 'snippet,status,contentDetails',
             requestBody: {
                 snippet: {
                     title: finalTitle,
                     description: finalDesc,
-                    scheduledStartTime: new Date().toISOString() // Start sekarang
+                    categoryId: finalCategory,
+                    scheduledStartTime: new Date().toISOString(), 
+                    tags: task.youtubeTags ? task.youtubeTags.split(',').map(t => t.trim()).filter(t => t) : [],
+                    defaultLanguage: task.videoLanguage || 'id',
+                    defaultAudioLanguage: task.videoLanguage || 'id'
                 },
+                localizations: task.localizations || {},
                 status: {
                     privacyStatus: privacy,
                     selfDeclaredMadeForKids: false
                 },
                 contentDetails: {
-                    enableAutoStart: true, // MAGIC: Saat FFmpeg hidup, video langsung LIVE!
-                    enableAutoStop: true,  // MAGIC: Saat FFmpeg mati, video langsung OFFLINE!
+                    enableAutoStart: true, 
+                    enableAutoStop: true,  
                     enableClosedCaptions: false,
                     enableContentEncryption: false,
                     enableDvr: true,
@@ -339,29 +344,28 @@ async function updateYouTubeMetadata(task) {
 
         writeLog(task.id, `[YOUTUBE API] ✅ BINDING SUKSES! VStream siap meluncurkan video.`);
 
-        // 4. UPDATE TAGS & KATEGORI VIDEO 
-        try {
-            const videoRes = await youtube.videos.list({ part: 'snippet', id: resultData.broadcastId });
-            if (videoRes.data.items && videoRes.data.items.length > 0) {
-                let videoSnippet = videoRes.data.items[0].snippet;
-                videoSnippet.categoryId = finalCategory;
-                if (task.youtubeTags) {
-                    videoSnippet.tags = task.youtubeTags.split(',').map(t => t.trim()).filter(t => t);
-                }
-                await youtube.videos.update({
+        // 4. BINDING KE PLAYLIST TARGET JIKA ADA
+        if (task.targetPlaylist && task.targetPlaylist !== 'none') {
+            try {
+                await youtube.playlistItems.insert({
                     part: 'snippet',
                     requestBody: {
-                        id: resultData.broadcastId,
-                        snippet: videoSnippet
+                        snippet: {
+                            playlistId: task.targetPlaylist,
+                            resourceId: {
+                                kind: 'youtube#video',
+                                videoId: resultData.broadcastId
+                            }
+                        }
                     }
                 });
-                writeLog(task.id, `[YOUTUBE API] Tags & Kategori berhasil dipasang.`);
+                writeLog(task.id, `[YOUTUBE API] Video berhasil ditambahkan ke Playlist Target.`);
+            } catch(plErr) {
+                writeLog(task.id, `[YOUTUBE API WARNING] Gagal menambahkan ke playlist target: ${plErr.message}`);
             }
-        } catch(tagErr) {
-            writeLog(task.id, `[YOUTUBE API WARNING] Gagal set Tags/Kategori (Bisa diabaikan): ${tagErr.message}`);
         }
 
-        // 5. UPDATE THUMBNAIL (Aman dari Crash jika gambar > 2MB)
+        // 5. UPDATE THUMBNAIL 
         if (task.thumbnailUrl) {
             try {
                 const thumbFileName = task.thumbnailUrl.split('/').pop();
@@ -406,11 +410,9 @@ async function startYoutubeChatbot(task, liveChatId) {
         const youtube = google.youtube({ version: 'v3', auth: oauth2Client });
 
         task.scheduledMessages.forEach(msg => {
-            // Kalkulasi delay dalam milidetik
             const delayMs = (parseInt(msg.hour || 0) * 3600000) + (parseInt(msg.minute || 0) * 60000);
             
             setTimeout(async () => {
-                // Pastikan stream belum dimatikan
                 if (!activeStreams.has(task.id)) return;
                 try {
                     await youtube.liveChatMessages.insert({
@@ -454,24 +456,40 @@ function stopStreamById(id, isError = false) {
     } catch(e) {}
 }
 
-function startStreamInternal(task) {
-    if (activeStreams.has(task.id)) return false; 
+function startStreamInternal(task, isFallback = false) {
+    if (activeStreams.has(task.id) && !isFallback) return false; 
 
-    const fullVideoPath = path.join(MEDIA_DIR, task.videoPath);
+    // Handle Fallback / Mode Normal
+    const videoFileName = isFallback ? task.fallbackVideo : task.videoPath;
+    const fullVideoPath = path.join(MEDIA_DIR, videoFileName);
+    
     if (!fs.existsSync(fullVideoPath)) {
         writeLog(task.id, `[SYSTEM ERROR] Gagal memulai ${task.taskName}: File video tidak ditemukan di server.`);
         return false;
     }
 
     (async () => {
-        writeLog(task.id, `[SYSTEM] Memulai proses persiapan Live untuk tugas: ${task.taskName}`);
+        writeLog(task.id, `[SYSTEM] ${isFallback ? '🔄 MENJALANKAN FALLBACK VIDEO' : 'Memulai proses persiapan Live'} untuk tugas: ${task.taskName}`);
+
+        // ACAK THUMBNAIL SEBELUM UPDATE YOUTUBE METADATA
+        if (task.randomizeThumbnail && !isFallback) {
+            try {
+                const files = fs.readdirSync(THUMB_DIR).filter(f => f.match(/\.(jpg|jpeg|png|webp)$/i));
+                if (files.length > 0) {
+                    const randomThumb = files[Math.floor(Math.random() * files.length)];
+                    task.thumbnailUrl = `/thumbnails/${randomThumb}`;
+                    writeLog(task.id, `[SYSTEM] Menggunakan Acak Thumbnail: ${randomThumb}`);
+                }
+            } catch (e) {}
+        }
 
         let finalStreamKey = task.streamKey ? task.streamKey.trim() : '';
         let liveChatId = null;
         let broadcastId = null;
         let streamId = null;
 
-        if (task.streamKeyMode === 'Otomatis (API v3)' && task.accountId) {
+        // Hanya jalankan pembaruan metadata jika ini BUKAN dari fallback
+        if (task.streamKeyMode === 'Otomatis (API v3)' && task.accountId && !isFallback) {
             const apiData = await updateYouTubeMetadata(task);
             if (apiData && apiData.streamKey) {
                 finalStreamKey = apiData.streamKey;
@@ -479,7 +497,7 @@ function startStreamInternal(task) {
                 broadcastId = apiData.broadcastId;
                 streamId = apiData.streamId;
             } else {
-                writeLog(task.id, `[CRITICAL ERROR] Mode API Otomatis aktif, tapi gagal membuat dan menarik Stream Key dari YouTube.`);
+                writeLog(task.id, `[CRITICAL ERROR] Mode API Otomatis aktif, tapi gagal membuat Stream Key dari YouTube.`);
                 activeStreams.delete(task.id);
                 try {
                     let tasks = JSON.parse(fs.readFileSync(TASKS_FILE));
@@ -487,6 +505,13 @@ function startStreamInternal(task) {
                     if (t) { t.status = 'Error'; fs.writeFileSync(TASKS_FILE, JSON.stringify(tasks, null, 2)); }
                 } catch(e) {}
                 return;
+            }
+        } else if (isFallback && task.streamKeyMode === 'Otomatis (API v3)') {
+            // Ambil stream key lama dari database jika ada fallback
+            const existingTasks = JSON.parse(fs.readFileSync(TASKS_FILE));
+            const existingTask = existingTasks.find(x => x.id === task.id);
+            if (existingTask && existingTask.streamKey) {
+                finalStreamKey = existingTask.streamKey;
             }
         }
 
@@ -496,15 +521,28 @@ function startStreamInternal(task) {
             return;
         }
 
+        // SIMPAN STREAM KEY SEMENTARA (Berguna jika nanti butuh fallback)
+        if (!isFallback) {
+            let tasks = JSON.parse(fs.readFileSync(TASKS_FILE));
+            let t = tasks.find(x => x.id === task.id);
+            if (t) { t.streamKey = finalStreamKey; fs.writeFileSync(TASKS_FILE, JSON.stringify(tasks, null, 2)); }
+        }
+
+        // MENYUSUN ARGUMEN FFMPEG DENGAN HARDWARE ENCODER
         const ffmpegArgs = ['-re']; 
-        if (task.videoMode === 'Satu Video (Looping)') ffmpegArgs.push('-stream_loop', '-1'); 
+        if ((task.videoMode === 'Satu Video (Looping)' && !isFallback) || isFallback) {
+            ffmpegArgs.push('-stream_loop', '-1'); 
+        }
         
         let encoderEngine = task.encoderEngine || 'copy';
-        
         ffmpegArgs.push('-i', fullVideoPath);
         
         if (encoderEngine === 'copy') {
             ffmpegArgs.push('-c:v', 'copy', '-c:a', 'aac', '-b:a', '128k');
+        } else if (encoderEngine === 'nvenc') {
+            ffmpegArgs.push('-c:v', 'h264_nvenc', '-preset', 'p4', '-b:v', '3000k', '-maxrate', '3000k', '-bufsize', '6000k', '-c:a', 'aac', '-b:a', '128k');
+        } else if (encoderEngine === 'qsv') {
+            ffmpegArgs.push('-c:v', 'h264_qsv', '-preset', 'faster', '-b:v', '3000k', '-c:a', 'aac', '-b:a', '128k');
         } else {
             ffmpegArgs.push('-c:v', 'libx264', '-preset', 'veryfast', '-b:v', '3000k', '-maxrate', '3000k', '-bufsize', '6000k', '-pix_fmt', 'yuv420p', '-g', '60', '-c:a', 'aac', '-b:a', '128k');
         }
@@ -516,7 +554,7 @@ function startStreamInternal(task) {
         let stopTimer = null;
         let stopDurationMs = (parseInt(task.stopHours || 0) * 3600000) + (parseInt(task.stopMinutes || 0) * 60000);
         
-        if (stopDurationMs > 0) {
+        if (stopDurationMs > 0 && !isFallback) {
             if (task.randomizeStop) {
                 const varianceMs = 15 * 60000;
                 const randomJitter = Math.floor(Math.random() * (varianceMs * 2 + 1)) - varianceMs;
@@ -551,12 +589,14 @@ function startStreamInternal(task) {
             stopTimer: stopTimer
         });
 
-        const notifSettings = fs.existsSync(NOTIF_FILE) ? JSON.parse(fs.readFileSync(NOTIF_FILE)) : {};
-        if (notifSettings.notifEnabled) {
-            sendTelegramMessage(`🟢 <b>Stream Berhasil Dimulai</b>\n\nTugas: <b>${escapeHtml(task.taskName)}</b>\nStatus: Mengirim data video ke YouTube 🚀`);
+        if (!isFallback) {
+            const notifSettings = fs.existsSync(NOTIF_FILE) ? JSON.parse(fs.readFileSync(NOTIF_FILE)) : {};
+            if (notifSettings.notifEnabled) {
+                sendTelegramMessage(`🟢 <b>Stream Berhasil Dimulai</b>\n\nTugas: <b>${escapeHtml(task.taskName)}</b>\nStatus: Mengirim data video ke YouTube 🚀`);
+            }
         }
 
-        if (task.chatbotEnabled && liveChatId) {
+        if (task.chatbotEnabled && liveChatId && !isFallback) {
             startYoutubeChatbot(task, liveChatId);
         }
 
@@ -567,19 +607,28 @@ function startStreamInternal(task) {
         ffmpegProcess.on('error', (err) => {
             writeLog(task.id, `[CRITICAL ERROR] Gagal mengeksekusi FFmpeg: ${err.message}`);
             stopStreamById(task.id, true);
-            
-            const notifSettings = fs.existsSync(NOTIF_FILE) ? JSON.parse(fs.readFileSync(NOTIF_FILE)) : {};
-            if (notifSettings.triggerError) {
-                sendTelegramMessage(`🔴 <b>Gagal Memulai Streaming!</b>\n\nTugas: <b>${escapeHtml(task.taskName)}</b>\n<i>Pesan Error:</i> ${escapeHtml(err.message)}`);
-            }
         });
 
         ffmpegProcess.on('close', (code) => {
             writeLog(task.id, `[SYSTEM] FFmpeg Terhenti (Kode Keluar: ${code})`);
             const isError = (code !== 0 && code !== 255 && code !== null);
+            
+            // --- LOGIKA FALLBACK ---
+            if (isError && task.enableFallback && task.fallbackVideo && !isFallback) {
+                writeLog(task.id, `[WARNING] Terdeteksi Error Putus Stream! Menjalankan Video Fallback dalam 5 detik...`);
+                const notifSettings = fs.existsSync(NOTIF_FILE) ? JSON.parse(fs.readFileSync(NOTIF_FILE)) : {};
+                if (notifSettings.triggerError) {
+                    sendTelegramMessage(`⚠️ <b>Peringatan: Stream Terputus!</b>\n\nFallback Video (Loop) diaktifkan untuk menjaga live tetap menyala pada tugas: <b>${escapeHtml(task.taskName)}</b>`);
+                }
+                
+                activeStreams.delete(task.id);
+                setTimeout(() => startStreamInternal(task, true), 5000);
+                return;
+            }
+
             stopStreamById(task.id, isError); 
             
-            if (isError) {
+            if (isError && !isFallback) {
                 const notifSettings = fs.existsSync(NOTIF_FILE) ? JSON.parse(fs.readFileSync(NOTIF_FILE)) : {};
                 if (notifSettings.triggerError) {
                     sendTelegramMessage(`🔴 <b>Streaming Terputus!</b>\n\nTugas: <b>${escapeHtml(task.taskName)}</b>\nTerputus secara tiba-tiba (Kode Exit: ${code}).\nSilakan periksa server atau koneksi internet VPS.`);
@@ -773,6 +822,27 @@ app.post('/api/tasks', (req, res) => {
     } catch (e) { res.status(500).json({ success: false, message: e.message }); }
 });
 
+// FITUR BARU: API EDIT TUGAS LIVE
+app.put('/api/tasks/:id', (req, res) => {
+    try {
+        let tasks = JSON.parse(fs.readFileSync(TASKS_FILE));
+        const index = tasks.findIndex(t => t.id === req.params.id);
+        if (index === -1) return res.status(404).json({ success: false, message: 'Tugas tidak ditemukan.' });
+
+        if (activeStreams.has(req.params.id)) stopStreamById(req.params.id, false);
+
+        const updatedTask = { ...tasks[index], ...req.body, updatedAt: new Date().toISOString() };
+        if (req.body.isMulaiSekarang) updatedTask.status = 'Live';
+
+        tasks[index] = updatedTask;
+        fs.writeFileSync(TASKS_FILE, JSON.stringify(tasks, null, 2));
+
+        if (req.body.isMulaiSekarang) startStreamInternal(updatedTask);
+
+        res.json({ success: true, message: 'Tugas berhasil diperbarui!' });
+    } catch (e) { res.status(500).json({ success: false, message: e.message }); }
+});
+
 app.get('/api/tasks', (req, res) => {
     try { 
         const tasks = JSON.parse(fs.readFileSync(TASKS_FILE)); 
@@ -882,7 +952,6 @@ app.delete('/api/media/:filename', (req, res) => {
     res.json({ success: true });
 });
 
-// API BARU: RENAME VIDEO
 app.put('/api/media/rename', (req, res) => {
     try {
         const { oldName, newName } = req.body;
@@ -899,7 +968,6 @@ app.put('/api/media/rename', (req, res) => {
 
         fs.renameSync(oldPath, newPath);
 
-        // Otomatis update nama video di tabel Tasks jika sedang digunakan
         const tasks = JSON.parse(fs.readFileSync(TASKS_FILE));
         let taskUpdated = false;
         tasks.forEach(t => {
@@ -910,7 +978,6 @@ app.put('/api/media/rename', (req, res) => {
         });
         if(taskUpdated) fs.writeFileSync(TASKS_FILE, JSON.stringify(tasks, null, 2));
 
-        // Update nama di Playlists
         const playlists = JSON.parse(fs.readFileSync(PLAYLIST_FILE));
         let plUpdated = false;
         playlists.forEach(pl => {
@@ -977,6 +1044,27 @@ app.delete('/api/playlists/:id', (req, res) => {
         fs.writeFileSync(PLAYLIST_FILE, JSON.stringify(playlists.filter(p => p.id !== req.params.id), null, 2));
         res.json({ success: true });
     } catch (e) { res.status(500).json({ success: false, message: e.message }); }
+});
+
+// FITUR BARU: TARIK PLAYLIST ASLI DARI YOUTUBE STUDIO
+app.get('/api/youtube/playlists', async (req, res) => {
+    try {
+        const { accountId } = req.query;
+        const tokenPath = path.join(__dirname, accountId);
+        
+        if (!fs.existsSync(tokenPath)) return res.json({ success: false, message: 'Akun tidak ditemukan' });
+
+        const tokens = JSON.parse(fs.readFileSync(tokenPath));
+        const oauth2Client = getOAuth2Client(tokens);
+        if (!oauth2Client) return res.json({ success: false });
+
+        const youtube = google.youtube({ version: 'v3', auth: oauth2Client });
+        const response = await youtube.playlists.list({ part: 'snippet', mine: true, maxResults: 50 });
+        const playlists = response.data.items.map(item => ({ id: item.id, title: item.snippet.title }));
+        res.json({ success: true, playlists });
+    } catch (error) {
+        res.json({ success: false, playlists: [] });
+    }
 });
 
 app.post('/api/settings/google-credentials', (req, res) => {
