@@ -33,13 +33,14 @@ function StatCard({ title, value, icon: Icon, color, bgColor, className = "" }) 
 }
 
 function ProgressBar({ label, percentage, color, valueText, unitText = '%', subText }) {
+  const displayValue = valueText !== undefined ? String(valueText) : String(percentage);
+  
   return (
     <div className="flex flex-col justify-end w-full">
       <div className="flex justify-between items-end mb-1.5">
         <span className="text-[10px] font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider">{label}</span>
         <span className="text-[10px] font-mono font-bold text-gray-700 dark:text-slate-300">
-          {valueText !== undefined ? String(valueText) : String(percentage)}
-          <span className="text-[8px] text-gray-400 dark:text-slate-500 font-normal ml-0.5">{unitText}</span>
+          {displayValue} <span className="text-[8px] text-gray-400 dark:text-slate-500 font-normal ml-0.5">{unitText}</span>
         </span>
       </div>
       <div className="w-full rounded-full h-1.5 bg-gray-100 dark:bg-slate-700/50 overflow-hidden">
@@ -169,6 +170,7 @@ function CustomLineChart({ data }) {
                  <stop offset="100%" stopColor="#10b981" stopOpacity="0.0" />
                </linearGradient>
              </defs>
+
              {yTicks.map(tick => {
                const y = padding.top + chartHeight - tick * chartHeight;
                return (
@@ -183,17 +185,21 @@ function CustomLineChart({ data }) {
                  </g>
                );
              })}
+
              {data.map((d, i) => {
                 if (i % Math.ceil(data.length / 10) !== 0 && i !== data.length - 1 && i !== 0) return null; 
                 return (
                   <text key={i} x={getX(i)} y={height - 5} textAnchor="middle" className="text-[10px] fill-gray-400 font-mono">{d.date}</text>
                 );
              })}
+
              <path d={revAreaPath} fill="url(#gradientRev)" />
              <path d={revPath} fill="none" stroke="#10b981" strokeWidth="2.5" />
              <path d={viewPath} fill="none" stroke="#3b82f6" strokeWidth="2" strokeDasharray="6 5" />
+
              {data.map((d, i) => <circle key={`v-${i}`} cx={getX(i)} cy={getYView(d.views)} r="3.5" className="fill-white dark:fill-slate-800" stroke="#3b82f6" strokeWidth="2" />)}
              {data.map((d, i) => <circle key={`r-${i}`} cx={getX(i)} cy={getYRev(d.revenue)} r="3.5" className="fill-white dark:fill-slate-800" stroke="#10b981" strokeWidth="2" />)}
+
              {data.map((d, i) => {
                 const bandWidth = chartWidth / data.length;
                 return (
@@ -204,6 +210,7 @@ function CustomLineChart({ data }) {
                   />
                 )
              })}
+
              {hoveredIdx !== null && (
                 <line x1={getX(hoveredIdx)} y1={padding.top} x2={getX(hoveredIdx)} y2={padding.top + chartHeight} stroke="#64748b" strokeWidth="1" strokeDasharray="4 4" pointerEvents="none" />
              )}
@@ -233,9 +240,8 @@ function CustomLineChart({ data }) {
   );
 }
 
-
 // =============================================================================
-// 2. MAIN APP ROUTER
+// 2. KOMPONEN UTAMA (APP ROUTER)
 // =============================================================================
 
 export default function App() {
@@ -243,6 +249,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [accounts, setAccounts] = useState([]);
+  
   const [taskToEdit, setTaskToEdit] = useState(null);
 
   const toggleTheme = () => setIsDarkMode(!isDarkMode);
@@ -252,7 +259,9 @@ export default function App() {
     setActiveTab('tugas-live');
   };
 
-  const clearEditTask = () => setTaskToEdit(null);
+  const clearEditTask = () => {
+    setTaskToEdit(null);
+  };
 
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -272,14 +281,19 @@ export default function App() {
       const res = await fetch(`${API_BASE}/api/settings/accounts`);
       const data = await res.json();
       setAccounts(Array.isArray(data) ? data : []);
-    } catch (e) {}
+    } catch (e) { 
+      console.error('Gagal mengambil daftar Akun:', e); 
+    }
   };
 
-  useEffect(() => { fetchAccounts(); }, []);
+  useEffect(() => {
+    fetchAccounts();
+  }, []);
 
   return (
     <div className={`min-h-screen flex flex-col ${isDarkMode ? 'dark' : ''}`}>
       <div className="flex flex-col w-full h-screen bg-gray-50 dark:bg-slate-900 text-gray-900 dark:text-slate-100 transition-colors duration-300 overflow-hidden relative">
+        
         <header className="shrink-0 bg-white dark:bg-slate-800 relative z-50 flex flex-col shadow-sm dark:shadow-black/20">
           <div className="h-16 flex items-center justify-between px-4 md:px-6 border-b border-gray-200 dark:border-slate-700/60">
             <div className="flex items-center gap-3 shrink-0">
@@ -291,27 +305,51 @@ export default function App() {
                 <span className="text-[9px] font-bold tracking-widest text-gray-500 dark:text-slate-400 uppercase leading-none">{BRAND_TAGLINE}</span>
               </div>
             </div>
+
             <div className="flex items-center gap-2 sm:gap-4 shrink-0">
               <div className="hidden lg:flex items-center gap-1.5 text-xs bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 px-2.5 py-1.5 rounded-full border border-emerald-200 dark:border-emerald-800/50 font-medium">
-                <div className="w-2 h-2 rounded-full bg-emerald-500 dark:bg-emerald-400 animate-pulse"></div> Running
+                <div className="w-2 h-2 rounded-full bg-emerald-500 dark:bg-emerald-400 animate-pulse"></div>
+                Running
               </div>
-              <button onClick={toggleTheme} className="p-2 text-gray-500 hover:text-gray-700 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700/50 transition-colors rounded-lg">
+              <button 
+                onClick={toggleTheme}
+                className="p-2 text-gray-500 hover:text-gray-700 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700/50 transition-colors rounded-lg"
+              >
                 {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
               </button>
-              <div className="hidden sm:flex w-8 h-8 bg-gray-200 dark:bg-slate-700/80 rounded-full items-center justify-center shrink-0"><Users className="w-4 h-4 dark:text-slate-300" /></div>
-              <button className="md:hidden p-2 -mr-2 text-gray-500 hover:bg-gray-100 dark:text-slate-400 dark:hover:bg-slate-700/50 rounded-lg transition-colors" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}>
+              <div className="hidden sm:flex w-8 h-8 bg-gray-200 dark:bg-slate-700/80 rounded-full items-center justify-center shrink-0">
+                <Users className="w-4 h-4 dark:text-slate-300" />
+              </div>
+              
+              <button 
+                className="md:hidden p-2 -mr-2 text-gray-500 hover:bg-gray-100 dark:text-slate-400 dark:hover:bg-slate-700/50 rounded-lg transition-colors"
+                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              >
                 {isMobileMenuOpen ? <XCircle className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
               </button>
             </div>
           </div>
+
           <div className="hidden md:block border-b border-gray-200 dark:border-slate-700/60 bg-white dark:bg-slate-800/90 px-4 md:px-6">
             <nav className="flex items-center gap-2 overflow-x-auto py-2">
               {menuItems.map((item) => {
                 const Icon = item.icon;
                 const isActive = activeTab === item.id;
                 return (
-                  <button key={item.id} onClick={() => { setActiveTab(item.id); if (item.id !== 'tugas-live') clearEditTask(); }} className={`flex items-center gap-2 px-3.5 py-2 rounded-lg transition-all text-sm font-medium whitespace-nowrap ${isActive ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-500/20' : 'text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-700/40 border border-transparent'}`}>
-                    <Icon className="w-4 h-4" /> {item.label}
+                  <button
+                    key={item.id}
+                    onClick={() => {
+                      setActiveTab(item.id);
+                      if (item.id !== 'tugas-live') clearEditTask(); 
+                    }}
+                    className={`flex items-center gap-2 px-3.5 py-2 rounded-lg transition-all text-sm font-medium whitespace-nowrap ${
+                      isActive
+                        ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-500/20'
+                        : 'text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-700/40 border border-transparent'
+                    }`}
+                  >
+                    <Icon className="w-4 h-4" />
+                    {item.label}
                   </button>
                 );
               })}
@@ -326,8 +364,21 @@ export default function App() {
                 const Icon = item.icon;
                 const isActive = activeTab === item.id;
                 return (
-                  <button key={item.id} onClick={() => { setActiveTab(item.id); if (item.id !== 'tugas-live') clearEditTask(); setIsMobileMenuOpen(false); }} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-sm font-medium ${isActive ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-500/20' : 'text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-700/40'}`}>
-                    <Icon className="w-5 h-5" /> {item.label}
+                  <button
+                    key={item.id}
+                    onClick={() => {
+                      setActiveTab(item.id);
+                      if (item.id !== 'tugas-live') clearEditTask();
+                      setIsMobileMenuOpen(false);
+                    }}
+                    className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-sm font-medium ${
+                      isActive
+                        ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-500/20'
+                        : 'text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-700/40'
+                    }`}
+                  >
+                    <Icon className="w-5 h-5" />
+                    {item.label}
                   </button>
                 );
               })}
@@ -335,7 +386,12 @@ export default function App() {
           </div>
         )}
         
-        {isMobileMenuOpen && <div className="md:hidden absolute inset-0 top-16 z-30 bg-slate-900/50 backdrop-blur-sm" onClick={() => setIsMobileMenuOpen(false)}></div>}
+        {isMobileMenuOpen && (
+           <div 
+             className="md:hidden absolute inset-0 top-16 z-30 bg-slate-900/50 backdrop-blur-sm"
+             onClick={() => setIsMobileMenuOpen(false)}
+           ></div>
+        )}
 
         <main className="flex-1 overflow-y-auto p-4 md:p-6 relative z-10 w-full mx-auto">
           {activeTab === 'dashboard' && <DashboardView isPreview={isPreview} API_BASE={API_BASE} onEditTask={handleEditTask} />}
@@ -351,9 +407,8 @@ export default function App() {
   );
 }
 
-
 // =============================================================================
-// 3. TAMPILAN HALAMAN KONTEN (VIEWS)
+// 3. TAMPILAN HALAMAN UTAMA (VIEWS)
 // =============================================================================
 
 function DashboardView({ isPreview, API_BASE, onEditTask }) {
@@ -417,8 +472,11 @@ function DashboardView({ isPreview, API_BASE, onEditTask }) {
   const scheduledTasks = tasks.filter(t => t.status === 'Terjadwal' || t.status === 'Draft' || t.status === 'Berhenti');
 
   const filteredTasks = tasks.filter(t => {
-      if (tableFilter === 'utama') return t.status === 'Live' || t.status === 'Starting' || t.status === 'Error' || (t.status === 'Terjadwal' && ['sekali', 'manual'].includes(t.jadwalMode));
-      return t.status === 'Berhenti' || (t.status !== 'Live' && t.status !== 'Error' && ['harian', 'smart-weekly'].includes(t.jadwalMode));
+      if (tableFilter === 'utama') {
+          return t.status === 'Live' || t.status === 'Starting' || t.status === 'Error' || (t.status === 'Terjadwal' && ['sekali', 'manual'].includes(t.jadwalMode));
+      } else {
+          return t.status === 'Berhenti' || (t.status !== 'Live' && t.status !== 'Error' && ['harian', 'smart-weekly'].includes(t.jadwalMode));
+      }
   });
 
   return (
@@ -478,6 +536,7 @@ function DashboardView({ isPreview, API_BASE, onEditTask }) {
           <h3 className="text-base font-semibold text-gray-900 dark:text-slate-100 flex items-center gap-2">
             <Radio className="w-4 h-4 text-emerald-500 dark:text-emerald-400" /> Daftar Tugas & Streaming
           </h3>
+          
           <div className="flex items-center gap-2 bg-gray-200/50 dark:bg-slate-900 p-1 rounded-lg self-start sm:self-auto">
              <button onClick={() => setTableFilter('utama')} className={`px-3 py-1.5 rounded-md text-xs font-bold transition-colors flex items-center gap-1.5 ${tableFilter === 'utama' ? 'bg-white dark:bg-slate-700 text-emerald-600 dark:text-emerald-400 shadow-sm' : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-300'}`}>
                 <PlayCircle className="w-3.5 h-3.5" /> Live & Antrean
@@ -629,32 +688,19 @@ function TugasLiveView({ accounts, isPreview, API_BASE, onNavigate, taskToEdit, 
   const [videoLanguage, setVideoLanguage] = useState('id'); 
 
   const AVAILABLE_LANGUAGES = [
-    { code: 'id', name: 'Indonesia' }, { code: 'en', name: 'Inggris' },
-    { code: 'ms', name: 'Melayu' }, { code: 'ja', name: 'Jepang' },
-    { code: 'ko', name: 'Korea' }, { code: 'zh-TW', name: 'Mandarin (TW)' },
-    { code: 'zh-CN', name: 'Mandarin (CN)' }, { code: 'hi', name: 'Hindi' },
-    { code: 'bn', name: 'Bengali' }, { code: 'ta', name: 'Tamil' },
-    { code: 'te', name: 'Telugu' }, { code: 'kn', name: 'Kannada' },
-    { code: 'ur', name: 'Urdu' }, { code: 'ar', name: 'Arab' },
-    { code: 'th', name: 'Thailand' }, { code: 'vi', name: 'Vietnam' },
-    { code: 'fil', name: 'Filipina' }, { code: 'es', name: 'Spanyol' },
-    { code: 'pt', name: 'Portugis' }, { code: 'fr', name: 'Prancis' },
-    { code: 'de', name: 'Jerman' }, { code: 'it', name: 'Italia' },
-    { code: 'ru', name: 'Rusia' }, { code: 'tr', name: 'Turki' },
-    { code: 'nl', name: 'Belanda' }, { code: 'pl', name: 'Polandia' },
-    { code: 'uk', name: 'Ukraina' }, { code: 'sv', name: 'Swedia' },
-    { code: 'no', name: 'Norwegia' }, { code: 'da', name: 'Denmark' },
-    { code: 'fi', name: 'Finlandia' }, { code: 'cs', name: 'Ceko' },
-    { code: 'el', name: 'Yunani' }, { code: 'hu', name: 'Hungaria' },
-    { code: 'ro', name: 'Rumania' }, { code: 'sk', name: 'Slovakia' },
-    { code: 'bg', name: 'Bulgaria' }, { code: 'hr', name: 'Kroasia' },
-    { code: 'sr', name: 'Serbia' }, { code: 'he', name: 'Ibrani' },
-    { code: 'fa', name: 'Persia' }, { code: 'sw', name: 'Swahili' },
-    { code: 'am', name: 'Amharik' }, { code: 'af', name: 'Afrikaans' },
-    { code: 'km', name: 'Khmer' }, { code: 'my', name: 'Burma' },
-    { code: 'ne', name: 'Nepal' }, { code: 'si', name: 'Sinhala' },
-    { code: 'pa', name: 'Punjabi' }, { code: 'gu', name: 'Gujarati' },
-    { code: 'mr', name: 'Marathi' }, { code: 'ml', name: 'Malayalam' }
+    { code: 'id', name: 'Indonesia' }, { code: 'en', name: 'Inggris' }, { code: 'ms', name: 'Melayu' }, { code: 'ja', name: 'Jepang' },
+    { code: 'ko', name: 'Korea' }, { code: 'zh-TW', name: 'Mandarin (TW)' }, { code: 'zh-CN', name: 'Mandarin (CN)' }, { code: 'hi', name: 'Hindi' },
+    { code: 'bn', name: 'Bengali' }, { code: 'ta', name: 'Tamil' }, { code: 'te', name: 'Telugu' }, { code: 'kn', name: 'Kannada' },
+    { code: 'ur', name: 'Urdu' }, { code: 'ar', name: 'Arab' }, { code: 'th', name: 'Thailand' }, { code: 'vi', name: 'Vietnam' },
+    { code: 'fil', name: 'Filipina' }, { code: 'es', name: 'Spanyol' }, { code: 'pt', name: 'Portugis' }, { code: 'fr', name: 'Prancis' },
+    { code: 'de', name: 'Jerman' }, { code: 'it', name: 'Italia' }, { code: 'ru', name: 'Rusia' }, { code: 'tr', name: 'Turki' },
+    { code: 'nl', name: 'Belanda' }, { code: 'pl', name: 'Polandia' }, { code: 'uk', name: 'Ukraina' }, { code: 'sv', name: 'Swedia' },
+    { code: 'no', name: 'Norwegia' }, { code: 'da', name: 'Denmark' }, { code: 'fi', name: 'Finlandia' }, { code: 'cs', name: 'Ceko' },
+    { code: 'el', name: 'Yunani' }, { code: 'hu', name: 'Hungaria' }, { code: 'ro', name: 'Rumania' }, { code: 'sk', name: 'Slovakia' },
+    { code: 'bg', name: 'Bulgaria' }, { code: 'hr', name: 'Kroasia' }, { code: 'sr', name: 'Serbia' }, { code: 'he', name: 'Ibrani' },
+    { code: 'fa', name: 'Persia' }, { code: 'sw', name: 'Swahili' }, { code: 'am', name: 'Amharik' }, { code: 'af', name: 'Afrikaans' },
+    { code: 'km', name: 'Khmer' }, { code: 'my', name: 'Burma' }, { code: 'ne', name: 'Nepal' }, { code: 'si', name: 'Sinhala' },
+    { code: 'pa', name: 'Punjabi' }, { code: 'gu', name: 'Gujarati' }, { code: 'mr', name: 'Marathi' }, { code: 'ml', name: 'Malayalam' }
   ];
 
   const getFlagCode = (lang) => {
@@ -839,7 +885,6 @@ function TugasLiveView({ accounts, isPreview, API_BASE, onNavigate, taskToEdit, 
     <div className="block pb-32 md:pb-24 animate-in fade-in duration-500">
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-8">
         
-        {/* KOLOM KIRI */}
         <div className="lg:col-span-7 flex flex-col gap-6">
           <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700/60 p-5 md:p-6 shadow-sm">
             <h3 className="text-lg font-bold flex items-center gap-2 border-b border-gray-100 dark:border-slate-700/60 pb-4 mb-5 text-gray-800 dark:text-slate-100">
@@ -1111,6 +1156,7 @@ function TugasLiveView({ accounts, isPreview, API_BASE, onNavigate, taskToEdit, 
               </div>
             </div>
           </div>
+
         </div>
 
         {/* KOLOM KANAN */}
@@ -1473,7 +1519,7 @@ function MediaView({ isPreview, API_BASE }) {
   };
 
   return (
-    <div className="h-[calc(100vh-8rem)] flex flex-col bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700/60 shadow-sm overflow-hidden relative">
+    <div className="h-[calc(100vh-8rem)] flex flex-col bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700/60 shadow-sm overflow-hidden relative animate-in fade-in duration-500">
       <div className="flex justify-between items-center px-5 py-3.5 border-b border-gray-100 dark:border-slate-700/60 bg-gray-50/50 dark:bg-slate-800/50 shrink-0">
         <h3 className="text-sm font-bold text-gray-800 dark:text-slate-100 flex items-center gap-2"><Film className="w-4 h-4 text-gray-400 dark:text-slate-500" /> Manajemen Media & Playlist</h3>
         <div className="flex gap-2">
@@ -1495,7 +1541,7 @@ function MediaView({ isPreview, API_BASE }) {
         <div className="w-60 flex flex-col border-r border-gray-100 dark:border-slate-700/60 bg-gray-50/30 dark:bg-slate-900/30 shrink-0">
           <div className="p-3 flex-1 overflow-y-auto space-y-0.5 custom-scrollbar">
             <div className="text-[9px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-widest px-2 pb-2 pt-1">Direktori Penyimpanan</div>
-            <div onClick={() => setActiveFolder('Video Berita Utama')}><FolderItem name="Semua Video" count={videoList.length} active={activeFolder === 'Video Berita Utama'} /></div>
+            <div onClick={() => setActiveFolder('Video Berita Utama')}><FolderItem name="Semua Video / Media" count={videoList.length} active={activeFolder === 'Video Berita Utama'} /></div>
             <div onClick={() => setActiveFolder('Thumbnail & Gambar')}><FolderItem name="Thumbnail & Gambar" count={imageList.length} active={activeFolder === 'Thumbnail & Gambar'} /></div>
             <div onClick={() => setActiveFolder('Playlist Looping')}><FolderItem name="Playlist Tersimpan" count={playlists.length} active={activeFolder === 'Playlist Looping'} /></div>
           </div>
@@ -1513,14 +1559,7 @@ function MediaView({ isPreview, API_BASE }) {
                 </div>
               ) : ( 
                 videoList.map((file) => (
-                  <VideoPreviewCard 
-                    key={file.id} 
-                    name={file.name} 
-                    size={file.size} 
-                    API_BASE={API_BASE}
-                    onEdit={() => { setFileToRename(file); setNewFileName(file.name); }}
-                    onDelete={() => setFileToDelete(file)} 
-                  />
+                  <VideoPreviewCard key={file.id} name={file.name} size={file.size} API_BASE={API_BASE} onEdit={() => { setFileToRename(file); setNewFileName(file.name); }} onDelete={() => setFileToDelete(file)} />
                 )) 
               )}
             </div>
@@ -1534,14 +1573,7 @@ function MediaView({ isPreview, API_BASE }) {
                 </div>
               ) : ( 
                 imageList.map((file) => (
-                  <VideoPreviewCard 
-                    key={file.id} 
-                    name={file.name} 
-                    size={file.size} 
-                    API_BASE={API_BASE}
-                    onEdit={() => { setFileToRename(file); setNewFileName(file.name); }}
-                    onDelete={() => setFileToDelete(file)} 
-                  />
+                  <VideoPreviewCard key={file.id} name={file.name} size={file.size} API_BASE={API_BASE} onEdit={() => { setFileToRename(file); setNewFileName(file.name); }} onDelete={() => setFileToDelete(file)} />
                 )) 
               )}
             </div>
@@ -1623,7 +1655,7 @@ function MediaView({ isPreview, API_BASE }) {
                 </div>
               </div>
             </div>
-            <div className="px-6 py-4 border-t border-gray-200 dark:border-slate-700/60 bg-gray-50 dark:bg-slate-800/50 flex justify-end gap-3"><button onClick={() => setShowPlaylistModal(false)} className="px-4 py-2 rounded-lg border border-gray-300 dark:border-slate-600 text-gray-700 dark:text-slate-300 text-sm hover:bg-slate-700/50">Batal</button><button onClick={handleSavePlaylist} className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm hover:bg-emerald-700">Simpan Playlist</button></div>
+            <div className="px-6 py-4 border-t border-gray-200 dark:border-slate-700/60 bg-gray-50 dark:bg-slate-800/50 flex justify-end gap-3"><button onClick={() => setShowPlaylistModal(false)} className="px-4 py-2 rounded-lg border dark:border-slate-600 text-gray-700 dark:text-slate-300 text-sm hover:bg-slate-700/50">Batal</button><button onClick={handleSavePlaylist} className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm hover:bg-emerald-700">Simpan Playlist</button></div>
           </div>
         </div>
       )}
@@ -1659,6 +1691,7 @@ function AnalyticsView({ accounts, API_BASE }) {
   const [lastUpdate, setLastUpdate] = useState('');
   const [isRefreshing, setIsRefreshing] = useState(false);
 
+  const [selectedAccount, setSelectedAccount] = useState('all');
   const [chartData, setChartData] = useState([]);
   const [metrics, setMetrics] = useState({ revenue: 0, watchHours: 0, subscribers: 0, totalViews: 0 });
 
@@ -1670,17 +1703,20 @@ function AnalyticsView({ accounts, API_BASE }) {
     updateTime();
   }, []);
 
+  const fetchAnalyticsData = async () => {
+      try {
+          const res = await fetch(`${API_BASE}/api/analytics?accountId=${selectedAccount}`);
+          if(res.ok) {
+              const data = await res.json();
+              setChartData(data.chart || []);
+              setMetrics(data.metrics || { revenue: 0, watchHours: 0, subscribers: 0, totalViews: 0 });
+          }
+      } catch (e) {}
+  };
+
   const handleRefresh = async () => {
     setIsRefreshing(true);
-    try {
-        const res = await fetch(`${API_BASE}/api/analytics`);
-        if(res.ok) {
-            const data = await res.json();
-            setChartData(data.chart || []);
-            setMetrics(data.metrics || { revenue: 0, watchHours: 0, subscribers: 0, totalViews: 0 });
-        }
-    } catch (e) {}
-    
+    await fetchAnalyticsData();
     setTimeout(() => {
       setIsRefreshing(false);
       const now = new Date();
@@ -1697,25 +1733,17 @@ function AnalyticsView({ accounts, API_BASE }) {
       } catch (e) {}
     };
 
-    const fetchAnalytics = async () => {
-        try {
-            const res = await fetch(`${API_BASE}/api/analytics`);
-            if(res.ok) {
-                const data = await res.json();
-                setChartData(data.chart || []);
-                setMetrics(data.metrics || { revenue: 0, watchHours: 0, subscribers: 0, totalViews: 0 });
-            }
-        } catch (e) {}
-    };
-
     fetchTasks();
-    fetchAnalytics();
+    fetchAnalyticsData();
 
-    const interval = setInterval(fetchTasks, 10000);
+    const interval = setInterval(() => {
+        fetchTasks();
+        fetchAnalyticsData();
+    }, 10000);
     return () => clearInterval(interval);
-  }, [API_BASE]);
+  }, [API_BASE, selectedAccount]);
 
-  const activeLiveTasks = tasks.filter(t => t.status === 'Live');
+  const activeLiveTasks = tasks.filter(t => t.status === 'Live' && (selectedAccount === 'all' || t.accountId === selectedAccount));
   const currentCcv = activeLiveTasks.reduce((sum, t) => sum + (t.viewers || 0), 0);
 
   return (
@@ -1724,7 +1752,11 @@ function AnalyticsView({ accounts, API_BASE }) {
         <div className="flex flex-col sm:flex-row gap-4">
           <div>
             <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">CHANNEL</label>
-            <select className="bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-700 text-gray-800 dark:text-slate-200 text-sm rounded-lg px-3 py-2 outline-none focus:border-emerald-500 min-w-[200px]">
+            <select 
+              value={selectedAccount} 
+              onChange={(e) => setSelectedAccount(e.target.value)} 
+              className="bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-700 text-gray-800 dark:text-slate-200 text-sm rounded-lg px-3 py-2 outline-none focus:border-emerald-500 min-w-[200px]"
+            >
               <option value="all">Semua Channel (Keseluruhan)</option>
               {accounts?.map(acc => ( <option key={acc.id} value={acc.id}>{acc.name}</option> ))}
             </select>
@@ -1882,9 +1914,8 @@ function SettingsView({ accounts, fetchAccounts, isPreview, API_BASE }) {
   };
 
   return (
-    <div className="w-full max-w-7xl mx-auto pb-10 grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div className="w-full max-w-7xl mx-auto pb-10 grid grid-cols-1 lg:grid-cols-2 gap-6 animate-in fade-in duration-500">
       
-      {/* Kolom Kiri */}
       <div className="space-y-6">
         <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700/60 p-6 shadow-sm">
           <div className="border-b border-gray-200 dark:border-slate-700/60 pb-4 mb-4"><h3 className="text-lg font-bold text-gray-800 dark:text-slate-100 flex items-center gap-2"><Sliders className="w-5 h-5 text-emerald-500" /> Setup Kredensial Google API</h3></div>
@@ -1935,7 +1966,6 @@ function SettingsView({ accounts, fetchAccounts, isPreview, API_BASE }) {
         </div>
       </div>
 
-      {/* Kolom Kanan */}
       <div className="space-y-6">
         <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700/60 p-6 shadow-sm h-fit">
           <div className="flex items-center justify-between mb-4 border-b border-gray-200 dark:border-slate-700/60 pb-4">
@@ -1957,11 +1987,7 @@ function SettingsView({ accounts, fetchAccounts, isPreview, API_BASE }) {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Platform Notifikasi</label>
-                <select 
-                  value={notifPlatform}
-                  onChange={(e) => setNotifPlatform(e.target.value)}
-                  className={inputClassName}
-                >
+                <select value={notifPlatform} onChange={(e) => setNotifPlatform(e.target.value)} className={inputClassName}>
                   <option value="telegram">Telegram Bot</option>
                 </select>
               </div>
@@ -1969,23 +1995,11 @@ function SettingsView({ accounts, fetchAccounts, isPreview, API_BASE }) {
               <div className="space-y-3">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Bot Token</label>
-                  <input 
-                     type="password" 
-                     value={telegramToken}
-                     onChange={(e) => setTelegramToken(e.target.value)}
-                     placeholder="123456:ABC-DEF..." 
-                     className={inputClassName} 
-                  />
+                  <input type="password" value={telegramToken} onChange={(e) => setTelegramToken(e.target.value)} placeholder="123456:ABC-DEF..." className={inputClassName} />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Chat ID (Target Group/User)</label>
-                  <input 
-                     type="text" 
-                     value={telegramChatId}
-                     onChange={(e) => setTelegramChatId(e.target.value)}
-                     placeholder="123456789" 
-                     className={inputClassName} 
-                  />
+                  <input type="text" value={telegramChatId} onChange={(e) => setTelegramChatId(e.target.value)} placeholder="123456789" className={inputClassName} />
                 </div>
               </div>
             </div>
@@ -2003,16 +2017,10 @@ function SettingsView({ accounts, fetchAccounts, isPreview, API_BASE }) {
                 </label>
               </div>
               <div className="mt-5 pt-4 border-t border-gray-200 dark:border-slate-700/60 flex flex-wrap gap-3 justify-end">
-                <button 
-                  onClick={handleSaveNotif}
-                  className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg transition-colors shadow-sm"
-                >
+                <button onClick={handleSaveNotif} className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg transition-colors shadow-sm">
                   💾 Simpan Pengaturan
                 </button>
-                <button 
-                  onClick={handleTestNotif}
-                  className="flex items-center gap-2 px-4 py-2 bg-gray-200 dark:bg-slate-700 hover:bg-gray-300 dark:hover:bg-slate-600 text-gray-800 dark:text-slate-200 text-xs font-bold rounded-lg transition-colors shadow-sm"
-                >
+                <button onClick={handleTestNotif} className="flex items-center gap-2 px-4 py-2 bg-gray-200 dark:bg-slate-700 hover:bg-gray-300 dark:hover:bg-slate-600 text-gray-800 dark:text-slate-200 text-xs font-bold rounded-lg transition-colors shadow-sm">
                   <Send className="w-3.5 h-3.5" /> Test Kirim Pesan
                 </button>
               </div>
@@ -2040,7 +2048,6 @@ function LogView({ isPreview, API_BASE }) {
   const [autoScroll, setAutoScroll] = useState(true); 
 
   const logsEndRef = useRef(null);
-  const logContainerRef = useRef(null);
 
   const handleScroll = (e) => {
     const { scrollTop, scrollHeight, clientHeight } = e.target;
@@ -2125,7 +2132,7 @@ function LogView({ isPreview, API_BASE }) {
   const bitrateColor = currentBitrateNum > 0 ? (currentBitrateNum > 4500000 ? 'text-green-500 dark:text-emerald-400' : currentBitrateNum > 2000000 ? 'text-yellow-500 dark:text-amber-400' : 'text-red-500 dark:text-rose-400') : 'text-gray-500 dark:text-slate-500';
 
   return (
-    <div className="flex flex-col lg:flex-row gap-6 h-[calc(100vh-8rem)]">
+    <div className="flex flex-col lg:flex-row gap-6 h-[calc(100vh-8rem)] animate-in fade-in duration-500">
       <div className="lg:w-1/3 flex flex-col gap-4 overflow-y-auto pr-2 custom-scrollbar">
         <h3 className="text-lg font-bold flex items-center gap-2 mb-2 dark:text-slate-100"><Activity className="w-5 h-5 text-emerald-500 dark:text-emerald-400" /> Stream Health</h3>
         <div className="grid grid-cols-2 gap-3">
@@ -2184,7 +2191,6 @@ function LogView({ isPreview, API_BASE }) {
         </div>
         <div 
           className="p-4 overflow-y-auto flex-1 z-10 custom-scrollbar relative"
-          ref={logContainerRef}
           onScroll={handleScroll}
         >
           <div className="space-y-1.5 text-[13px] leading-relaxed">
