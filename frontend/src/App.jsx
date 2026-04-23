@@ -5,7 +5,7 @@ import {
   Video, RefreshCw, Server, Activity, Users, 
   CheckCircle2, AlertCircle, Clock, Edit, StopCircle, Trash2,
   XCircle, ChevronDown, Menu, Image, Monitor, Radio, Calendar, ShieldAlert,
-  Wifi, Zap, TerminalSquare, Cpu, Bell, Bot, Send,
+  Wifi, Zap, TerminalSquare, Cpu, Bell, Bot, Send, AlertTriangle,
   Cast, Film, Sliders, ScrollText, Link as LinkIcon, ListVideo, ArrowDown, Archive, Pencil, Globe
 } from 'lucide-react';
 
@@ -329,9 +329,9 @@ function DashboardView({ isPreview, API_BASE, onEditTask }) {
 
   const filteredTasks = tasks.filter(t => {
       if (tableFilter === 'utama') {
-          return t.status === 'Live' || t.status === 'Starting' || t.status === 'Error' || (t.status === 'Terjadwal' && ['sekali', 'manual'].includes(t.jadwalMode));
+          return t.status === 'Live' || t.status === 'Starting' || t.status === 'Terjadwal';
       } else {
-          return t.status === 'Berhenti' || (t.status !== 'Live' && t.status !== 'Error' && ['harian', 'smart-weekly'].includes(t.jadwalMode));
+          return t.status === 'Berhenti' || t.status === 'Error';
       }
   });
 
@@ -744,7 +744,7 @@ function TugasLiveView({ accounts, isPreview, API_BASE, onNavigate, taskToEdit, 
   const labelClassName = "block text-sm font-semibold mb-1.5 text-gray-700 dark:text-slate-300";
 
   return (
-    <div className="block pb-32 md:pb-24 animate-in fade-in duration-500">
+    <div className="block pb-10 animate-in fade-in duration-500">
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-8">
         
         {/* KOLOM KIRI */}
@@ -1014,7 +1014,7 @@ function TugasLiveView({ accounts, isPreview, API_BASE, onNavigate, taskToEdit, 
                       <option value="off">Tidak Aktif (Off)</option>
                     </select>
                   </div>
-                  <div>
+                  <div className="sm:col-span-2 lg:col-span-1">
                     <label className="block text-xs font-semibold text-gray-600 dark:text-slate-400 mb-1.5">Playlist Target</label>
                     <select value={targetPlaylist} onChange={e => setTargetPlaylist(e.target.value)} className="w-full bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600/60 rounded-lg px-3 py-2 outline-none focus:border-emerald-500 dark:focus:border-emerald-400 text-sm truncate dark:text-slate-200">
                       <option value="none">-- Jangan tambahkan --</option>
@@ -1255,7 +1255,7 @@ function TugasLiveView({ accounts, isPreview, API_BASE, onNavigate, taskToEdit, 
                </div>
             )}
           </div>
-
+          
           <div className="bg-gradient-to-br from-white to-emerald-50/30 dark:from-slate-800 dark:to-emerald-900/10 rounded-xl border border-gray-200 dark:border-slate-700/60 p-5 md:p-6 shadow-sm">
             <div className="flex items-center justify-between mb-4 border-b border-gray-200 dark:border-slate-700/60 pb-4">
               <div className="flex items-center gap-3">
@@ -1290,11 +1290,11 @@ function TugasLiveView({ accounts, isPreview, API_BASE, onNavigate, taskToEdit, 
               </div>
             </div>
           </div>
-          
+
         </div>
       </div>
 
-      <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700/60 p-5 md:p-6 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4 mt-2 sticky bottom-4 z-50">
+      <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700/60 p-5 md:p-6 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4 mt-2">
          <div className="flex items-center gap-4 w-full sm:w-auto">
            <div className="w-10 h-10 rounded-full bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center shrink-0"><div className="w-3 h-3 rounded-full bg-blue-500 dark:bg-blue-400 animate-pulse"></div></div>
            <div><p className="text-xs text-gray-500 dark:text-slate-400 font-medium mb-0.5">Status Tugas Live</p><p className="text-sm font-bold text-blue-600 dark:text-blue-400">{taskToEdit ? 'Sedang Mode Edit' : 'Siap Disimpan'}</p></div>
@@ -1312,7 +1312,7 @@ function TugasLiveView({ accounts, isPreview, API_BASE, onNavigate, taskToEdit, 
 }
 
 // -----------------------------------------------------------------------------
-// TAB MEDIA
+// TAB 3: MEDIA
 // -----------------------------------------------------------------------------
 function MediaView({ isPreview, API_BASE }) {
   const [isUploading, setIsUploading] = useState(false);
@@ -1496,6 +1496,7 @@ function MediaView({ isPreview, API_BASE }) {
         </div>
       </div>
 
+      {/* Modal Import URL */}
       {showImportUrlModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4" onClick={() => setShowImportUrlModal(false)}>
           <div className="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-md shadow-2xl shadow-black/40 overflow-hidden border border-gray-200 dark:border-slate-700 flex flex-col" onClick={e => e.stopPropagation()}>
@@ -1509,6 +1510,7 @@ function MediaView({ isPreview, API_BASE }) {
         </div>
       )}
 
+      {/* Modal Rename */}
       {fileToRename && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4" onClick={() => setFileToRename(null)}>
           <div className="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-md shadow-2xl shadow-black/40 overflow-hidden border border-gray-200 dark:border-slate-700 flex flex-col" onClick={e => e.stopPropagation()}>
@@ -1523,6 +1525,7 @@ function MediaView({ isPreview, API_BASE }) {
         </div>
       )}
 
+      {/* Modal Playlist */}
       {showPlaylistModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
           <div className="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-lg shadow-2xl shadow-black/40 overflow-hidden border border-gray-200 dark:border-slate-700 flex flex-col max-h-[90vh]">
@@ -1555,6 +1558,7 @@ function MediaView({ isPreview, API_BASE }) {
         </div>
       )}
 
+      {/* Modal Hapus File */}
       {fileToDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
           <div className="bg-white dark:bg-slate-800 rounded-xl w-full max-w-sm shadow-2xl p-6 text-center border border-gray-200 dark:border-slate-700">
@@ -1565,6 +1569,7 @@ function MediaView({ isPreview, API_BASE }) {
         </div>
       )}
 
+      {/* Modal Hapus Playlist */}
       {playlistToDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
           <div className="bg-white dark:bg-slate-800 rounded-xl w-full max-w-sm shadow-2xl p-6 text-center border border-gray-200 dark:border-slate-700">
@@ -1594,6 +1599,7 @@ function SettingsView({ accounts, fetchAccounts, isPreview, API_BASE }) {
   const [clientId, setClientId] = useState('');
   const [clientSecret, setClientSecret] = useState('');
   const [isSavingCreds, setIsSavingCreds] = useState(false);
+  const [showApiSetup, setShowApiSetup] = useState(false); 
 
   const inputClassName = "w-full bg-gray-50 dark:bg-slate-900/50 border border-gray-300 dark:border-slate-600/60 rounded-lg px-4 py-2.5 outline-none focus:border-emerald-500 dark:focus:border-emerald-400 font-mono text-sm dark:text-slate-200 transition-colors";
 
@@ -1642,7 +1648,7 @@ function SettingsView({ accounts, fetchAccounts, isPreview, API_BASE }) {
       const res = await fetch(`${API_BASE}/api/settings/google-credentials`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ clientId, clientSecret }) });
       const data = await res.json();
       alert(data.success ? 'Berhasil: ' + data.message : 'Gagal: ' + data.message);
-      if (data.success) { setClientId(''); setClientSecret(''); }
+      if (data.success) { setClientId(''); setClientSecret(''); setShowApiSetup(false); }
     } catch (err) {} finally { setIsSavingCreds(false); }
   };
 
@@ -1678,35 +1684,15 @@ function SettingsView({ accounts, fetchAccounts, isPreview, API_BASE }) {
       
       <div className="space-y-6">
         <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700/60 p-6 shadow-sm">
-          <div className="border-b border-gray-200 dark:border-slate-700/60 pb-4 mb-4"><h3 className="text-lg font-bold text-gray-800 dark:text-slate-100 flex items-center gap-2"><Sliders className="w-5 h-5 text-emerald-500" /> Setup Kredensial Google API</h3></div>
+          <div className="flex justify-between items-center border-b border-gray-200 dark:border-slate-700/60 pb-4 mb-5"><h3 className="text-lg font-bold text-gray-800 dark:text-slate-100 flex items-center gap-2"><PlayCircle className="w-5 h-5 text-red-500" /> Channel YouTube Terhubung</h3></div>
+          
           {accounts?.length > 0 && (
             <div className="mb-5 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800/30 rounded-xl p-4 flex items-start gap-3">
               <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
-              <div><p className="text-sm text-emerald-800 dark:text-emerald-300 font-bold">Kredensial Valid & Aktif</p><p className="text-xs text-emerald-600 dark:text-emerald-400/90 mt-1">Sistem telah terhubung dengan <strong>{accounts.length} Channel YouTube</strong>. API siap digunakan untuk Live Streaming Otomatis dan Fitur Chatbot.</p></div>
+              <div><p className="text-sm text-emerald-800 dark:text-emerald-300 font-bold">Koneksi API Aktif</p><p className="text-xs text-emerald-600 dark:text-emerald-400/90 mt-1">Sistem telah terhubung dengan <strong>{accounts.length} Channel YouTube</strong>. API siap digunakan untuk Live Streaming Otomatis dan Fitur Chatbot.</p></div>
             </div>
           )}
-          <div className="space-y-4">
-            <div><label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Client ID</label><input type="text" value={clientId} onChange={(e) => setClientId(e.target.value)} placeholder="Contoh: 123456789-xxxxxx.apps.googleusercontent.com" className={inputClassName} /></div>
-            <div><label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Client Secret</label><input type="password" value={clientSecret} onChange={(e) => setClientSecret(e.target.value)} placeholder="Contoh: GOCSPX-xxxxxx_xxxxxxxxxx" className={inputClassName} /></div>
-            <div className="pt-2"><button onClick={handleSaveGoogleCredentials} disabled={isSavingCreds} className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors text-sm shadow-sm disabled:opacity-50 flex items-center justify-center gap-2">{isSavingCreds ? 'Menyimpan...' : 'Simpan Kredensial API'}</button></div>
-          </div>
-        </div>
 
-        <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700/60 p-6 shadow-sm">
-          <div className="border-b border-gray-200 dark:border-slate-700/60 pb-4 mb-4"><h3 className="text-lg font-bold text-gray-800 dark:text-slate-100 flex items-center gap-2"><Radio className="w-5 h-5 text-emerald-500" /> Autentikasi Manual (Login)</h3></div>
-          <div className="flex justify-center mb-8">
-            <button onClick={handleLoginGoogle} className="flex items-center gap-3 px-6 py-2.5 border-2 border-gray-200 dark:border-slate-600/60 text-gray-700 dark:text-slate-200 font-medium rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors shadow-sm">
-              <span className="text-blue-600 dark:text-blue-400 font-semibold">1. Buka Login Google</span>
-            </button>
-          </div>
-          <div className="space-y-5 bg-gray-50 dark:bg-slate-900/30 p-5 rounded-xl border border-gray-100 dark:border-slate-700/50">
-            <div><label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">2. Tempel URL Lengkap</label><textarea rows="4" value={authUrl} onChange={(e) => setAuthUrl(e.target.value)} className="w-full bg-white dark:bg-slate-900/50 border border-gray-300 dark:border-slate-600/60 rounded-md px-4 py-3 outline-none focus:border-emerald-500 dark:focus:border-emerald-400 font-mono text-xs break-all text-gray-600 dark:text-slate-300 shadow-sm" placeholder="http://localhost/?state=ppVwnH...&code=4/0A..."></textarea></div>
-          </div>
-          <div className="mt-6"><button onClick={handleSaveAccount} disabled={isSaving} className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-600 dark:hover:bg-emerald-700 text-white font-bold rounded-lg transition-colors shadow-md">{isSaving ? 'Memproses...' : 'Simpan Akun'}</button></div>
-        </div>
-
-        <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700/60 p-6 shadow-sm">
-          <div className="flex justify-between items-center border-b border-gray-200 dark:border-slate-700/60 pb-4 mb-5"><h3 className="text-lg font-bold text-gray-800 dark:text-slate-100 flex items-center gap-2"><PlayCircle className="w-5 h-5 text-red-500" /> Channel YouTube Terhubung</h3></div>
           {accounts?.length > 0 ? (
             <div className="grid grid-cols-1 gap-4">
               {accounts.map(acc => (
@@ -1723,6 +1709,48 @@ function SettingsView({ accounts, fetchAccounts, isPreview, API_BASE }) {
             <div className="text-sm text-gray-500 dark:text-slate-400 p-8 text-center border border-dashed border-gray-300 dark:border-slate-700/60 rounded-xl bg-gray-50/50 dark:bg-slate-900/20"><Users className="w-10 h-10 mx-auto text-gray-400 mb-3 opacity-50" /><p className="font-semibold text-gray-700 dark:text-slate-300 mb-1">Belum Ada Channel Terhubung</p></div>
           )}
         </div>
+
+        <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700/60 p-6 shadow-sm">
+          <div className="border-b border-gray-200 dark:border-slate-700/60 pb-4 mb-4"><h3 className="text-lg font-bold text-gray-800 dark:text-slate-100 flex items-center gap-2"><Plus className="w-5 h-5 text-blue-500" /> Tambah Channel Baru (Login)</h3></div>
+          <div className="flex justify-center mb-8">
+            <button onClick={handleLoginGoogle} className="flex items-center gap-3 px-6 py-2.5 border-2 border-gray-200 dark:border-slate-600/60 text-gray-700 dark:text-slate-200 font-medium rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors shadow-sm">
+              <span className="text-blue-600 dark:text-blue-400 font-semibold">1. Buka Login Google</span>
+            </button>
+          </div>
+          <div className="space-y-5 bg-gray-50 dark:bg-slate-900/30 p-5 rounded-xl border border-gray-100 dark:border-slate-700/50">
+            <div><label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">2. Tempel URL Lengkap (Kode Akses)</label><textarea rows="4" value={authUrl} onChange={(e) => setAuthUrl(e.target.value)} className="w-full bg-white dark:bg-slate-900/50 border border-gray-300 dark:border-slate-600/60 rounded-md px-4 py-3 outline-none focus:border-blue-500 dark:focus:border-blue-400 font-mono text-xs break-all text-gray-600 dark:text-slate-300 shadow-sm" placeholder="http://localhost/?state=ppVwnH...&code=4/0A..."></textarea></div>
+          </div>
+          <div className="mt-6"><button onClick={handleSaveAccount} disabled={isSaving} className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg transition-colors shadow-md">{isSaving ? 'Memproses...' : 'Simpan Akun Channel'}</button></div>
+        </div>
+
+        {/* Accordion Ganti Kredensial API */}
+        <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700/60 overflow-hidden shadow-sm">
+          <button 
+            onClick={() => setShowApiSetup(!showApiSetup)}
+            className="w-full p-6 flex justify-between items-center text-left hover:bg-gray-50 dark:hover:bg-slate-700/30 transition-colors"
+          >
+             <div className="flex items-center gap-3">
+               <div className="p-2 bg-orange-100 dark:bg-orange-500/10 rounded-lg text-orange-600 dark:text-orange-500"><AlertTriangle className="w-5 h-5" /></div>
+               <div>
+                 <h3 className="text-sm font-bold text-gray-800 dark:text-slate-100">Ganti Kredensial API Google</h3>
+                 <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">Gunakan ini HANYA JIKA kuota harian API Anda habis (Quota Exceeded).</p>
+               </div>
+             </div>
+             <ChevronDown className={`w-5 h-5 text-gray-400 transition-transform ${showApiSetup ? 'rotate-180' : ''}`} />
+          </button>
+          
+          {showApiSetup && (
+            <div className="p-6 pt-2 border-t border-gray-100 dark:border-slate-700/60 animate-in fade-in">
+              <div className="space-y-4">
+                <div><label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Client ID Baru</label><input type="text" value={clientId} onChange={(e) => setClientId(e.target.value)} placeholder="Contoh: 123456789-xxxxxx.apps.googleusercontent.com" className={inputClassName} /></div>
+                <div><label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Client Secret Baru</label><input type="password" value={clientSecret} onChange={(e) => setClientSecret(e.target.value)} placeholder="Contoh: GOCSPX-xxxxxx_xxxxxxxxxx" className={inputClassName} /></div>
+                <div className="pt-2"><button onClick={handleSaveGoogleCredentials} disabled={isSavingCreds} className="px-6 py-2.5 bg-orange-600 hover:bg-orange-700 text-white font-medium rounded-lg transition-colors text-sm shadow-sm disabled:opacity-50 flex items-center justify-center gap-2">{isSavingCreds ? 'Menyimpan...' : 'Timpa Kredensial API'}</button></div>
+                <p className="text-[10px] text-gray-500 mt-2 bg-gray-100 dark:bg-slate-900 p-2 rounded text-justify">Penting: Setelah mengganti Client ID, Anda wajib menghapus Channel Terhubung di atas dan melakukan Login ulang menggunakan URL yang baru agar sistem mengikat kuota API yang baru ke akun tersebut.</p>
+              </div>
+            </div>
+          )}
+        </div>
+
       </div>
 
       <div className="space-y-6">
@@ -1890,6 +1918,22 @@ function LogView({ isPreview, API_BASE }) {
   const currentBitrateNum = bitrateHistory[bitrateHistory.length - 1];
   const bitrateColor = currentBitrateNum > 0 ? (currentBitrateNum > 4500000 ? 'text-green-500 dark:text-emerald-400' : currentBitrateNum > 2000000 ? 'text-yellow-500 dark:text-amber-400' : 'text-red-500 dark:text-rose-400') : 'text-gray-500 dark:text-slate-500';
 
+  // DETEKSI ENCODER DINAMIS
+  const activeTaskData = tasks.find(t => t.id === selectedTaskId);
+  let encoderDisplay = 'Menunggu...';
+  let presetDisplay = '-';
+
+  if (activeTaskData) {
+    const eng = activeTaskData.encoderEngine || 'copy';
+    if (eng === 'copy') { encoderDisplay = 'Direct Copy'; presetDisplay = 'N/A (Bypass)'; }
+    else if (eng === 'nvenc') { encoderDisplay = 'NVENC (NVIDIA)'; presetDisplay = 'p4'; }
+    else if (eng === 'qsv') { encoderDisplay = 'QuickSync (Intel)'; presetDisplay = 'faster'; }
+    else { encoderDisplay = 'x264 (Software)'; presetDisplay = 'veryfast'; }
+  } else if (!selectedTaskId) {
+    encoderDisplay = 'Sistem Utama';
+    presetDisplay = 'N/A';
+  }
+
   return (
     <div className="flex flex-col lg:flex-row gap-6 h-[calc(100vh-8rem)] animate-in fade-in duration-500">
       <div className="lg:w-1/3 flex flex-col gap-4 overflow-y-auto pr-2 custom-scrollbar">
@@ -1909,8 +1953,8 @@ function LogView({ isPreview, API_BASE }) {
           </div>
           <div className="bg-gray-900 dark:bg-slate-800 text-white p-4 rounded-xl border border-gray-800 dark:border-slate-700/60 shadow-sm">
             <div className="flex items-center gap-1.5 text-xs text-gray-400 dark:text-slate-400 font-bold uppercase tracking-wider mb-1"><Cpu className="w-3 h-3" /> Encoder</div>
-            <div className="text-sm font-black font-mono mt-1 text-gray-500 dark:text-slate-500">x264 (Software)</div>
-            <div className="text-xs text-gray-500 dark:text-slate-500 mt-1">Preset: veryfast</div>
+            <div className="text-sm font-black font-mono mt-1 text-emerald-400 dark:text-emerald-500">{encoderDisplay}</div>
+            <div className="text-xs text-gray-500 dark:text-slate-500 mt-1">Preset: {presetDisplay}</div>
           </div>
         </div>
 
