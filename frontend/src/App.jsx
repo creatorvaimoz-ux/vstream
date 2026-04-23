@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   LayoutDashboard, PlayCircle, FolderOpen, 
-  Settings, Terminal, Moon, Sun, Plus, Upload, 
+  Settings, Moon, Sun, Plus, Upload, 
   Video, RefreshCw, Server, Activity, Users, 
   CheckCircle2, AlertCircle, Clock, Edit, StopCircle, Trash2,
   XCircle, ChevronDown, Menu, Image, Monitor, Radio, Calendar, ShieldAlert,
@@ -18,18 +18,6 @@ const BRAND_TAGLINE = "Vaimoz Youtube Stream V.1";
 // =============================================================================
 // 1. KOMPONEN-KOMPONEN KECIL (HELPERS)
 // =============================================================================
-
-function StatCard({ title, value, icon: Icon, color, bgColor, className = "" }) {
-  return (
-    <div className={`bg-white dark:bg-slate-800 p-5 rounded-xl border border-gray-200 dark:border-slate-700/60 shadow-sm transition-all flex items-center gap-4 ${className}`}>
-      <div className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 ${bgColor}`}><Icon className={`w-5 h-5 ${color}`} /></div>
-      <div>
-        <p className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider mb-0.5">{title}</p>
-        <p className="text-2xl font-bold text-gray-900 dark:text-slate-100 leading-none">{value}</p>
-      </div>
-    </div>
-  );
-}
 
 function ProgressBar({ label, percentage, color, valueText, unitText = '%', subText }) {
   const displayValue = valueText !== undefined ? String(valueText) : String(percentage);
@@ -317,8 +305,12 @@ function DashboardView({ isPreview, API_BASE, onEditTask }) {
       if(!window.confirm('Mulai Streaming untuk tugas ini sekarang?')) return;
       try {
           const payload = { ...task, isMulaiSekarang: true };
-          await fetch(`${API_BASE}/api/tasks`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-          await fetch(`${API_BASE}/api/tasks/${task.id}`, { method: 'DELETE' }); 
+          await fetch(`${API_BASE}/api/tasks/${task.id}`, { 
+              method: 'PUT', 
+              headers: { 'Content-Type': 'application/json' }, 
+              body: JSON.stringify(payload) 
+          });
+          setTableFilter('utama'); 
           fetchTasks();
       } catch(e) {}
   };
@@ -1320,7 +1312,7 @@ function TugasLiveView({ accounts, isPreview, API_BASE, onNavigate, taskToEdit, 
 }
 
 // -----------------------------------------------------------------------------
-// TAB 3: MEDIA
+// TAB MEDIA
 // -----------------------------------------------------------------------------
 function MediaView({ isPreview, API_BASE }) {
   const [isUploading, setIsUploading] = useState(false);

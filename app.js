@@ -945,11 +945,11 @@ app.get('/api/logs', (req, res) => {
 app.post('/api/tasks', (req, res) => {
     try {
         const tasks = JSON.parse(fs.readFileSync(TASKS_FILE));
-        const newTask = { id: `task_${Date.now()}`, ...req.body, status: req.body.isMulaiSekarang ? 'Live' : 'Terjadwal', createdAt: new Date().toISOString() };
+        const newTask = { id: `task_${Date.now()}`, ...req.body, status: req.body.isMulaiSekarang ? 'Starting' : 'Terjadwal', createdAt: new Date().toISOString() };
         tasks.push(newTask);
         fs.writeFileSync(TASKS_FILE, JSON.stringify(tasks, null, 2));
 
-        if (newTask.status === 'Live') startStreamInternal(newTask);
+        if (req.body.isMulaiSekarang) startStreamInternal(newTask);
 
         res.json({ success: true, message: 'Tugas Live berhasil disimpan!', task: newTask });
     } catch (e) { res.status(500).json({ success: false, message: e.message }); }
@@ -965,7 +965,7 @@ app.put('/api/tasks/:id', (req, res) => {
         if (activeStreams.has(req.params.id)) stopStreamById(req.params.id, false);
 
         const updatedTask = { ...tasks[index], ...req.body, updatedAt: new Date().toISOString() };
-        if (req.body.isMulaiSekarang) updatedTask.status = 'Live';
+        if (req.body.isMulaiSekarang) updatedTask.status = 'Starting';
 
         tasks[index] = updatedTask;
         fs.writeFileSync(TASKS_FILE, JSON.stringify(tasks, null, 2));
@@ -984,7 +984,7 @@ app.get('/api/tasks', (req, res) => {
         const tasksWithAnalytics = tasks.map(t => {
             const activeData = activeStreams.get(t.id);
             
-            if (activeData && t.status !== 'Live') {
+            if (activeData && (t.status !== 'Live' && t.status !== 'Starting')) {
                 t.status = 'Live'; 
                 needsSave = true;
             } else if (!activeData && t.status === 'Live') {
