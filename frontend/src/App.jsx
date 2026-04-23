@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   LayoutDashboard, PlayCircle, FolderOpen, 
-  Settings, Moon, Sun, Plus, Upload, 
+  Settings, Terminal, Moon, Sun, Plus, Upload, 
   Video, RefreshCw, Server, Activity, Users, 
   CheckCircle2, AlertCircle, Clock, Edit, StopCircle, Trash2,
   XCircle, ChevronDown, Menu, Image, Monitor, Radio, Calendar, ShieldAlert,
   Wifi, Zap, TerminalSquare, Cpu, Bell, Bot, Send,
-  Cast, Film, Sliders, ScrollText, Link as LinkIcon, ListVideo, ArrowDown, Archive, Pencil, Globe, DollarSign
+  Cast, Film, Sliders, ScrollText, Link as LinkIcon, ListVideo, ArrowDown, Archive, Pencil, Globe
 } from 'lucide-react';
 
 // === KONFIGURASI BRANDING APLIKASI ===
@@ -18,6 +18,18 @@ const BRAND_TAGLINE = "Vaimoz Youtube Stream V.1";
 // =============================================================================
 // 1. KOMPONEN-KOMPONEN KECIL (HELPERS)
 // =============================================================================
+
+function StatCard({ title, value, icon: Icon, color, bgColor, className = "" }) {
+  return (
+    <div className={`bg-white dark:bg-slate-800 p-5 rounded-xl border border-gray-200 dark:border-slate-700/60 shadow-sm transition-all flex items-center gap-4 ${className}`}>
+      <div className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 ${bgColor}`}><Icon className={`w-5 h-5 ${color}`} /></div>
+      <div>
+        <p className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider mb-0.5">{title}</p>
+        <p className="text-2xl font-bold text-gray-900 dark:text-slate-100 leading-none">{value}</p>
+      </div>
+    </div>
+  );
+}
 
 function ProgressBar({ label, percentage, color, valueText, unitText = '%', subText }) {
   const displayValue = valueText !== undefined ? String(valueText) : String(percentage);
@@ -117,7 +129,6 @@ export default function App() {
     setTaskToEdit(null);
   };
 
-  // MENU ANALYTICS TELAH DIHAPUS DARI DAFTAR NAVIGASI
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'tugas-live', label: 'Tugas Live', icon: Cast },
@@ -507,7 +518,7 @@ function TugasLiveView({ accounts, isPreview, API_BASE, onNavigate, taskToEdit, 
   
   const [thumbnailUrl, setThumbnailUrl] = useState('');
   const [randomizeThumbnail, setRandomizeThumbnail] = useState(false); 
-  const [selectedThumbnails, setSelectedThumbnails] = useState([]); // STATE BARU: Untuk thumbnail pilihan
+  const [selectedThumbnails, setSelectedThumbnails] = useState([]); 
   const [isUploadingThumb, setIsUploadingThumb] = useState(false);
   const thumbInputRef = useRef(null);
 
@@ -524,6 +535,7 @@ function TugasLiveView({ accounts, isPreview, API_BASE, onNavigate, taskToEdit, 
   const [youtubeTags, setYoutubeTags] = useState('');
   const [youtubePrivacy, setYoutubePrivacy] = useState('public');
   const [replayPrivacy, setReplayPrivacy] = useState('public');
+  const [syntheticContent, setSyntheticContent] = useState('no');
 
   const [localizations, setLocalizations] = useState({});
   const [showLocalizations, setShowLocalizations] = useState(false);
@@ -558,7 +570,7 @@ function TugasLiveView({ accounts, isPreview, API_BASE, onNavigate, taskToEdit, 
   ];
 
   const getFlagCode = (lang) => {
-    const map = { en: 'gb', ja: 'jp', ko: 'kr', ms: 'my', 'zh-TW': 'tw', 'zh-CN': 'cn', hi: 'in', bn: 'bd', ta: 'in', te: 'in', kn: 'in', ur: 'pk', ar: 'sa', th: 'th', vi: 'vn', fil: 'ph', es: 'es', pt: 'pt', fr: 'fr', de: 'de', it: 'it', ru: 'ru', tr: 'tr', nl: 'nl', pl: 'pl', uk: 'ua', id: 'id', sv: 'se', no: 'no', da: 'dk', fi: 'fi', cs: 'cz', el: 'gr', hu: 'hu', ro: 'ro', sk: 'sk', bg: 'bg', hr: 'hr', sr: 'rs', he: 'il', fa: 'ir', sw: 'ke', am: 'et', af: 'za', km: 'kh', my: 'mm', ne: 'np', si: 'lk', pa: 'in', gu: 'in', mr: 'in', ml: 'in' };
+    const map = { en: 'gb', ja: 'jp', kr: 'kr', ms: 'my', 'zh-TW': 'tw', 'zh-CN': 'cn', hi: 'in', bn: 'bd', ta: 'in', te: 'in', kn: 'in', ur: 'pk', ar: 'sa', th: 'th', vi: 'vn', fil: 'ph', es: 'es', pt: 'pt', fr: 'fr', de: 'de', it: 'it', ru: 'ru', tr: 'tr', nl: 'nl', pl: 'pl', uk: 'ua', id: 'id', sv: 'se', no: 'no', da: 'dk', fi: 'fi', cs: 'cz', el: 'gr', hu: 'hu', ro: 'ro', sk: 'sk', bg: 'bg', hr: 'hr', sr: 'rs', he: 'il', fa: 'ir', sw: 'ke', am: 'et', af: 'za', km: 'kh', my: 'mm', ne: 'np', si: 'lk', pa: 'in', gu: 'in', mr: 'in', ml: 'in' };
     return map[lang] || 'id';
   };
 
@@ -592,7 +604,7 @@ function TugasLiveView({ accounts, isPreview, API_BASE, onNavigate, taskToEdit, 
       setSmartStopEnabled(taskToEdit.smartStopEnabled || false);
       setThumbnailUrl(taskToEdit.thumbnailUrl || '');
       setRandomizeThumbnail(taskToEdit.randomizeThumbnail || false);
-      setSelectedThumbnails(taskToEdit.selectedThumbnails || []); // Load data pilihan saat edit
+      setSelectedThumbnails(taskToEdit.selectedThumbnails || []);
       setAccountId(taskToEdit.accountId || '');
       setYoutubeCategory(taskToEdit.youtubeCategory || '24');
       setYoutubeTitle(taskToEdit.youtubeTitle || '');
@@ -600,6 +612,7 @@ function TugasLiveView({ accounts, isPreview, API_BASE, onNavigate, taskToEdit, 
       setYoutubeTags(taskToEdit.youtubeTags || '');
       setYoutubePrivacy(taskToEdit.youtubePrivacy || 'public');
       setReplayPrivacy(taskToEdit.replayPrivacy || 'public');
+      setSyntheticContent(taskToEdit.syntheticContent || 'no');
       setLocalizations(taskToEdit.localizations || {}); 
       if (taskToEdit.localizations && Object.keys(taskToEdit.localizations).length > 0) setShowLocalizations(true);
       setChatbotEnabled(taskToEdit.chatbotEnabled || false);
@@ -615,7 +628,7 @@ function TugasLiveView({ accounts, isPreview, API_BASE, onNavigate, taskToEdit, 
     } else {
       setTaskName(''); setManualStreamKey(''); setSelectedVideos([]); setScheduleDate(''); setScheduleTime(''); setThumbnailUrl('');
       setRandomizeThumbnail(false); setSelectedThumbnails([]); setYoutubeTitle(''); setYoutubeDescription(''); setYoutubeTags(''); setYoutubePrivacy('public');
-      setReplayPrivacy('public'); setLocalizations({}); setShowLocalizations(false); setScheduledMessages([]); setFallbackVideo('');
+      setReplayPrivacy('public'); setSyntheticContent('no'); setLocalizations({}); setShowLocalizations(false); setScheduledMessages([]); setFallbackVideo('');
       setOrientation('horizontal'); setVideoLanguage('id'); setSmartStopEnabled(false);
     }
   }, [taskToEdit]);
@@ -716,7 +729,7 @@ function TugasLiveView({ accounts, isPreview, API_BASE, onNavigate, taskToEdit, 
           scheduleGrid, stopHours, stopMinutes, randomizeStop, smartStopEnabled, thumbnailUrl, randomizeThumbnail, selectedThumbnails, 
           availableImages: selectedThumbnails.length > 0 ? selectedThumbnails : availableImages,
           isMulaiSekarang, accountId, youtubeCategory, youtubeTitle, youtubeDescription, youtubeTags,
-          localizations, youtubePrivacy, replayPrivacy, chatbotEnabled, scheduledMessages,
+          localizations, youtubePrivacy, replayPrivacy, syntheticContent, chatbotEnabled, scheduledMessages,
           enableFallback, fallbackVideo, encoderEngine, outputResolution, orientation, monetization, targetPlaylist, videoLanguage
       };
 
@@ -835,6 +848,7 @@ function TugasLiveView({ accounts, isPreview, API_BASE, onNavigate, taskToEdit, 
             </div>
           </div>
 
+          {/* Blok Metadata */}
           <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700/60 p-5 md:p-6 shadow-sm">
             <h3 className="text-lg font-bold flex items-center gap-2 border-b border-gray-100 dark:border-slate-700/60 pb-4 mb-5 text-gray-800 dark:text-slate-100">
               <LayoutDashboard className="w-5 h-5 text-emerald-500 dark:text-emerald-400" /> Metadata YouTube Studio
@@ -969,13 +983,20 @@ function TugasLiveView({ accounts, isPreview, API_BASE, onNavigate, taskToEdit, 
                 <h4 className="text-sm font-bold text-gray-800 dark:text-slate-200 mb-4 flex items-center gap-2">
                   <Settings className="w-4 h-4 text-gray-500 dark:text-slate-400" /> Aturan Publikasi & Visibilitas
                 </h4>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-semibold text-gray-600 dark:text-slate-400 mb-1.5">Privasi Saat Live</label>
                     <select value={youtubePrivacy} onChange={e => setYoutubePrivacy(e.target.value)} className="w-full bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600/60 rounded-lg px-3 py-2 outline-none focus:border-emerald-500 dark:focus:border-emerald-400 text-sm dark:text-slate-200">
                       <option value="public">Publik (Disarankan)</option>
                       <option value="unlisted">Tidak Publik (Unlisted)</option>
                       <option value="private">Privat</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-600 dark:text-slate-400 mb-1.5">Konten Sintetis (AI)</label>
+                    <select value={syntheticContent} onChange={e => setSyntheticContent(e.target.value)} className="w-full bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600/60 rounded-lg px-3 py-2 outline-none focus:border-emerald-500 dark:focus:border-emerald-400 text-sm dark:text-slate-200">
+                      <option value="no">Tidak (Konten Asli)</option>
+                      <option value="yes">Ya (Menggunakan AI)</option>
                     </select>
                   </div>
                   <div>
@@ -1001,7 +1022,7 @@ function TugasLiveView({ accounts, isPreview, API_BASE, onNavigate, taskToEdit, 
                       <option value="off">Tidak Aktif (Off)</option>
                     </select>
                   </div>
-                  <div className="sm:col-span-2">
+                  <div>
                     <label className="block text-xs font-semibold text-gray-600 dark:text-slate-400 mb-1.5">Playlist Target</label>
                     <select value={targetPlaylist} onChange={e => setTargetPlaylist(e.target.value)} className="w-full bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600/60 rounded-lg px-3 py-2 outline-none focus:border-emerald-500 dark:focus:border-emerald-400 text-sm truncate dark:text-slate-200">
                       <option value="none">-- Jangan tambahkan --</option>
@@ -1076,10 +1097,16 @@ function TugasLiveView({ accounts, isPreview, API_BASE, onNavigate, taskToEdit, 
               <div className="flex items-center justify-between border-t border-gray-200 dark:border-slate-700/50 pt-4">
                 <div className="flex flex-col">
                    <span className="text-sm font-semibold text-gray-700 dark:text-slate-300">Stop Otomatis</span>
-                   <label className="flex items-center gap-1.5 mt-1 cursor-pointer">
-                      <input type="checkbox" checked={randomizeStop} onChange={() => setRandomizeStop(!randomizeStop)} className="w-3 h-3 text-emerald-600 rounded bg-white dark:bg-slate-900 border-gray-300 dark:border-slate-600 focus:ring-emerald-500" />
-                      <span className="text-[10px] text-gray-500 dark:text-slate-400 font-medium">Acak ±15 mnt (Anti-Spam)</span>
-                   </label>
+                   <div className="space-y-1.5 mt-1.5">
+                     <label className="flex items-center gap-1.5 cursor-pointer">
+                        <input type="checkbox" checked={randomizeStop} onChange={() => setRandomizeStop(!randomizeStop)} className="w-3 h-3 text-emerald-600 rounded bg-white dark:bg-slate-900 border-gray-300 dark:border-slate-600 focus:ring-emerald-500" />
+                        <span className="text-[10px] text-gray-500 dark:text-slate-400 font-medium hover:text-emerald-500 transition-colors">Acak ±15 mnt (Anti-Spam)</span>
+                     </label>
+                     <label className="flex items-center gap-1.5 cursor-pointer">
+                        <input type="checkbox" checked={smartStopEnabled} onChange={() => setSmartStopEnabled(!smartStopEnabled)} className="w-3 h-3 text-emerald-600 rounded bg-white dark:bg-slate-900 border-gray-300 dark:border-slate-600 focus:ring-emerald-500" />
+                        <span className="text-[10px] text-gray-500 dark:text-slate-400 font-medium hover:text-emerald-500 transition-colors">Smart Stop (Tunda jika ada penonton)</span>
+                     </label>
+                   </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="flex items-center gap-1.5 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600/60 rounded-md px-2 py-1">
@@ -1271,11 +1298,11 @@ function TugasLiveView({ accounts, isPreview, API_BASE, onNavigate, taskToEdit, 
               </div>
             </div>
           </div>
+          
         </div>
       </div>
 
-      {/* PANEL TOMBOL MENGAMBANG (FIXED BOTTOM) */}
-      <div className="fixed bottom-0 left-0 right-0 z-[60] bg-white/95 dark:bg-slate-800/95 backdrop-blur-md border-t border-gray-200 dark:border-slate-700/60 px-4 py-4 md:px-8 lg:px-12 shadow-[0_-10px_30px_-15px_rgba(0,0,0,0.3)] dark:shadow-[0_-10px_30px_-15px_rgba(0,0,0,0.7)] flex flex-col sm:flex-row items-center justify-between gap-4 transition-all">
+      <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700/60 p-5 md:p-6 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4 mt-2 sticky bottom-4 z-50">
          <div className="flex items-center gap-4 w-full sm:w-auto">
            <div className="w-10 h-10 rounded-full bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center shrink-0"><div className="w-3 h-3 rounded-full bg-blue-500 dark:bg-blue-400 animate-pulse"></div></div>
            <div><p className="text-xs text-gray-500 dark:text-slate-400 font-medium mb-0.5">Status Tugas Live</p><p className="text-sm font-bold text-blue-600 dark:text-blue-400">{taskToEdit ? 'Sedang Mode Edit' : 'Siap Disimpan'}</p></div>
@@ -1288,6 +1315,273 @@ function TugasLiveView({ accounts, isPreview, API_BASE, onNavigate, taskToEdit, 
            <button onClick={() => handleSaveTask(true)} className="flex-1 sm:flex-none px-8 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl flex items-center justify-center gap-2 font-semibold transition-colors text-sm shadow-md"><PlayCircle className="w-5 h-5" /> {taskToEdit ? 'Simpan & Mulai Ulang' : 'Simpan & Mulai Live'}</button>
          </div>
       </div>
+    </div>
+  );
+}
+
+// -----------------------------------------------------------------------------
+// TAB 3: MEDIA
+// -----------------------------------------------------------------------------
+function MediaView({ isPreview, API_BASE }) {
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadText, setUploadText] = useState('');
+  const [showPlaylistModal, setShowPlaylistModal] = useState(false);
+  const [showImportUrlModal, setShowImportUrlModal] = useState(false);
+  const [importUrl, setImportUrl] = useState('');
+  const [newPlaylistName, setNewPlaylistName] = useState('');
+  const [selectedPlaylistVideos, setSelectedPlaylistVideos] = useState([]);
+  const [mediaFiles, setMediaFiles] = useState([]);
+  const [playlists, setPlaylists] = useState([]);
+  const [activeFolder, setActiveFolder] = useState('Video Berita Utama');
+  const [fileToDelete, setFileToDelete] = useState(null);
+  const [playlistToDelete, setPlaylistToDelete] = useState(null);
+  const [fileToRename, setFileToRename] = useState(null);
+  const [newFileName, setNewFileName] = useState('');
+  const fileInputRef = useRef(null);
+
+  const fetchMedia = async () => { if (isPreview) return; try { const res = await fetch(`${API_BASE}/api/media`); setMediaFiles(await res.json()); } catch (e) {} };
+  const fetchPlaylists = async () => { if (isPreview) return; try { const res = await fetch(`${API_BASE}/api/playlists`); setPlaylists(await res.json()); } catch (e) {} };
+
+  useEffect(() => { fetchMedia(); fetchPlaylists(); }, [API_BASE, isPreview]);
+
+  const videoList = mediaFiles.filter(file => !/\.(jpg|jpeg|png|gif|webp)$/i.test(file.name));
+  const imageList = mediaFiles.filter(file => /\.(jpg|jpeg|png|gif|webp)$/i.test(file.name));
+
+  const handleActualUpload = async (e) => {
+    const files = e.target.files; if (!files || files.length === 0) return;
+    if (isPreview) return alert('Simulasi: File dipilih.');
+    setIsUploading(true); setUploadText('Mengunggah ke VPS...'); setUploadProgress(10);
+    const formData = new FormData(); for (let i = 0; i < files.length; i++) formData.append('files', files[i]);
+    const progressInterval = setInterval(() => setUploadProgress(prev => Math.min(prev + 10, 90)), 500);
+
+    try {
+      const res = await fetch(`${API_BASE}/api/media/upload`, { method: 'POST', body: formData });
+      const data = await res.json();
+      if(data.success) { setUploadProgress(100); setTimeout(() => { alert(data.message); setIsUploading(false); setUploadProgress(0); fetchMedia(); }, 500); } 
+      else throw new Error(data.message);
+    } catch (err) { alert('Gagal mengunggah file.'); setIsUploading(false); setUploadProgress(0); } finally { clearInterval(progressInterval); if (fileInputRef.current) fileInputRef.current.value = ''; }
+  };
+
+  const handleImportUrlSubmit = async () => {
+    if (!importUrl.trim()) return alert('URL tidak boleh kosong.');
+    if (isPreview) { setShowImportUrlModal(false); setImportUrl(''); return alert('Simulasi: Import URL.'); }
+    setShowImportUrlModal(false); setIsUploading(true); setUploadText('Mengunduh file...'); setUploadProgress(10);
+    const progressInterval = setInterval(() => setUploadProgress(prev => Math.min(prev + 5, 90)), 1000);
+
+    try {
+      const res = await fetch(`${API_BASE}/api/media/import-url`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url: importUrl }) });
+      const data = await res.json();
+      if(data.success) { setUploadProgress(100); setTimeout(() => { alert(data.message); setIsUploading(false); setUploadProgress(0); setImportUrl(''); fetchMedia(); }, 500); } 
+      else throw new Error(data.message);
+    } catch (err) { alert(err.message || 'Gagal mengimpor.'); setIsUploading(false); setUploadProgress(0); } finally { clearInterval(progressInterval); }
+  };
+
+  const handleSavePlaylist = async () => {
+    if (!newPlaylistName.trim() || selectedPlaylistVideos.length === 0) return alert('Nama playlist dan minimal 1 video harus diisi/dipilih.');
+    if (isPreview) { setShowPlaylistModal(false); return alert('Simulasi: Playlist disimpan.'); }
+    try {
+      const res = await fetch(`${API_BASE}/api/playlists`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: newPlaylistName, videos: selectedPlaylistVideos }) });
+      const data = await res.json();
+      if (data.success) { alert(data.message); setShowPlaylistModal(false); setNewPlaylistName(''); setSelectedPlaylistVideos([]); fetchPlaylists(); setActiveFolder('Playlist Looping'); } 
+      else alert(data.message);
+    } catch (e) { alert('Gagal menyimpan playlist.'); }
+  };
+
+  const confirmDeleteFile = async () => {
+    if (isPreview) { setMediaFiles(mediaFiles.filter(f => f.id !== fileToDelete.id)); setFileToDelete(null); return; }
+    try { await fetch(`${API_BASE}/api/media/${fileToDelete.name}`, { method: 'DELETE' }); fetchMedia(); setFileToDelete(null); } catch(e) {}
+  };
+
+  const confirmDeletePlaylist = async () => {
+    if (isPreview) { setPlaylists(playlists.filter(p => p.id !== playlistToDelete.id)); setPlaylistToDelete(null); return; }
+    try { await fetch(`${API_BASE}/api/playlists/${playlistToDelete.id}`, { method: 'DELETE' }); fetchPlaylists(); setPlaylistToDelete(null); } catch(e) {}
+  };
+
+  const handleRenameFile = async () => {
+    if(!newFileName.trim()) return alert('Nama baru tidak boleh kosong!');
+    if(isPreview) { setFileToRename(null); return alert('Simulasi: File berhasil diubah nama.'); }
+    
+    const safeNewName = newFileName.replace(/\s+/g, '_');
+    
+    try {
+      const res = await fetch(`${API_BASE}/api/media/rename`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ oldName: fileToRename.name, newName: safeNewName })
+      });
+      const data = await res.json();
+      if(data.success) {
+        fetchMedia();
+        fetchPlaylists(); 
+        setFileToRename(null);
+      } else {
+        alert(data.message);
+      }
+    } catch(e) { alert('Terjadi kesalahan saat mengganti nama file.'); }
+  };
+
+  return (
+    <div className="h-[calc(100vh-8rem)] flex flex-col bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700/60 shadow-sm overflow-hidden relative animate-in fade-in duration-500">
+      <div className="flex justify-between items-center px-5 py-3.5 border-b border-gray-100 dark:border-slate-700/60 bg-gray-50/50 dark:bg-slate-800/50 shrink-0">
+        <h3 className="text-sm font-bold text-gray-800 dark:text-slate-100 flex items-center gap-2"><Film className="w-4 h-4 text-gray-400 dark:text-slate-500" /> Manajemen Media & Playlist</h3>
+        <div className="flex gap-2">
+          <button onClick={() => setShowImportUrlModal(true)} className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700/60 hover:text-blue-600 dark:text-slate-300 rounded-md flex items-center gap-1.5 text-[11px] font-bold tracking-wide uppercase transition-colors"><LinkIcon className={`w-3.5 h-3.5`} /> Import URL</button>
+          <input type="file" multiple accept="video/mp4,video/mkv,image/*" className="hidden" ref={fileInputRef} onChange={handleActualUpload} />
+          <button onClick={() => fileInputRef.current?.click()} className="px-3 py-1.5 bg-gray-900 dark:bg-slate-100 text-white dark:text-slate-900 rounded-md flex items-center gap-1.5 text-[11px] font-bold tracking-wide uppercase transition-opacity"><Upload className="w-3.5 h-3.5" /> Upload Lokal</button>
+        </div>
+      </div>
+
+      {isUploading && (
+        <div className="px-5 py-2 bg-blue-50/50 dark:bg-blue-900/20 border-b border-blue-100 dark:border-blue-800/30 flex items-center gap-4 shrink-0">
+          <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-widest w-48 truncate">{uploadText}</span>
+          <div className="flex-1 h-1.5 bg-blue-100 dark:bg-blue-900/40 rounded-full overflow-hidden"><div className="h-full bg-blue-500 dark:bg-blue-400 transition-all duration-300" style={{ width: `${uploadProgress}%` }}></div></div>
+          <span className="text-[10px] font-mono text-blue-600 dark:text-blue-400">{uploadProgress}%</span>
+        </div>
+      )}
+
+      <div className="flex flex-1 overflow-hidden">
+        <div className="w-60 flex flex-col border-r border-gray-100 dark:border-slate-700/60 bg-gray-50/30 dark:bg-slate-900/30 shrink-0">
+          <div className="p-3 flex-1 overflow-y-auto space-y-0.5 custom-scrollbar">
+            <div className="text-[9px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-widest px-2 pb-2 pt-1">Direktori Penyimpanan</div>
+            <div onClick={() => setActiveFolder('Video Berita Utama')}><FolderItem name="Semua Video / Media" count={videoList.length} active={activeFolder === 'Video Berita Utama'} /></div>
+            <div onClick={() => setActiveFolder('Thumbnail & Gambar')}><FolderItem name="Thumbnail & Gambar" count={imageList.length} active={activeFolder === 'Thumbnail & Gambar'} /></div>
+            <div onClick={() => setActiveFolder('Playlist Looping')}><FolderItem name="Playlist Tersimpan" count={playlists.length} active={activeFolder === 'Playlist Looping'} /></div>
+          </div>
+          <div className="p-3 border-t border-gray-100 dark:border-slate-700/60 space-y-1.5 bg-white dark:bg-slate-800/50 shrink-0">
+            <button onClick={() => setShowPlaylistModal(true)} className="w-full text-left px-3 py-2 text-xs font-medium text-gray-600 dark:text-slate-300 hover:text-emerald-600 hover:bg-emerald-50 rounded-md transition-colors flex items-center gap-2"><Plus className="w-3.5 h-3.5" /> Buat Playlist Baru</button>
+          </div>
+        </div>
+
+        <div className="flex-1 bg-white dark:bg-slate-800 p-5 overflow-y-auto relative custom-scrollbar">
+          {activeFolder === 'Video Berita Utama' && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {videoList.length === 0 ? (
+                <div className="col-span-full flex flex-col items-center justify-center text-gray-400 dark:text-slate-500 h-40 border border-dashed border-gray-200 dark:border-slate-700 rounded-lg">
+                  <FolderOpen className="w-8 h-8 mb-2 opacity-50" /><span className="text-sm">Folder Video Kosong</span>
+                </div>
+              ) : ( 
+                videoList.map((file) => (
+                  <VideoPreviewCard key={file.id} name={file.name} size={file.size} API_BASE={API_BASE} onEdit={() => { setFileToRename(file); setNewFileName(file.name); }} onDelete={() => setFileToDelete(file)} />
+                )) 
+              )}
+            </div>
+          )}
+
+          {activeFolder === 'Thumbnail & Gambar' && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {imageList.length === 0 ? (
+                <div className="col-span-full flex flex-col items-center justify-center text-gray-400 dark:text-slate-500 h-40 border border-dashed border-gray-200 dark:border-slate-700 rounded-lg">
+                  <Image className="w-8 h-8 mb-2 opacity-50" /><span className="text-sm">Belum Ada Thumbnail/Gambar</span>
+                </div>
+              ) : ( 
+                imageList.map((file) => (
+                  <VideoPreviewCard key={file.id} name={file.name} size={file.size} API_BASE={API_BASE} onEdit={() => { setFileToRename(file); setNewFileName(file.name); }} onDelete={() => setFileToDelete(file)} />
+                )) 
+              )}
+            </div>
+          )}
+
+          {activeFolder === 'Playlist Looping' && (
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+              {playlists.length === 0 ? (
+                <div className="col-span-full flex flex-col items-center justify-center text-gray-400 dark:text-slate-500 h-40 border border-dashed border-gray-200 dark:border-slate-700 rounded-lg">
+                  <ListVideo className="w-8 h-8 mb-2 opacity-50" /><span className="text-sm">Belum Ada Playlist</span>
+                </div>
+              ) : (
+                playlists.map((pl) => (
+                  <div key={pl.id} className="bg-gray-50 dark:bg-slate-900/50 border border-gray-200 dark:border-slate-700/60 rounded-xl p-4 shadow-sm hover:shadow transition-shadow group relative">
+                    <div className="flex items-center gap-3 mb-3"><div className="w-10 h-10 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0"><ListVideo className="w-5 h-5" /></div><div><h4 className="font-bold text-gray-900 dark:text-slate-100 text-sm">{pl.name}</h4><p className="text-xs text-gray-500">{pl.count} Video</p></div></div>
+                    <div className="space-y-1 mt-3 pt-3 border-t border-gray-200 dark:border-slate-700/50 max-h-24 overflow-y-auto custom-scrollbar">
+                       {pl.videos.map((vid, idx) => <div key={idx} className="text-[11px] text-gray-600 dark:text-slate-300 flex items-center gap-2 truncate"><span className="text-gray-400">{idx+1}.</span> {vid}</div>)}
+                    </div>
+                    <button onClick={() => setPlaylistToDelete(pl)} className="absolute top-4 right-4 p-1.5 text-gray-400 hover:text-red-500 bg-white dark:bg-slate-800 rounded-md shadow-sm border border-gray-200 dark:border-slate-700 opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 className="w-3.5 h-3.5" /></button>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {showImportUrlModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4" onClick={() => setShowImportUrlModal(false)}>
+          <div className="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-md shadow-2xl shadow-black/40 overflow-hidden border border-gray-200 dark:border-slate-700 flex flex-col" onClick={e => e.stopPropagation()}>
+            <div className="px-6 py-4 border-b border-gray-200 dark:border-slate-700/60 flex justify-between items-center"><h3 className="text-lg font-bold dark:text-slate-100 flex items-center gap-2"><LinkIcon className="w-5 h-5 text-blue-500" /> Import File URL</h3><button onClick={() => setShowImportUrlModal(false)} className="text-gray-400 hover:text-red-500"><XCircle className="w-6 h-6" /></button></div>
+            <div className="p-6">
+              <label className="block text-sm font-medium mb-2 dark:text-slate-300">URL Langsung</label>
+              <input type="text" value={importUrl} onChange={(e) => setImportUrl(e.target.value)} placeholder="Paste link di sini..." className="w-full bg-white dark:bg-slate-900/80 border border-gray-300 dark:border-slate-600/60 rounded-lg px-4 py-3 outline-none font-mono text-sm shadow-sm dark:text-white" autoFocus />
+            </div>
+            <div className="px-6 py-4 border-t border-gray-200 dark:border-slate-700/60 flex justify-end gap-3"><button onClick={() => setShowImportUrlModal(false)} className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 text-sm hover:bg-slate-700/50">Batal</button><button onClick={handleImportUrlSubmit} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700">Mulai Import</button></div>
+          </div>
+        </div>
+      )}
+
+      {fileToRename && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4" onClick={() => setFileToRename(null)}>
+          <div className="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-md shadow-2xl shadow-black/40 overflow-hidden border border-gray-200 dark:border-slate-700 flex flex-col" onClick={e => e.stopPropagation()}>
+            <div className="px-6 py-4 border-b border-gray-200 dark:border-slate-700/60 flex justify-between items-center"><h3 className="text-lg font-bold dark:text-slate-100 flex items-center gap-2"><Pencil className="w-5 h-5 text-blue-500" /> Ganti Nama File</h3><button onClick={() => setFileToRename(null)} className="text-gray-400 hover:text-red-500"><XCircle className="w-6 h-6" /></button></div>
+            <div className="p-6">
+              <label className="block text-sm font-medium mb-2 dark:text-slate-300">Nama File Baru</label>
+              <input type="text" value={newFileName} onChange={(e) => setNewFileName(e.target.value)} className="w-full bg-gray-50 dark:bg-slate-900/80 border border-gray-300 dark:border-slate-600/60 rounded-lg px-4 py-3 outline-none font-mono text-sm shadow-sm dark:text-white" autoFocus />
+              <p className="text-xs text-gray-500 mt-2">Catatan: Spasi otomatis diubah jadi (_) garis bawah.</p>
+            </div>
+            <div className="px-6 py-4 border-t border-gray-200 dark:border-slate-700/60 flex justify-end gap-3"><button onClick={() => setFileToRename(null)} className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 text-sm hover:bg-slate-700/50">Batal</button><button onClick={handleRenameFile} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700">Simpan</button></div>
+          </div>
+        </div>
+      )}
+
+      {showPlaylistModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-lg shadow-2xl shadow-black/40 overflow-hidden border border-gray-200 dark:border-slate-700 flex flex-col max-h-[90vh]">
+            <div className="px-6 py-4 border-b border-gray-200 dark:border-slate-700/60 flex justify-between items-center"><h3 className="text-lg font-bold dark:text-slate-100">Buat Playlist</h3><button onClick={() => setShowPlaylistModal(false)} className="text-gray-400 hover:text-emerald-500"><XCircle className="w-6 h-6" /></button></div>
+            <div className="p-6 overflow-y-auto flex-1 space-y-5 custom-scrollbar">
+              <div><label className="block text-sm font-medium mb-1.5 dark:text-slate-300">Nama Playlist</label><input type="text" value={newPlaylistName} onChange={(e) => setNewPlaylistName(e.target.value)} className="w-full bg-gray-50 border border-gray-300 dark:border-slate-600/60 dark:bg-slate-900/50 dark:text-white rounded-lg px-4 py-2.5 outline-none" /></div>
+              <div>
+                <label className="block text-sm font-medium dark:text-slate-300 mb-2">Pilih Video</label>
+                <div className="border border-gray-200 dark:border-slate-700/60 rounded-xl overflow-hidden bg-slate-900/30">
+                  <div className="max-h-48 overflow-y-auto p-2 space-y-1 custom-scrollbar">
+                    {mediaFiles.map((file) => {
+                      if(/\.(jpg|jpeg|png|gif|webp)$/i.test(file.name)) return null;
+                      const isSelected = selectedPlaylistVideos.includes(file.name);
+                      return (
+                        <label key={file.id} className={`flex items-center gap-3 p-2.5 rounded-lg cursor-pointer border ${isSelected ? 'bg-emerald-500/10 border-emerald-500/20' : 'border-transparent hover:bg-slate-700/50'}`}>
+                          <input type="checkbox" checked={isSelected} onChange={() => {
+                            if (isSelected) setSelectedPlaylistVideos(selectedPlaylistVideos.filter(v => v !== file.name));
+                            else setSelectedPlaylistVideos([...selectedPlaylistVideos, file.name]);
+                          }} className="w-4 h-4 text-emerald-600 bg-transparent border-gray-400" />
+                          <Video className="w-4 h-4 text-gray-400" /><span className="text-sm flex-1 truncate dark:text-slate-200">{file.name}</span>
+                        </label>
+                      )
+                    })}
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="px-6 py-4 border-t border-gray-200 dark:border-slate-700/60 bg-gray-50 dark:bg-slate-800/50 flex justify-end gap-3"><button onClick={() => setShowPlaylistModal(false)} className="px-4 py-2 rounded-lg border dark:border-slate-600 text-gray-700 dark:text-slate-300 text-sm hover:bg-slate-700/50">Batal</button><button onClick={handleSavePlaylist} className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm hover:bg-emerald-700">Simpan Playlist</button></div>
+          </div>
+        </div>
+      )}
+
+      {fileToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+          <div className="bg-white dark:bg-slate-800 rounded-xl w-full max-w-sm shadow-2xl p-6 text-center border border-gray-200 dark:border-slate-700">
+            <Trash2 className="w-12 h-12 text-red-500 mx-auto mb-4" /><h3 className="text-lg font-bold mb-2 dark:text-slate-100">Hapus Media?</h3>
+            <p className="text-sm text-gray-500 mb-6">File <strong>{fileToDelete.name}</strong> akan dihapus permanen.</p>
+            <div className="flex justify-center gap-3"><button onClick={() => setFileToDelete(null)} className="px-4 py-2 border dark:border-slate-600 dark:text-slate-300 hover:bg-slate-700/50 rounded-lg text-sm">Batal</button><button onClick={confirmDeleteFile} className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm hover:bg-red-700">Hapus</button></div>
+          </div>
+        </div>
+      )}
+
+      {playlistToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+          <div className="bg-white dark:bg-slate-800 rounded-xl w-full max-w-sm shadow-2xl p-6 text-center border border-gray-200 dark:border-slate-700">
+            <Trash2 className="w-12 h-12 text-red-500 mx-auto mb-4" /><h3 className="text-lg font-bold mb-2 dark:text-slate-100">Hapus Playlist?</h3>
+            <p className="text-sm text-gray-500 mb-6">Playlist <strong>{playlistToDelete.name}</strong> akan dihapus.</p>
+            <div className="flex justify-center gap-3"><button onClick={() => setPlaylistToDelete(null)} className="px-4 py-2 border dark:border-slate-600 dark:text-slate-300 hover:bg-slate-700/50 rounded-lg text-sm">Batal</button><button onClick={confirmDeletePlaylist} className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm hover:bg-red-700">Hapus</button></div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
