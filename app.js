@@ -22,7 +22,7 @@ app.use(express.json());
 
 // --- SETUP MULTER & DIREKTORI ---
 const SECRETS_DIR = path.join(__dirname, 'api_secrets');
-const MEDIA_DIR = path.join(__dirname, 'public/uploads');
+const MEDIA_DIR = path.join(__dirname, 'public/uploads'); // Path asli untuk Media
 const THUMB_DIR = path.join(__dirname, 'public/thumbnails');
 const PLAYLIST_FILE = path.join(__dirname, 'playlists.json');
 const TASKS_FILE = path.join(__dirname, 'tasks.json');
@@ -279,7 +279,7 @@ async function updateYouTubeMetadata(task) {
 
         writeLog(task.id, `[YOUTUBE API] Membangun Ruang Live Studio Otomatis untuk "${finalTitle}"...`);
 
-        // 1. CREATE BROADCAST TERBARU (DENGAN MULTI-BAHASA & LOCALIZATIONS)
+        // 1. CREATE BROADCAST (SEKARANG MENDUKUNG TERJEMAHAN & KATEGORI FIX)
         const broadcastRes = await youtube.liveBroadcasts.insert({
             part: 'snippet,status,contentDetails',
             requestBody: {
@@ -365,11 +365,14 @@ async function updateYouTubeMetadata(task) {
             }
         }
 
-        // 5. UPDATE THUMBNAIL 
+        // 5. UPDATE THUMBNAIL (BISA DARI FOLDER MEDIA MAUPUN THUMBNAIL)
         if (task.thumbnailUrl) {
             try {
                 const thumbFileName = task.thumbnailUrl.split('/').pop();
-                const thumbLocalPath = path.join(THUMB_DIR, thumbFileName);
+                let thumbLocalPath = path.join(THUMB_DIR, thumbFileName);
+                if (!fs.existsSync(thumbLocalPath)) {
+                    thumbLocalPath = path.join(MEDIA_DIR, thumbFileName);
+                }
 
                 if (fs.existsSync(thumbLocalPath)) {
                     const stats = fs.statSync(thumbLocalPath);
@@ -395,6 +398,38 @@ async function updateYouTubeMetadata(task) {
     } catch (err) {
         writeLog(task.id, `[YOUTUBE API ERROR] Gagal membypass YouTube Studio: ${err.message}`);
         return resultData;
+    }
+}
+
+// --- FUNGSI UPDATE PRIVASI REPLAY ---
+async function updateReplayPrivacy(broadcastId, privacy, accountId, taskId) {
+    if (!broadcastId || !accountId || privacy === 'public') return;
+    try {
+        const tokenPath = path.join(__dirname, accountId);
+        if (!fs.existsSync(tokenPath)) return;
+        const tokens = JSON.parse(fs.readFileSync(tokenPath));
+        const oauth2Client = getOAuth2Client(tokens);
+        const youtube = google.youtube({ version: 'v3', auth: oauth2Client });
+        
+        try {
+            await youtube.liveBroadcasts.transition({
+                broadcastStatus: 'complete',
+                id: broadcastId,
+                part: 'id,status'
+            });
+            writeLog(taskId, `[YOUTUBE API] Broadcast berhasil ditutup (Complete).`);
+        } catch(e) {}
+
+        await youtube.videos.update({
+            part: 'status',
+            requestBody: {
+                id: broadcastId,
+                status: { privacyStatus: privacy }
+            }
+        });
+        writeLog(taskId, `[YOUTUBE API] Privasi Replay video berhasil diubah ke: ${privacy.toUpperCase()}`);
+    } catch (e) {
+        writeLog(taskId, `[YOUTUBE API WARNING] Gagal mengubah Privasi Replay: ${e.message}`);
     }
 }
 
@@ -441,17 +476,29 @@ const activeStreams = new Map();
 
 function stopStreamById(id, isError = false) {
     const processData = activeStreams.get(id);
+    let broadcastIdToUpdate = null;
+    let accountIdToUpdate = null;
+
     if (processData) {
+        broadcastIdToUpdate = processData.broadcastId;
+        accountIdToUpdate = processData.accountId;
+
         if (processData.process) processData.process.kill('SIGKILL');
         if (processData.stopTimer) clearTimeout(processData.stopTimer);
         activeStreams.delete(id);
     }
+    
     try {
         let tasks = JSON.parse(fs.readFileSync(TASKS_FILE));
         let t = tasks.find(x => x.id === id);
         if (t) { 
             t.status = isError ? 'Error' : 'Berhenti'; 
             fs.writeFileSync(TASKS_FILE, JSON.stringify(tasks, null, 2)); 
+
+            // UBAH PRIVASI JIKA BUKAN ERROR & FITUR REPLAY PRIVACY AKTIF
+            if (!isError && t.replayPrivacy && t.replayPrivacy !== t.youtubePrivacy && broadcastIdToUpdate && accountIdToUpdate) {
+                updateReplayPrivacy(broadcastIdToUpdate, t.replayPrivacy, accountIdToUpdate, id);
+            }
         }
     } catch(e) {}
 }
@@ -459,7 +506,6 @@ function stopStreamById(id, isError = false) {
 function startStreamInternal(task, isFallback = false) {
     if (activeStreams.has(task.id) && !isFallback) return false; 
 
-    // Handle Fallback / Mode Normal
     const videoFileName = isFallback ? task.fallbackVideo : task.videoPath;
     const fullVideoPath = path.join(MEDIA_DIR, videoFileName);
     
@@ -471,16 +517,22 @@ function startStreamInternal(task, isFallback = false) {
     (async () => {
         writeLog(task.id, `[SYSTEM] ${isFallback ? '🔄 MENJALANKAN FALLBACK VIDEO' : 'Memulai proses persiapan Live'} untuk tugas: ${task.taskName}`);
 
-        // ACAK THUMBNAIL SEBELUM UPDATE YOUTUBE METADATA
+        // ACAK THUMBNAIL DARI MEDIA ATAU FOLDER THUMBNAIL
         if (task.randomizeThumbnail && !isFallback) {
-            try {
-                const files = fs.readdirSync(THUMB_DIR).filter(f => f.match(/\.(jpg|jpeg|png|webp)$/i));
-                if (files.length > 0) {
-                    const randomThumb = files[Math.floor(Math.random() * files.length)];
-                    task.thumbnailUrl = `/thumbnails/${randomThumb}`;
-                    writeLog(task.id, `[SYSTEM] Menggunakan Acak Thumbnail: ${randomThumb}`);
-                }
-            } catch (e) {}
+            if (task.availableImages && task.availableImages.length > 0) {
+                const randomThumb = task.availableImages[Math.floor(Math.random() * task.availableImages.length)];
+                task.thumbnailUrl = `/media/${randomThumb}`;
+                writeLog(task.id, `[SYSTEM] Menggunakan Acak Thumbnail Media: ${randomThumb}`);
+            } else {
+                try {
+                    const files = fs.readdirSync(THUMB_DIR).filter(f => f.match(/\.(jpg|jpeg|png|webp)$/i));
+                    if (files.length > 0) {
+                        const randomThumb = files[Math.floor(Math.random() * files.length)];
+                        task.thumbnailUrl = `/thumbnails/${randomThumb}`;
+                        writeLog(task.id, `[SYSTEM] Menggunakan Acak Thumbnail Direktori: ${randomThumb}`);
+                    }
+                } catch (e) {}
+            }
         }
 
         let finalStreamKey = task.streamKey ? task.streamKey.trim() : '';
@@ -488,7 +540,6 @@ function startStreamInternal(task, isFallback = false) {
         let broadcastId = null;
         let streamId = null;
 
-        // Hanya jalankan pembaruan metadata jika ini BUKAN dari fallback
         if (task.streamKeyMode === 'Otomatis (API v3)' && task.accountId && !isFallback) {
             const apiData = await updateYouTubeMetadata(task);
             if (apiData && apiData.streamKey) {
@@ -507,7 +558,6 @@ function startStreamInternal(task, isFallback = false) {
                 return;
             }
         } else if (isFallback && task.streamKeyMode === 'Otomatis (API v3)') {
-            // Ambil stream key lama dari database jika ada fallback
             const existingTasks = JSON.parse(fs.readFileSync(TASKS_FILE));
             const existingTask = existingTasks.find(x => x.id === task.id);
             if (existingTask && existingTask.streamKey) {
@@ -521,22 +571,67 @@ function startStreamInternal(task, isFallback = false) {
             return;
         }
 
-        // SIMPAN STREAM KEY SEMENTARA (Berguna jika nanti butuh fallback)
         if (!isFallback) {
             let tasks = JSON.parse(fs.readFileSync(TASKS_FILE));
             let t = tasks.find(x => x.id === task.id);
             if (t) { t.streamKey = finalStreamKey; fs.writeFileSync(TASKS_FILE, JSON.stringify(tasks, null, 2)); }
         }
 
-        // MENYUSUN ARGUMEN FFMPEG DENGAN HARDWARE ENCODER
+        // --- MENYUSUN ARGUMEN FFMPEG (DENGAN HARDWARE ENCODER & FILTER ORIENTASI) ---
         const ffmpegArgs = ['-re']; 
         if ((task.videoMode === 'Satu Video (Looping)' && !isFallback) || isFallback) {
             ffmpegArgs.push('-stream_loop', '-1'); 
         }
         
-        let encoderEngine = task.encoderEngine || 'copy';
         ffmpegArgs.push('-i', fullVideoPath);
-        
+
+        let w = -1, h = -1;
+        let needsTranscode = false;
+        let encoderEngine = task.encoderEngine || 'copy';
+
+        // 1. Tentukan Resolusi Dasar
+        if (task.outputResolution && task.outputResolution !== 'source') {
+            needsTranscode = true;
+            if (task.outputResolution.includes('2160p')) { w=3840; h=2160; }
+            else if (task.outputResolution.includes('1440p')) { w=2560; h=1440; }
+            else if (task.outputResolution.includes('1080p')) { w=1920; h=1080; }
+            else if (task.outputResolution.includes('720p')) { w=1280; h=720; }
+        }
+
+        // 2. Putar Resolusi Jika Mode Vertikal (Shorts)
+        if (task.orientation === 'vertical') {
+            needsTranscode = true;
+            if (w !== -1) { let temp = w; w = h; h = temp; } 
+            else { w = 1080; h = 1920; } // Default Vertikal HD
+        }
+
+        // 3. Susun Filter Scaling & Black Bars
+        let vfFilters = [];
+        if (w !== -1) {
+            vfFilters.push(`scale=${w}:${h}:force_original_aspect_ratio=decrease`);
+            vfFilters.push(`pad=${w}:${h}:(ow-iw)/2:(oh-ih)/2`);
+        }
+
+        // 4. Force Transcode Jika Menggunakan Filter
+        if (needsTranscode && encoderEngine === 'copy') {
+            encoderEngine = 'x264';
+            writeLog(task.id, `[SYSTEM] Perhatian: Mode 'Direct Copy' otomatis dialihkan ke 'x264' karena filter Orientasi/Resolusi aktif.`);
+        }
+
+        if (vfFilters.length > 0) {
+            ffmpegArgs.push('-vf', vfFilters.join(','));
+        }
+
+        // 5. Framerate Adjustments
+        let framerate = '';
+        if (task.outputResolution && task.outputResolution.includes('60')) framerate = '60';
+        else if (task.outputResolution && task.outputResolution.includes('30')) framerate = '30';
+
+        if (framerate && needsTranscode) {
+            ffmpegArgs.push('-r', framerate);
+        }
+
+        // 6. Pilih Encoder
         if (encoderEngine === 'copy') {
             ffmpegArgs.push('-c:v', 'copy', '-c:a', 'aac', '-b:a', '128k');
         } else if (encoderEngine === 'nvenc') {
@@ -549,6 +644,8 @@ function startStreamInternal(task, isFallback = false) {
 
         ffmpegArgs.push('-ar', '44100', '-f', 'flv', `rtmp://a.rtmp.youtube.com/live2/${finalStreamKey}`);
 
+        writeLog(task.id, `[FFMPEG] Menjalankan FFmpeg dengan Engine: ${encoderEngine.toUpperCase()}`);
+        
         const ffmpegProcess = spawn('ffmpeg', ffmpegArgs);
         
         let stopTimer = null;
@@ -567,15 +664,24 @@ function startStreamInternal(task, isFallback = false) {
             
             writeLog(task.id, `[SYSTEM] Stream ini akan dihentikan otomatis dlm ${actualHours} Jam ${actualMinutes} Menit ${task.randomizeStop ? '(Anti-Spam Acak)' : ''}.`);
             
-            stopTimer = setTimeout(() => {
-                writeLog(task.id, `[SYSTEM] Waktu habis! Menghentikan tugas otomatis: ${task.taskName}`);
-                stopStreamById(task.id, false); 
-                
-                const notifSettings = fs.existsSync(NOTIF_FILE) ? JSON.parse(fs.readFileSync(NOTIF_FILE)) : {};
-                if (notifSettings.notifEnabled) {
-                    sendTelegramMessage(`🟡 <b>Stream Terhenti Otomatis</b>\n\nTugas: <b>${escapeHtml(task.taskName)}</b>\n\nBerhenti sesuai jadwal timer pengaturan.`);
+            // FUNGSI SMART STOP
+            const checkAndStop = () => {
+                const streamData = activeStreams.get(task.id);
+                if (streamData && task.smartStopEnabled && streamData.viewers > 0) {
+                    writeLog(task.id, `[SYSTEM] Smart Stop Aktif: Penutupan ditunda karena masih ada ${streamData.viewers} penonton.`);
+                    streamData.stopTimer = setTimeout(checkAndStop, 60000); // Tunda 1 Menit, cek lagi
+                } else {
+                    writeLog(task.id, `[SYSTEM] Waktu habis! Menghentikan tugas otomatis: ${task.taskName}`);
+                    stopStreamById(task.id, false); 
+                    
+                    const notifSettings = fs.existsSync(NOTIF_FILE) ? JSON.parse(fs.readFileSync(NOTIF_FILE)) : {};
+                    if (notifSettings.notifEnabled) {
+                        sendTelegramMessage(`🟡 <b>Stream Terhenti Otomatis</b>\n\nTugas: <b>${escapeHtml(task.taskName)}</b>\n\nBerhenti sesuai jadwal timer pengaturan.`);
+                    }
                 }
-            }, stopDurationMs);
+            };
+
+            stopTimer = setTimeout(checkAndStop, stopDurationMs);
         }
 
         activeStreams.set(task.id, { 
@@ -601,7 +707,13 @@ function startStreamInternal(task, isFallback = false) {
         }
 
         ffmpegProcess.stderr.on('data', (data) => {
-            writeLog(task.id, data.toString().trim());
+            const str = data.toString();
+            // Filter hanya informasi frame, bitrate, speed yang dimasukkan ke log 
+            if (str.includes('fps=') || str.includes('bitrate=')) {
+                writeLog(task.id, str.trim());
+            } else if (str.toLowerCase().includes('error')) {
+                writeLog(task.id, str.trim());
+            }
         });
 
         ffmpegProcess.on('error', (err) => {
@@ -641,7 +753,7 @@ function startStreamInternal(task, isFallback = false) {
     return true;
 }
 
-// --- CRON JOB ---
+// --- CRON JOB UNTUK JADWAL ---
 setInterval(() => {
     try {
         const tasks = JSON.parse(fs.readFileSync(TASKS_FILE));
@@ -707,6 +819,7 @@ setInterval(() => {
     } catch (e) { console.error("[CRON LOG CLEANER ERROR] " + e.message); }
 }, 30 * 60 * 1000);
 
+// --- FETCH ANALYTICS (PULL YOUTUBE API) ---
 setInterval(async () => {
     for (const [taskId, streamData] of activeStreams.entries()) {
         if (streamData.accountId) {
@@ -763,7 +876,7 @@ setInterval(() => {
 }, 60000);
 
 
-// --- API ROUTES ---
+// --- API ROUTES UNTUK FRONTEND ---
 
 app.get('/api/status', (req, res) => res.json({ status: 'running', message: 'Backend VStream Aktif' }));
 
@@ -822,7 +935,7 @@ app.post('/api/tasks', (req, res) => {
     } catch (e) { res.status(500).json({ success: false, message: e.message }); }
 });
 
-// FITUR BARU: API EDIT TUGAS LIVE
+// EDIT TUGAS LIVE
 app.put('/api/tasks/:id', (req, res) => {
     try {
         let tasks = JSON.parse(fs.readFileSync(TASKS_FILE));
@@ -1046,7 +1159,6 @@ app.delete('/api/playlists/:id', (req, res) => {
     } catch (e) { res.status(500).json({ success: false, message: e.message }); }
 });
 
-// FITUR BARU: TARIK PLAYLIST ASLI DARI YOUTUBE STUDIO
 app.get('/api/youtube/playlists', async (req, res) => {
     try {
         const { accountId } = req.query;

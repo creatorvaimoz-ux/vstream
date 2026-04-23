@@ -7,7 +7,7 @@ import {
   AlertTriangle, XCircle, ChevronDown, TrendingUp, MessageSquare, ThumbsUp,
   Menu, Image, Monitor, Radio, Calendar, ShieldAlert,
   Wifi, Zap, TerminalSquare, Cpu, Bell, Bot, Send, MessageCircle,
-  Cast, Film, LineChart, Sliders, ScrollText, Link as LinkIcon, ListVideo, ArrowDown, Archive, Pencil, Globe
+  Cast, Film, LineChart, Sliders, ScrollText, Link as LinkIcon, ListVideo, ArrowDown, Archive, Pencil, Globe, DollarSign
 } from 'lucide-react';
 
 // === KONFIGURASI BRANDING APLIKASI ===
@@ -16,12 +16,233 @@ const BRAND_SUFFIX = "Stream";
 const BRAND_TAGLINE = "Vaimoz Youtube Stream V.1"; 
 // =====================================
 
+// =============================================================================
+// 1. KOMPONEN-KOMPONEN KECIL (HELPERS)
+// =============================================================================
+
+function StatCard({ title, value, icon: Icon, color, bgColor, className = "" }) {
+  return (
+    <div className={`bg-white dark:bg-slate-800 p-5 rounded-xl border border-gray-200 dark:border-slate-700/60 shadow-sm transition-all flex items-center gap-4 ${className}`}>
+      <div className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 ${bgColor}`}><Icon className={`w-5 h-5 ${color}`} /></div>
+      <div>
+        <p className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider mb-0.5">{title}</p>
+        <p className="text-2xl font-bold text-gray-900 dark:text-slate-100 leading-none">{value}</p>
+      </div>
+    </div>
+  );
+}
+
+function ProgressBar({ label, percentage, color, valueText, unitText = '%', subText }) {
+  return (
+    <div className="flex flex-col justify-end w-full">
+      <div className="flex justify-between items-end mb-1.5">
+        <span className="text-[10px] font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider">{label}</span>
+        <span className="text-[10px] font-mono font-bold text-gray-700 dark:text-slate-300">
+          {valueText !== undefined ? String(valueText) : String(percentage)}
+          <span className="text-[8px] text-gray-400 dark:text-slate-500 font-normal ml-0.5">{unitText}</span>
+        </span>
+      </div>
+      <div className="w-full rounded-full h-1.5 bg-gray-100 dark:bg-slate-700/50 overflow-hidden">
+        <div className={`h-full rounded-full ${color} transition-all duration-500`} style={{ width: `${percentage}%` }}></div>
+      </div>
+      <div className={`mt-1.5 text-[9px] text-gray-400 dark:text-slate-500 font-medium text-right leading-none ${subText ? 'opacity-100' : 'opacity-0 select-none'}`}>{subText || '-'}</div>
+    </div>
+  );
+}
+
+function FolderItem({ name, count, active }) {
+  return (
+    <div className={`flex items-center justify-between px-3 py-2 rounded-md cursor-pointer transition-colors ${active ? 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-medium border border-emerald-100 dark:border-emerald-500/20' : 'text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-700/50 border border-transparent'}`}>
+      <div className="flex items-center gap-2.5 overflow-hidden">
+        <FolderOpen className={`w-3.5 h-3.5 shrink-0 ${active ? 'text-emerald-500 dark:text-emerald-400' : 'text-gray-400 dark:text-slate-500'}`} />
+        <span className="text-[11px] truncate">{name}</span>
+      </div>
+      <span className={`text-[9px] px-1.5 py-0.5 rounded-sm font-mono ${active ? 'bg-white dark:bg-slate-800 text-emerald-500 dark:text-emerald-400 shadow-sm' : 'bg-gray-100 dark:bg-slate-700/50 text-gray-500 dark:text-slate-400'}`}>{count}</span>
+    </div>
+  );
+}
+
+function VideoPreviewCard({ name, size, onEdit, onDelete, API_BASE }) {
+  const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(name);
+  const mediaUrl = `${API_BASE}/media/${name}`;
+  const videoRef = useRef(null);
+
+  const handleMouseEnter = () => { if (videoRef.current) videoRef.current.play().catch(() => {}); };
+  const handleMouseLeave = () => { if (videoRef.current) { videoRef.current.pause(); videoRef.current.currentTime = 1; } };
+
+  return (
+    <div 
+      className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700/60 overflow-hidden shadow-sm hover:shadow-md transition-all group flex flex-col h-48 relative"
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+    >
+      <div className="flex-1 bg-gray-900 dark:bg-black relative overflow-hidden flex items-center justify-center">
+        {isImage ? (
+          <img src={mediaUrl} alt={name} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
+        ) : (
+          <video 
+             ref={videoRef}
+             src={`${mediaUrl}#t=1`} 
+             className="w-full h-full object-cover opacity-70 group-hover:opacity-100 transition-opacity" 
+             muted loop playsInline preload="metadata" 
+          />
+        )}
+        <div className="absolute inset-0 bg-black/20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+           {!isImage && <PlayCircle className="w-10 h-10 text-white opacity-80 scale-90 group-hover:scale-100 transition-transform" />}
+        </div>
+      </div>
+
+      <div className="p-3 bg-white dark:bg-slate-800 flex items-center justify-between gap-2 shrink-0 border-t border-gray-100 dark:border-slate-700/50">
+        <div className="overflow-hidden">
+          <p className="text-sm font-semibold text-gray-800 dark:text-slate-200 truncate" title={name}>{name}</p>
+          <p className="text-[10px] font-mono text-gray-500 mt-0.5">{size}</p>
+        </div>
+        <div className="flex gap-1.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+          <button onClick={onEdit} className="p-2 text-gray-500 hover:text-blue-500 bg-gray-100 hover:bg-blue-50 dark:bg-slate-700 dark:hover:bg-blue-900/30 rounded-lg transition-colors" title="Ganti Nama"><Pencil className="w-3.5 h-3.5" /></button>
+          <button onClick={onDelete} className="p-2 text-gray-500 hover:text-red-500 bg-gray-100 hover:bg-red-50 dark:bg-slate-700 dark:hover:bg-red-900/30 rounded-lg transition-colors" title="Hapus"><Trash2 className="w-3.5 h-3.5" /></button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CustomLineChart({ data }) {
+  const [hoveredIdx, setHoveredIdx] = useState(null);
+
+  if (!data || data.length === 0) {
+    return (
+      <div className="w-full h-[300px] flex flex-col items-center justify-center border border-dashed border-gray-200 dark:border-slate-700 rounded-xl bg-gray-50 dark:bg-slate-900/20">
+        <LineChart className="w-8 h-8 text-gray-300 dark:text-slate-600 mb-2" />
+        <span className="text-xs text-gray-400 dark:text-slate-500 font-medium">Menunggu sinkronisasi data Analytics dari YouTube API...</span>
+      </div>
+    );
+  }
+
+  const maxRevenue = Math.max(...data.map(d => d.revenue), 1000) * 1.2;
+  const maxViews = Math.max(...data.map(d => d.views), 100) * 1.2;
+
+  const width = 1000;
+  const height = 300;
+  const padding = { top: 20, right: 60, bottom: 30, left: 60 };
+  const chartWidth = width - padding.left - padding.right;
+  const chartHeight = height - padding.top - padding.bottom;
+
+  const getX = (index) => padding.left + (index / (data.length - 1)) * chartWidth;
+  const getYRev = (val) => padding.top + chartHeight - (val / maxRevenue) * chartHeight;
+  const getYView = (val) => padding.top + chartHeight - (val / maxViews) * chartHeight;
+
+  const revPoints = data.map((d, i) => `${getX(i)},${getYRev(d.revenue)}`).join(' L ');
+  const revPath = `M ${revPoints}`;
+  const revAreaPath = `${revPath} L ${getX(data.length - 1)},${padding.top + chartHeight} L ${padding.left},${padding.top + chartHeight} Z`;
+
+  const viewPoints = data.map((d, i) => `${getX(i)},${getYView(d.views)}`).join(' L ');
+  const viewPath = `M ${viewPoints}`;
+
+  const yTicks = [0, 0.25, 0.5, 0.75, 1];
+
+  let tooltipTransform = "-translate-x-1/2";
+  let tooltipLeft = hoveredIdx !== null ? (getX(hoveredIdx) / width) * 100 : 0;
+  if (hoveredIdx !== null) {
+      if (hoveredIdx < 3) { tooltipTransform = "translate-x-0"; tooltipLeft = (getX(hoveredIdx) / width) * 100 + 1; }
+      if (hoveredIdx > data.length - 4) { tooltipTransform = "-translate-x-full"; tooltipLeft = (getX(hoveredIdx) / width) * 100 - 1; }
+  }
+
+  return (
+    <div className="w-full overflow-x-auto overflow-y-hidden custom-scrollbar pb-2">
+      <div className="min-w-[750px] relative">
+         <div className="flex justify-center gap-8 mb-4 mt-2">
+           <div className="flex items-center gap-2">
+             <div className="w-8 h-3 bg-emerald-500/20 border-2 border-emerald-500 rounded-sm"></div>
+             <span className="text-xs font-semibold text-gray-700 dark:text-slate-300">Pendapatan (IDR)</span>
+           </div>
+           <div className="flex items-center gap-2">
+             <div className="w-8 h-0 border-t-2 border-dashed border-blue-500"></div>
+             <span className="text-xs font-semibold text-gray-700 dark:text-slate-300">Views</span>
+           </div>
+         </div>
+
+         <div className="relative w-full h-[300px] select-none">
+           <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-full" preserveAspectRatio="xMidYMid meet">
+             <defs>
+               <linearGradient id="gradientRev" x1="0" y1="0" x2="0" y2="1">
+                 <stop offset="0%" stopColor="#10b981" stopOpacity="0.4" />
+                 <stop offset="100%" stopColor="#10b981" stopOpacity="0.0" />
+               </linearGradient>
+             </defs>
+             {yTicks.map(tick => {
+               const y = padding.top + chartHeight - tick * chartHeight;
+               return (
+                 <g key={tick}>
+                   <line x1={padding.left} y1={y} x2={width - padding.right} y2={y} stroke="#334155" strokeWidth="1" strokeOpacity={tick === 0 ? "0.6" : "0.2"} />
+                   <text x={padding.left - 10} y={y + 4} textAnchor="end" className="text-[10px] fill-gray-500 dark:fill-gray-400 font-mono">
+                     {Math.round(tick * maxRevenue).toLocaleString('id-ID')}
+                   </text>
+                   <text x={width - padding.right + 10} y={y + 4} textAnchor="start" className="text-[10px] fill-gray-500 dark:fill-gray-400 font-mono">
+                     {Math.round(tick * maxViews).toLocaleString('id-ID')}
+                   </text>
+                 </g>
+               );
+             })}
+             {data.map((d, i) => {
+                if (i % Math.ceil(data.length / 10) !== 0 && i !== data.length - 1 && i !== 0) return null; 
+                return (
+                  <text key={i} x={getX(i)} y={height - 5} textAnchor="middle" className="text-[10px] fill-gray-400 font-mono">{d.date}</text>
+                );
+             })}
+             <path d={revAreaPath} fill="url(#gradientRev)" />
+             <path d={revPath} fill="none" stroke="#10b981" strokeWidth="2.5" />
+             <path d={viewPath} fill="none" stroke="#3b82f6" strokeWidth="2" strokeDasharray="6 5" />
+             {data.map((d, i) => <circle key={`v-${i}`} cx={getX(i)} cy={getYView(d.views)} r="3.5" className="fill-white dark:fill-slate-800" stroke="#3b82f6" strokeWidth="2" />)}
+             {data.map((d, i) => <circle key={`r-${i}`} cx={getX(i)} cy={getYRev(d.revenue)} r="3.5" className="fill-white dark:fill-slate-800" stroke="#10b981" strokeWidth="2" />)}
+             {data.map((d, i) => {
+                const bandWidth = chartWidth / data.length;
+                return (
+                  <rect
+                    key={`hover-${i}`}
+                    x={getX(i) - bandWidth/2} y={padding.top} width={bandWidth} height={chartHeight} fill="transparent"
+                    onMouseEnter={() => setHoveredIdx(i)} onMouseLeave={() => setHoveredIdx(null)} className="cursor-crosshair outline-none"
+                  />
+                )
+             })}
+             {hoveredIdx !== null && (
+                <line x1={getX(hoveredIdx)} y1={padding.top} x2={getX(hoveredIdx)} y2={padding.top + chartHeight} stroke="#64748b" strokeWidth="1" strokeDasharray="4 4" pointerEvents="none" />
+             )}
+           </svg>
+
+           {hoveredIdx !== null && (
+              <div 
+                className={`absolute top-4 pointer-events-none bg-slate-800 border border-slate-600 rounded-lg p-3 shadow-xl transform transition-all z-20 ${tooltipTransform}`}
+                style={{ left: `${tooltipLeft}%` }}
+              >
+                 <p className="text-white font-bold text-xs mb-2 border-b border-slate-600 pb-1.5">{data[hoveredIdx].date}</p>
+                 <div className="flex items-center gap-2 mb-1.5">
+                   <div className="w-2.5 h-2.5 bg-emerald-500 rounded-sm shadow-sm"></div>
+                   <span className="text-slate-300 text-[11px]">Pendapatan (IDR):</span>
+                   <span className="text-white text-[11px] font-mono font-bold">Rp {data[hoveredIdx].revenue.toLocaleString('id-ID')}</span>
+                 </div>
+                 <div className="flex items-center gap-2">
+                   <div className="w-2.5 h-2.5 bg-blue-500 rounded-sm shadow-sm"></div>
+                   <span className="text-slate-300 text-[11px]">Views:</span>
+                   <span className="text-white text-[11px] font-mono font-bold">{data[hoveredIdx].views.toLocaleString('id-ID')}</span>
+                 </div>
+              </div>
+           )}
+         </div>
+      </div>
+    </div>
+  );
+}
+
+
+// =============================================================================
+// 2. MAIN APP ROUTER
+// =============================================================================
+
 export default function App() {
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [accounts, setAccounts] = useState([]);
-  
   const [taskToEdit, setTaskToEdit] = useState(null);
 
   const toggleTheme = () => setIsDarkMode(!isDarkMode);
@@ -31,9 +252,7 @@ export default function App() {
     setActiveTab('tugas-live');
   };
 
-  const clearEditTask = () => {
-    setTaskToEdit(null);
-  };
+  const clearEditTask = () => setTaskToEdit(null);
 
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -53,19 +272,14 @@ export default function App() {
       const res = await fetch(`${API_BASE}/api/settings/accounts`);
       const data = await res.json();
       setAccounts(Array.isArray(data) ? data : []);
-    } catch (e) { 
-      console.error('Gagal mengambil daftar Akun:', e); 
-    }
+    } catch (e) {}
   };
 
-  useEffect(() => {
-    fetchAccounts();
-  }, []);
+  useEffect(() => { fetchAccounts(); }, []);
 
   return (
     <div className={`min-h-screen flex flex-col ${isDarkMode ? 'dark' : ''}`}>
       <div className="flex flex-col w-full h-screen bg-gray-50 dark:bg-slate-900 text-gray-900 dark:text-slate-100 transition-colors duration-300 overflow-hidden relative">
-        
         <header className="shrink-0 bg-white dark:bg-slate-800 relative z-50 flex flex-col shadow-sm dark:shadow-black/20">
           <div className="h-16 flex items-center justify-between px-4 md:px-6 border-b border-gray-200 dark:border-slate-700/60">
             <div className="flex items-center gap-3 shrink-0">
@@ -77,51 +291,27 @@ export default function App() {
                 <span className="text-[9px] font-bold tracking-widest text-gray-500 dark:text-slate-400 uppercase leading-none">{BRAND_TAGLINE}</span>
               </div>
             </div>
-
             <div className="flex items-center gap-2 sm:gap-4 shrink-0">
               <div className="hidden lg:flex items-center gap-1.5 text-xs bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 px-2.5 py-1.5 rounded-full border border-emerald-200 dark:border-emerald-800/50 font-medium">
-                <div className="w-2 h-2 rounded-full bg-emerald-500 dark:bg-emerald-400 animate-pulse"></div>
-                Running
+                <div className="w-2 h-2 rounded-full bg-emerald-500 dark:bg-emerald-400 animate-pulse"></div> Running
               </div>
-              <button 
-                onClick={toggleTheme}
-                className="p-2 text-gray-500 hover:text-gray-700 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700/50 transition-colors rounded-lg"
-              >
+              <button onClick={toggleTheme} className="p-2 text-gray-500 hover:text-gray-700 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700/50 transition-colors rounded-lg">
                 {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
               </button>
-              <div className="hidden sm:flex w-8 h-8 bg-gray-200 dark:bg-slate-700/80 rounded-full items-center justify-center shrink-0">
-                <Users className="w-4 h-4 dark:text-slate-300" />
-              </div>
-              
-              <button 
-                className="md:hidden p-2 -mr-2 text-gray-500 hover:bg-gray-100 dark:text-slate-400 dark:hover:bg-slate-700/50 rounded-lg transition-colors"
-                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              >
+              <div className="hidden sm:flex w-8 h-8 bg-gray-200 dark:bg-slate-700/80 rounded-full items-center justify-center shrink-0"><Users className="w-4 h-4 dark:text-slate-300" /></div>
+              <button className="md:hidden p-2 -mr-2 text-gray-500 hover:bg-gray-100 dark:text-slate-400 dark:hover:bg-slate-700/50 rounded-lg transition-colors" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}>
                 {isMobileMenuOpen ? <XCircle className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
               </button>
             </div>
           </div>
-
           <div className="hidden md:block border-b border-gray-200 dark:border-slate-700/60 bg-white dark:bg-slate-800/90 px-4 md:px-6">
             <nav className="flex items-center gap-2 overflow-x-auto py-2">
               {menuItems.map((item) => {
                 const Icon = item.icon;
                 const isActive = activeTab === item.id;
                 return (
-                  <button
-                    key={item.id}
-                    onClick={() => {
-                      setActiveTab(item.id);
-                      if (item.id !== 'tugas-live') clearEditTask(); 
-                    }}
-                    className={`flex items-center gap-2 px-3.5 py-2 rounded-lg transition-all text-sm font-medium whitespace-nowrap ${
-                      isActive
-                        ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-500/20'
-                        : 'text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-700/40 border border-transparent'
-                    }`}
-                  >
-                    <Icon className="w-4 h-4" />
-                    {item.label}
+                  <button key={item.id} onClick={() => { setActiveTab(item.id); if (item.id !== 'tugas-live') clearEditTask(); }} className={`flex items-center gap-2 px-3.5 py-2 rounded-lg transition-all text-sm font-medium whitespace-nowrap ${isActive ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-500/20' : 'text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-700/40 border border-transparent'}`}>
+                    <Icon className="w-4 h-4" /> {item.label}
                   </button>
                 );
               })}
@@ -136,21 +326,8 @@ export default function App() {
                 const Icon = item.icon;
                 const isActive = activeTab === item.id;
                 return (
-                  <button
-                    key={item.id}
-                    onClick={() => {
-                      setActiveTab(item.id);
-                      if (item.id !== 'tugas-live') clearEditTask();
-                      setIsMobileMenuOpen(false);
-                    }}
-                    className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-sm font-medium ${
-                      isActive
-                        ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-500/20'
-                        : 'text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-700/40'
-                    }`}
-                  >
-                    <Icon className="w-5 h-5" />
-                    {item.label}
+                  <button key={item.id} onClick={() => { setActiveTab(item.id); if (item.id !== 'tugas-live') clearEditTask(); setIsMobileMenuOpen(false); }} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-sm font-medium ${isActive ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-500/20' : 'text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-700/40'}`}>
+                    <Icon className="w-5 h-5" /> {item.label}
                   </button>
                 );
               })}
@@ -158,12 +335,7 @@ export default function App() {
           </div>
         )}
         
-        {isMobileMenuOpen && (
-           <div 
-             className="md:hidden absolute inset-0 top-16 z-30 bg-slate-900/50 backdrop-blur-sm"
-             onClick={() => setIsMobileMenuOpen(false)}
-           ></div>
-        )}
+        {isMobileMenuOpen && <div className="md:hidden absolute inset-0 top-16 z-30 bg-slate-900/50 backdrop-blur-sm" onClick={() => setIsMobileMenuOpen(false)}></div>}
 
         <main className="flex-1 overflow-y-auto p-4 md:p-6 relative z-10 w-full mx-auto">
           {activeTab === 'dashboard' && <DashboardView isPreview={isPreview} API_BASE={API_BASE} onEditTask={handleEditTask} />}
@@ -179,12 +351,16 @@ export default function App() {
   );
 }
 
+
+// =============================================================================
+// 3. TAMPILAN HALAMAN KONTEN (VIEWS)
+// =============================================================================
+
 function DashboardView({ isPreview, API_BASE, onEditTask }) {
   const [tasks, setTasks] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [sysInfo, setSysInfo] = useState({ cpu: 0, ram: 0, disk: 0, bandwidth: 0 });
-  
-  const [tableFilter, setTableFilter] = useState('utama');
+  const [tableFilter, setTableFilter] = useState('utama'); 
 
   const fetchTasks = async () => {
     if(isPreview) { setIsLoading(false); return; }
@@ -192,17 +368,20 @@ function DashboardView({ isPreview, API_BASE, onEditTask }) {
       const res = await fetch(`${API_BASE}/api/tasks`);
       const data = await res.json();
       setTasks(Array.isArray(data) ? data : []);
-    } catch(e) { console.error(e); }
+    } catch(e) {}
     setIsLoading(false);
   };
 
   useEffect(() => {
     fetchTasks();
-    const interval = setInterval(() => {
-      fetchTasks();
+    if (!isPreview) fetch(`${API_BASE}/api/system`).then(res => res.json()).then(data => setSysInfo(data)).catch(e => {});
+    
+    const taskInterval = setInterval(() => fetchTasks(), 5000);
+    const sysInterval = setInterval(() => {
       if (!isPreview) fetch(`${API_BASE}/api/system`).then(res => res.json()).then(data => setSysInfo(data)).catch(e => {});
-    }, 5000);
-    return () => clearInterval(interval);
+    }, 1000);
+
+    return () => { clearInterval(taskInterval); clearInterval(sysInterval); };
   }, [API_BASE, isPreview]);
 
   const handleDeleteTask = async (id) => {
@@ -230,7 +409,7 @@ function DashboardView({ isPreview, API_BASE, onEditTask }) {
       case 'good': return { dot: 'bg-blue-500', text: 'text-blue-600 dark:text-blue-400', label: 'Bagus (Good)' };
       case 'poor': return { dot: 'bg-yellow-500', text: 'text-yellow-600 dark:text-yellow-400', label: 'Lemah (Poor)' };
       case 'bad': return { dot: 'bg-red-500', text: 'text-red-600 dark:text-red-400', label: 'Buruk / Putus' };
-      default: return { dot: 'bg-emerald-500', text: 'text-emerald-600 dark:text-emerald-400', label: 'Sangat Baik' };
+      default: return { dot: 'bg-emerald-500', text: 'text-emerald-600 dark:text-emerald-400', label: 'Sangat Baik' }; 
     }
   };
 
@@ -238,15 +417,12 @@ function DashboardView({ isPreview, API_BASE, onEditTask }) {
   const scheduledTasks = tasks.filter(t => t.status === 'Terjadwal' || t.status === 'Draft' || t.status === 'Berhenti');
 
   const filteredTasks = tasks.filter(t => {
-      if (tableFilter === 'utama') {
-          return t.status === 'Live' || t.status === 'Starting' || t.status === 'Error' || (t.status === 'Terjadwal' && ['sekali', 'manual'].includes(t.jadwalMode));
-      } else {
-          return t.status === 'Berhenti' || (t.status !== 'Live' && t.status !== 'Error' && ['harian', 'smart-weekly'].includes(t.jadwalMode));
-      }
+      if (tableFilter === 'utama') return t.status === 'Live' || t.status === 'Starting' || t.status === 'Error' || (t.status === 'Terjadwal' && ['sekali', 'manual'].includes(t.jadwalMode));
+      return t.status === 'Berhenti' || (t.status !== 'Live' && t.status !== 'Error' && ['harian', 'smart-weekly'].includes(t.jadwalMode));
   });
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3 animate-in fade-in duration-500">
       <div className="grid grid-cols-2 gap-3">
         <div className="bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700/60 p-2.5 shadow-sm flex items-center justify-between hover:border-emerald-200 dark:hover:border-emerald-500/40 transition-colors">
           <div className="flex items-center gap-2.5">
@@ -290,10 +466,10 @@ function DashboardView({ isPreview, API_BASE, onEditTask }) {
         </div>
         
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 flex-1">
-          <ProgressBar label="CPU" percentage={sysInfo.cpu} color="bg-blue-400 dark:bg-blue-500" />
-          <ProgressBar label="RAM" percentage={sysInfo.ram} color="bg-purple-400 dark:bg-purple-500" />
-          <ProgressBar label="Disk" percentage={sysInfo.disk} color="bg-yellow-400 dark:bg-amber-400" />
-          <ProgressBar label="Bandwidth" percentage={sysInfo.bandwidth * 10} color="bg-cyan-400 dark:bg-cyan-500" valueText={<span>{sysInfo.bandwidth}<span className="text-[8px] text-gray-400 dark:text-slate-500 font-normal ml-0.5">GB</span></span>} subText="Kmrn: 1.2 GB" />
+          <ProgressBar label="CPU" percentage={sysInfo.cpu || 0} color="bg-blue-400 dark:bg-blue-500" />
+          <ProgressBar label="RAM" percentage={sysInfo.ram || 0} color="bg-purple-400 dark:bg-purple-500" />
+          <ProgressBar label="Disk" percentage={sysInfo.disk || 0} color="bg-yellow-400 dark:bg-amber-400" />
+          <ProgressBar label="Bandwidth" percentage={Math.min((sysInfo.bandwidth || 0) * 10, 100)} color="bg-cyan-400 dark:bg-cyan-500" valueText={sysInfo.bandwidth || 0} unitText="MB/s" />
         </div>
       </div>
 
@@ -302,23 +478,14 @@ function DashboardView({ isPreview, API_BASE, onEditTask }) {
           <h3 className="text-base font-semibold text-gray-900 dark:text-slate-100 flex items-center gap-2">
             <Radio className="w-4 h-4 text-emerald-500 dark:text-emerald-400" /> Daftar Tugas & Streaming
           </h3>
-          
           <div className="flex items-center gap-2 bg-gray-200/50 dark:bg-slate-900 p-1 rounded-lg self-start sm:self-auto">
-             <button 
-                onClick={() => setTableFilter('utama')}
-                className={`px-3 py-1.5 rounded-md text-xs font-bold transition-colors flex items-center gap-1.5 ${tableFilter === 'utama' ? 'bg-white dark:bg-slate-700 text-emerald-600 dark:text-emerald-400 shadow-sm' : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-300'}`}
-             >
+             <button onClick={() => setTableFilter('utama')} className={`px-3 py-1.5 rounded-md text-xs font-bold transition-colors flex items-center gap-1.5 ${tableFilter === 'utama' ? 'bg-white dark:bg-slate-700 text-emerald-600 dark:text-emerald-400 shadow-sm' : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-300'}`}>
                 <PlayCircle className="w-3.5 h-3.5" /> Live & Antrean
              </button>
-             <button 
-                onClick={() => setTableFilter('history')}
-                className={`px-3 py-1.5 rounded-md text-xs font-bold transition-colors flex items-center gap-1.5 ${tableFilter === 'history' ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-300'}`}
-             >
+             <button onClick={() => setTableFilter('history')} className={`px-3 py-1.5 rounded-md text-xs font-bold transition-colors flex items-center gap-1.5 ${tableFilter === 'history' ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-300'}`}>
                 <Archive className="w-3.5 h-3.5" /> History & Rutin
              </button>
-             
              <div className="w-px h-4 bg-gray-300 dark:bg-slate-600 mx-1"></div>
-             
              <button onClick={fetchTasks} className="p-1.5 text-gray-500 hover:text-blue-600 dark:text-slate-400 dark:hover:text-blue-400 transition-colors rounded-md" title="Refresh Data">
                 <RefreshCw className="w-3.5 h-3.5" />
              </button>
@@ -351,94 +518,46 @@ function DashboardView({ isPreview, API_BASE, onEditTask }) {
                   return (
                     <tr key={t.id} className="hover:bg-gray-50/80 dark:hover:bg-slate-700/30 transition-colors group">
                       <td className="px-5 py-4 align-middle text-center text-xs font-mono text-gray-400">{idx+1}</td>
-                      
                       <td className="px-5 py-4 align-middle">
-                        <div className="font-semibold text-sm text-gray-900 dark:text-slate-100 leading-tight truncate max-w-[200px]" title={t.taskName}>
-                          {t.taskName || 'Tanpa Nama'}
-                        </div>
+                        <div className="font-semibold text-sm text-gray-900 dark:text-slate-100 leading-tight truncate max-w-[200px]" title={t.taskName}>{t.taskName || 'Tanpa Nama'}</div>
                         <div className="text-[10px] text-gray-500 dark:text-slate-400 mt-1 truncate max-w-[200px] flex items-center gap-1">
                           {t.videoMode === 'Play Playlist (Berurutan)' ? <ListVideo className="w-3 h-3 text-gray-400" /> : <Video className="w-3 h-3 text-gray-400" />}
                           {t.videoPath || t.videoMode}
                         </div>
                       </td>
-                      
                       <td className="px-5 py-4 align-middle">
                         <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-md bg-gray-100 dark:bg-slate-900/50 border border-gray-200 dark:border-slate-700/60 text-xs text-gray-600 dark:text-slate-300">
                           <Clock className="w-3 h-3 text-gray-400" />
                           <span>{t.jadwalMode === 'smart-weekly' ? 'Mingguan' : t.jadwalMode === 'harian' ? `Harian | ${t.scheduleTime}` : t.jadwalMode === 'sekali' ? `${t.scheduleDate} | ${t.scheduleTime}` : 'Manual'}</span>
                         </div>
-                        
                         {t.status === 'Live' && (
                           <div className="mt-2 space-y-1.5">
-                            <div className="text-[11px] font-bold text-blue-600 dark:text-blue-400 flex items-center gap-1.5">
-                              <Users className="w-3 h-3" /> {t.viewers || 0} Penonton • {t.uptime || '00:00'}
-                            </div>
-                            <div className={`text-[10px] font-medium flex items-center gap-1.5 ${healthStyle.text}`}>
-                              <span className={`w-2 h-2 rounded-full ${healthStyle.dot} animate-pulse`}></span>
-                              Kondisi: {healthStyle.label}
-                            </div>
+                            <div className="text-[11px] font-bold text-blue-600 dark:text-blue-400 flex items-center gap-1.5"><Users className="w-3 h-3" /> {t.viewers || 0} Penonton • {t.uptime || '00:00'}</div>
+                            <div className={`text-[10px] font-medium flex items-center gap-1.5 ${healthStyle.text}`}><span className={`w-2 h-2 rounded-full ${healthStyle.dot} animate-pulse`}></span> Kondisi: {healthStyle.label}</div>
                           </div>
                         )}
                       </td>
-                      
                       <td className="px-5 py-4 align-middle">
                         <div className="flex items-start gap-2">
                           <span className="relative flex h-2.5 w-2.5 mt-1 shrink-0">
                             {t.status === 'Live' && <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 dark:bg-emerald-400 opacity-75"></span>}
                             <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${t.status === 'Live' ? 'bg-emerald-500' : t.status === 'Terjadwal' ? 'bg-blue-500' : t.status === 'Error' ? 'bg-red-500' : 'bg-gray-400'}`}></span>
                           </span>
-                          
                           <div className="flex flex-col">
-                            <span className={`text-sm font-medium leading-none ${t.status === 'Live' ? 'text-emerald-600 dark:text-emerald-400' : t.status === 'Error' ? 'text-red-600 dark:text-rose-400' : 'text-gray-600 dark:text-slate-400'}`}>
-                              {t.status}
-                            </span>
-                            <span className={`text-[11px] mt-1 mb-1.5 ${t.condType === 'success' ? 'text-emerald-600 dark:text-emerald-400' : t.condType === 'warning' ? 'text-yellow-600 dark:text-amber-400' : t.condType === 'error' ? 'text-red-600 dark:text-rose-400' : 'text-gray-500 dark:text-slate-500'}`}>
-                              {t.condTitle || 'Menunggu Waktu'}
-                            </span>
-                            
+                            <span className={`text-sm font-medium leading-none ${t.status === 'Live' ? 'text-emerald-600 dark:text-emerald-400' : t.status === 'Error' ? 'text-red-600 dark:text-rose-400' : 'text-gray-600 dark:text-slate-400'}`}>{t.status}</span>
+                            <span className={`text-[11px] mt-1 mb-1.5 ${t.condType === 'success' ? 'text-emerald-600 dark:text-emerald-400' : t.condType === 'warning' ? 'text-yellow-600 dark:text-amber-400' : t.condType === 'error' ? 'text-red-600 dark:text-rose-400' : 'text-gray-500 dark:text-slate-500'}`}>{t.condTitle || 'Menunggu Waktu'}</span>
                             <div className="flex flex-col gap-1 border-t border-gray-100 dark:border-slate-700/50 pt-1.5 mt-0.5">
-                              <span className="text-[10px] text-gray-500 dark:text-slate-400 flex items-center gap-1">
-                                <StopCircle className="w-3 h-3" /> Stop: {t.stopHours || 0}j {t.stopMinutes || 0}m {t.randomizeStop ? '(Acak)' : ''}
-                              </span>
+                              <span className="text-[10px] text-gray-500 dark:text-slate-400 flex items-center gap-1"><StopCircle className="w-3 h-3" /> Stop: {t.stopHours || 0}j {t.stopMinutes || 0}m {t.randomizeStop ? '(Acak)' : ''}</span>
                             </div>
                           </div>
                         </div>
                       </td>
-                      
                       <td className="px-5 py-4 align-middle text-right">
                           <div className="flex items-center justify-end gap-1.5">
-                             {t.status !== 'Live' && (
-                               <button 
-                                 onClick={() => handleStartStream(t)} 
-                                 className="p-2 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-500/20 rounded-md transition-colors" 
-                                 title="Mulai Live Sekarang"
-                               >
-                                 <PlayCircle className="w-4 h-4"/>
-                               </button>
-                             )}
-                             {t.status === 'Live' && (
-                               <button 
-                                 onClick={() => handleStopStream(t.id)} 
-                                 className="p-2 bg-yellow-50 dark:bg-amber-500/10 text-yellow-600 dark:text-amber-400 hover:bg-yellow-100 dark:hover:bg-amber-500/20 rounded-md transition-colors" 
-                                 title="Hentikan Stream"
-                               >
-                                 <StopCircle className="w-4 h-4"/>
-                               </button>
-                             )}
-                             <button 
-                               onClick={() => onEditTask(t)} 
-                               className="p-2 bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-500/20 rounded-md transition-colors" 
-                               title="Edit Tugas"
-                             >
-                               <Edit className="w-4 h-4"/>
-                             </button>
-                             <button 
-                               onClick={() => handleDeleteTask(t.id)} 
-                               className="p-2 bg-red-50 dark:bg-rose-500/10 text-red-600 dark:text-rose-400 hover:bg-red-100 dark:hover:bg-rose-500/20 rounded-md transition-colors" 
-                               title="Hapus Tugas (Hapus dari History)"
-                             >
-                               <Trash2 className="w-4 h-4"/>
-                             </button>
+                             {t.status !== 'Live' && ( <button onClick={() => handleStartStream(t)} className="p-2 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-500/20 rounded-md transition-colors" title="Mulai Live Sekarang"><PlayCircle className="w-4 h-4"/></button> )}
+                             {t.status === 'Live' && ( <button onClick={() => handleStopStream(t.id)} className="p-2 bg-yellow-50 dark:bg-amber-500/10 text-yellow-600 dark:text-amber-400 hover:bg-yellow-100 dark:hover:bg-amber-500/20 rounded-md transition-colors" title="Hentikan Stream"><StopCircle className="w-4 h-4"/></button> )}
+                             <button onClick={() => onEditTask(t)} className="p-2 bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-500/20 rounded-md transition-colors" title="Edit Tugas"><Edit className="w-4 h-4"/></button>
+                             <button onClick={() => handleDeleteTask(t.id)} className="p-2 bg-red-50 dark:bg-rose-500/10 text-red-600 dark:text-rose-400 hover:bg-red-100 dark:hover:bg-rose-500/20 rounded-md transition-colors" title="Hapus Tugas"><Trash2 className="w-4 h-4"/></button>
                           </div>
                       </td>
                     </tr>
@@ -472,6 +591,7 @@ function TugasLiveView({ accounts, isPreview, API_BASE, onNavigate, taskToEdit, 
   const [stopHours, setStopHours] = useState(0);
   const [stopMinutes, setStopMinutes] = useState(0);
   const [randomizeStop, setRandomizeStop] = useState(true);
+  const [smartStopEnabled, setSmartStopEnabled] = useState(false);
   
   const [thumbnailUrl, setThumbnailUrl] = useState('');
   const [randomizeThumbnail, setRandomizeThumbnail] = useState(false); 
@@ -480,6 +600,7 @@ function TugasLiveView({ accounts, isPreview, API_BASE, onNavigate, taskToEdit, 
 
   const [isVideoDropdownOpen, setIsVideoDropdownOpen] = useState(false);
   const [availableVideos, setAvailableVideos] = useState([]);
+  const [availableImages, setAvailableImages] = useState([]);
   const [playlists, setPlaylists] = useState([]);
 
   const [accountId, setAccountId] = useState('');
@@ -489,9 +610,11 @@ function TugasLiveView({ accounts, isPreview, API_BASE, onNavigate, taskToEdit, 
   const [youtubeDescription, setYoutubeDescription] = useState('');
   const [youtubeTags, setYoutubeTags] = useState('');
   const [youtubePrivacy, setYoutubePrivacy] = useState('public');
+  const [replayPrivacy, setReplayPrivacy] = useState('public');
 
   const [localizations, setLocalizations] = useState({});
   const [showLocalizations, setShowLocalizations] = useState(false);
+  const [isTranslatingAll, setIsTranslatingAll] = useState(false); 
 
   const [chatbotEnabled, setChatbotEnabled] = useState(false);
   const [scheduledMessages, setScheduledMessages] = useState([]);
@@ -500,42 +623,42 @@ function TugasLiveView({ accounts, isPreview, API_BASE, onNavigate, taskToEdit, 
   const [fallbackVideo, setFallbackVideo] = useState('');
   const [encoderEngine, setEncoderEngine] = useState('copy');
   const [outputResolution, setOutputResolution] = useState('source');
+  const [orientation, setOrientation] = useState('horizontal'); 
   const [monetization, setMonetization] = useState('on');
   const [targetPlaylist, setTargetPlaylist] = useState('none');
   const [videoLanguage, setVideoLanguage] = useState('id'); 
 
   const AVAILABLE_LANGUAGES = [
-    { code: 'id', name: 'Indonesia (Bahasa Indonesia)' },
-    { code: 'en', name: 'Inggris (English)' },
-    { code: 'ms', name: 'Melayu (Malaysia)' },
-    { code: 'ja', name: 'Jepang (日本語)' },
-    { code: 'ko', name: 'Korea (한국어)' },
-    { code: 'zh-TW', name: 'Mandarin (Taiwan)' },
-    { code: 'zh-CN', name: 'Mandarin (China)' },
-    { code: 'hi', name: 'Hindi (हिन्दी)' },
-    { code: 'bn', name: 'Bengali (বাংলা)' },
-    { code: 'ta', name: 'Tamil (தமிழ்)' },
-    { code: 'te', name: 'Telugu (తెలుగు)' },
-    { code: 'kn', name: 'Kannada (ಕನ್ನಡ)' },
-    { code: 'ur', name: 'Urdu (اردو)' },
-    { code: 'ar', name: 'Arab (العربية)' },
-    { code: 'th', name: 'Thailand (ไทย)' },
-    { code: 'vi', name: 'Vietnam (Tiếng Việt)' },
-    { code: 'fil', name: 'Filipina (Tagalog)' },
-    { code: 'es', name: 'Spanyol (Español)' },
-    { code: 'pt', name: 'Portugis (Português)' },
-    { code: 'fr', name: 'Prancis (Français)' },
-    { code: 'de', name: 'Jerman (Deutsch)' },
-    { code: 'it', name: 'Italia (Italiano)' },
-    { code: 'ru', name: 'Rusia (Русский)' },
-    { code: 'tr', name: 'Turki (Türkçe)' },
-    { code: 'nl', name: 'Belanda (Nederlands)' },
-    { code: 'pl', name: 'Polandia (Polski)' },
-    { code: 'uk', name: 'Ukraina (Українська)' }
+    { code: 'id', name: 'Indonesia' }, { code: 'en', name: 'Inggris' },
+    { code: 'ms', name: 'Melayu' }, { code: 'ja', name: 'Jepang' },
+    { code: 'ko', name: 'Korea' }, { code: 'zh-TW', name: 'Mandarin (TW)' },
+    { code: 'zh-CN', name: 'Mandarin (CN)' }, { code: 'hi', name: 'Hindi' },
+    { code: 'bn', name: 'Bengali' }, { code: 'ta', name: 'Tamil' },
+    { code: 'te', name: 'Telugu' }, { code: 'kn', name: 'Kannada' },
+    { code: 'ur', name: 'Urdu' }, { code: 'ar', name: 'Arab' },
+    { code: 'th', name: 'Thailand' }, { code: 'vi', name: 'Vietnam' },
+    { code: 'fil', name: 'Filipina' }, { code: 'es', name: 'Spanyol' },
+    { code: 'pt', name: 'Portugis' }, { code: 'fr', name: 'Prancis' },
+    { code: 'de', name: 'Jerman' }, { code: 'it', name: 'Italia' },
+    { code: 'ru', name: 'Rusia' }, { code: 'tr', name: 'Turki' },
+    { code: 'nl', name: 'Belanda' }, { code: 'pl', name: 'Polandia' },
+    { code: 'uk', name: 'Ukraina' }, { code: 'sv', name: 'Swedia' },
+    { code: 'no', name: 'Norwegia' }, { code: 'da', name: 'Denmark' },
+    { code: 'fi', name: 'Finlandia' }, { code: 'cs', name: 'Ceko' },
+    { code: 'el', name: 'Yunani' }, { code: 'hu', name: 'Hungaria' },
+    { code: 'ro', name: 'Rumania' }, { code: 'sk', name: 'Slovakia' },
+    { code: 'bg', name: 'Bulgaria' }, { code: 'hr', name: 'Kroasia' },
+    { code: 'sr', name: 'Serbia' }, { code: 'he', name: 'Ibrani' },
+    { code: 'fa', name: 'Persia' }, { code: 'sw', name: 'Swahili' },
+    { code: 'am', name: 'Amharik' }, { code: 'af', name: 'Afrikaans' },
+    { code: 'km', name: 'Khmer' }, { code: 'my', name: 'Burma' },
+    { code: 'ne', name: 'Nepal' }, { code: 'si', name: 'Sinhala' },
+    { code: 'pa', name: 'Punjabi' }, { code: 'gu', name: 'Gujarati' },
+    { code: 'mr', name: 'Marathi' }, { code: 'ml', name: 'Malayalam' }
   ];
 
   const getFlagCode = (lang) => {
-    const map = { en: 'gb', ja: 'jp', ko: 'kr', ms: 'my', 'zh-TW': 'tw', 'zh-CN': 'cn', hi: 'in', bn: 'bd', ta: 'in', te: 'in', kn: 'in', ur: 'pk', ar: 'sa', th: 'th', vi: 'vn', fil: 'ph', es: 'es', pt: 'pt', fr: 'fr', de: 'de', it: 'it', ru: 'ru', tr: 'tr', nl: 'nl', pl: 'pl', uk: 'ua', id: 'id' };
+    const map = { en: 'gb', ja: 'jp', ko: 'kr', ms: 'my', 'zh-TW': 'tw', 'zh-CN': 'cn', hi: 'in', bn: 'bd', ta: 'in', te: 'in', kn: 'in', ur: 'pk', ar: 'sa', th: 'th', vi: 'vn', fil: 'ph', es: 'es', pt: 'pt', fr: 'fr', de: 'de', it: 'it', ru: 'ru', tr: 'tr', nl: 'nl', pl: 'pl', uk: 'ua', id: 'id', sv: 'se', no: 'no', da: 'dk', fi: 'fi', cs: 'cz', el: 'gr', hu: 'hu', ro: 'ro', sk: 'sk', bg: 'bg', hr: 'hr', sr: 'rs', he: 'il', fa: 'ir', sw: 'ke', am: 'et', af: 'za', km: 'kh', my: 'mm', ne: 'np', si: 'lk', pa: 'in', gu: 'in', mr: 'in', ml: 'in' };
     return map[lang] || 'id';
   };
 
@@ -544,12 +667,9 @@ function TugasLiveView({ accounts, isPreview, API_BASE, onNavigate, taskToEdit, 
       fetch(`${API_BASE}/api/youtube/playlists?accountId=${accountId}`)
         .then(res => res.json())
         .then(data => {
-          if (data.success && Array.isArray(data.playlists)) {
-            setYoutubePlaylists(data.playlists);
-          } else {
-            setYoutubePlaylists([]);
-          }
-        }).catch(e => console.error("Gagal menarik playlist:", e));
+          if (data.success && Array.isArray(data.playlists)) setYoutubePlaylists(data.playlists);
+          else setYoutubePlaylists([]);
+        }).catch(e => {});
     } else {
       setYoutubePlaylists([]);
     }
@@ -569,6 +689,7 @@ function TugasLiveView({ accounts, isPreview, API_BASE, onNavigate, taskToEdit, 
       setStopHours(taskToEdit.stopHours || 0);
       setStopMinutes(taskToEdit.stopMinutes || 0);
       setRandomizeStop(taskToEdit.randomizeStop !== undefined ? taskToEdit.randomizeStop : true);
+      setSmartStopEnabled(taskToEdit.smartStopEnabled || false);
       setThumbnailUrl(taskToEdit.thumbnailUrl || '');
       setRandomizeThumbnail(taskToEdit.randomizeThumbnail || false);
       setAccountId(taskToEdit.accountId || '');
@@ -577,6 +698,7 @@ function TugasLiveView({ accounts, isPreview, API_BASE, onNavigate, taskToEdit, 
       setYoutubeDescription(taskToEdit.youtubeDescription || '');
       setYoutubeTags(taskToEdit.youtubeTags || '');
       setYoutubePrivacy(taskToEdit.youtubePrivacy || 'public');
+      setReplayPrivacy(taskToEdit.replayPrivacy || 'public');
       setLocalizations(taskToEdit.localizations || {}); 
       if (taskToEdit.localizations && Object.keys(taskToEdit.localizations).length > 0) setShowLocalizations(true);
       setChatbotEnabled(taskToEdit.chatbotEnabled || false);
@@ -585,25 +707,15 @@ function TugasLiveView({ accounts, isPreview, API_BASE, onNavigate, taskToEdit, 
       setFallbackVideo(taskToEdit.fallbackVideo || '');
       setEncoderEngine(taskToEdit.encoderEngine || 'copy');
       setOutputResolution(taskToEdit.outputResolution || 'source');
+      setOrientation(taskToEdit.orientation || 'horizontal'); 
       setMonetization(taskToEdit.monetization || 'on');
       setTargetPlaylist(taskToEdit.targetPlaylist || 'none');
       setVideoLanguage(taskToEdit.videoLanguage || 'id'); 
     } else {
-      setTaskName('');
-      setManualStreamKey('');
-      setSelectedVideos([]);
-      setScheduleDate('');
-      setScheduleTime('');
-      setThumbnailUrl('');
-      setRandomizeThumbnail(false);
-      setYoutubeTitle('');
-      setYoutubeDescription('');
-      setYoutubeTags('');
-      setLocalizations({});
-      setShowLocalizations(false);
-      setScheduledMessages([]);
-      setFallbackVideo('');
-      setVideoLanguage('id'); 
+      setTaskName(''); setManualStreamKey(''); setSelectedVideos([]); setScheduleDate(''); setScheduleTime(''); setThumbnailUrl('');
+      setRandomizeThumbnail(false); setYoutubeTitle(''); setYoutubeDescription(''); setYoutubeTags(''); setYoutubePrivacy('public');
+      setReplayPrivacy('public'); setLocalizations({}); setShowLocalizations(false); setScheduledMessages([]); setFallbackVideo('');
+      setOrientation('horizontal'); setVideoLanguage('id'); setSmartStopEnabled(false);
     }
   }, [taskToEdit]);
 
@@ -611,8 +723,10 @@ function TugasLiveView({ accounts, isPreview, API_BASE, onNavigate, taskToEdit, 
     if (isPreview) return;
     fetch(`${API_BASE}/api/media`).then(res => res.json()).then(data => { 
       if(Array.isArray(data)) {
-        const onlyVideos = data.map(d => d.name).filter(name => !name.toLowerCase().match(/\.(jpg|jpeg|png|gif|webp)$/i));
+        const onlyVideos = data.map(d => d.name).filter(name => !/\.(jpg|jpeg|png|gif|webp)$/i.test(name));
+        const onlyImages = data.map(d => d.name).filter(name => /\.(jpg|jpeg|png|gif|webp)$/i.test(name));
         setAvailableVideos(onlyVideos); 
+        setAvailableImages(onlyImages);
       }
     }).catch(e => {});
     fetch(`${API_BASE}/api/playlists`).then(res => res.json()).then(data => { if(Array.isArray(data)) setPlaylists(data); }).catch(e => {});
@@ -628,38 +742,60 @@ function TugasLiveView({ accounts, isPreview, API_BASE, onNavigate, taskToEdit, 
       try {
           const res = await fetch(`${API_BASE}/api/thumbnails/upload`, { method: 'POST', body: formData });
           const data = await res.json();
-          if(data.success) {
-             setThumbnailUrl(API_BASE + data.url); 
-             setRandomizeThumbnail(false); 
-          }
+          if(data.success) { setThumbnailUrl(API_BASE + data.url); setRandomizeThumbnail(false); }
           else alert(data.message);
       } catch(e) {}
       setIsUploadingThumb(false);
   };
 
-  const handleToggleLocalization = (langCode) => {
-    setLocalizations(prev => {
-      const newLocs = { ...prev };
-      if (newLocs[langCode]) {
-        delete newLocs[langCode]; 
-      } else {
-        newLocs[langCode] = { 
-          title: youtubeTitle || '', 
-          description: youtubeDescription || '' 
-        }; 
+  const handleToggleLocalization = async (langCode) => {
+    if (localizations[langCode]) {
+      setLocalizations(prev => { const newLocs = { ...prev }; delete newLocs[langCode]; return newLocs; });
+      return;
+    }
+    setLocalizations(prev => ({ ...prev, [langCode]: { title: youtubeTitle ? 'Menerjemahkan...' : '', description: youtubeDescription ? 'Menerjemahkan...' : '' } }));
+    try {
+      let translatedTitle = youtubeTitle || ''; let translatedDesc = youtubeDescription || '';
+      const gLang = langCode === 'fil' ? 'tl' : langCode;
+      if (youtubeTitle) {
+        const resT = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=${videoLanguage || 'auto'}&tl=${gLang}&dt=t&q=${encodeURIComponent(youtubeTitle)}`);
+        const dataT = await resT.json(); translatedTitle = dataT[0].map(item => item[0]).join('');
       }
-      return newLocs;
+      if (youtubeDescription) {
+        const resD = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=${videoLanguage || 'auto'}&tl=${gLang}&dt=t&q=${encodeURIComponent(youtubeDescription)}`);
+        const dataD = await resD.json(); translatedDesc = dataD[0].map(item => item[0]).join('');
+      }
+      setLocalizations(prev => ({ ...prev, [langCode]: { title: translatedTitle, description: translatedDesc } }));
+    } catch (err) {
+      setLocalizations(prev => ({ ...prev, [langCode]: { title: youtubeTitle || '', description: youtubeDescription || '' } }));
+    }
+  };
+
+  const handleRetranslateAll = async () => {
+    const activeLangs = Object.keys(localizations);
+    if (activeLangs.length === 0 || (!youtubeTitle && !youtubeDescription)) return; 
+    setIsTranslatingAll(true);
+    setLocalizations(prev => {
+      const temp = { ...prev };
+      activeLangs.forEach(lang => { temp[lang] = { title: youtubeTitle ? 'Menyinkronkan...' : '', description: youtubeDescription ? 'Menyinkronkan...' : '' }; });
+      return temp;
     });
+
+    const updatedLocs = {};
+    await Promise.all(activeLangs.map(async (langCode) => {
+      let translatedTitle = youtubeTitle || ''; let translatedDesc = youtubeDescription || '';
+      const gLang = langCode === 'fil' ? 'tl' : langCode;
+      try {
+        if (youtubeTitle) { const resT = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=${videoLanguage || 'auto'}&tl=${gLang}&dt=t&q=${encodeURIComponent(youtubeTitle)}`); const dataT = await resT.json(); translatedTitle = dataT[0].map(item => item[0]).join(''); }
+        if (youtubeDescription) { const resD = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=${videoLanguage || 'auto'}&tl=${gLang}&dt=t&q=${encodeURIComponent(youtubeDescription)}`); const dataD = await resD.json(); translatedDesc = dataD[0].map(item => item[0]).join(''); }
+      } catch(e) {}
+      updatedLocs[langCode] = { title: translatedTitle, description: translatedDesc };
+    }));
+    setLocalizations(updatedLocs); setIsTranslatingAll(false);
   };
 
   const handleUpdateLocalization = (langCode, field, value) => {
-    setLocalizations(prev => ({
-      ...prev,
-      [langCode]: {
-        ...prev[langCode],
-        [field]: value
-      }
-    }));
+    setLocalizations(prev => ({ ...prev, [langCode]: { ...prev[langCode], [field]: value } }));
   };
 
   const handleSaveTask = async (isMulaiSekarang = false) => {
@@ -667,33 +803,26 @@ function TugasLiveView({ accounts, isPreview, API_BASE, onNavigate, taskToEdit, 
       if (selectedVideos.length === 0) return alert('⚠️ Pilih minimal 1 video/playlist!');
       if (streamKeyMode === 'Manual Input Key' && !manualStreamKey.trim()) return alert('⚠️ Stream Key wajib diisi untuk mode manual!');
       if (streamKeyMode === 'Otomatis (API v3)' && !accountId) return alert('⚠️ Anda harus memilih Channel YouTube di kolom Metadata jika menggunakan Mode API Otomatis!');
-      if (youtubeTitle && youtubeTitle.length > 100) return alert(`⚠️ Judul video maksimal 100 karakter! (Saat ini: ${youtubeTitle.length} karakter)`);
       
       if (jadwalMode === 'manual' || jadwalMode === 'sekali' || jadwalMode === 'harian') {
-          if (!scheduleTime) { if(!isMulaiSekarang) return alert('⚠️ Jam jadwal wajib diisi!'); }
+          if (!scheduleTime && !isMulaiSekarang) return alert('⚠️ Jam jadwal wajib diisi!');
       }
 
       if(isPreview) return alert('Simulasi: Data berhasil disimpan.');
 
       const payload = {
           taskName, videoMode, videoPath: selectedVideos[0], streamKeyMode, streamKey: manualStreamKey, jadwalMode, scheduleDate, scheduleTime,
-          scheduleGrid, stopHours, stopMinutes, randomizeStop, thumbnailUrl, randomizeThumbnail, isMulaiSekarang, accountId, youtubeCategory, youtubeTitle, youtubeDescription, youtubeTags,
-          localizations,
-          youtubePrivacy, chatbotEnabled, scheduledMessages,
-          enableFallback, fallbackVideo, encoderEngine, outputResolution, monetization, targetPlaylist, videoLanguage
+          scheduleGrid, stopHours, stopMinutes, randomizeStop, smartStopEnabled, thumbnailUrl, randomizeThumbnail, availableImages, isMulaiSekarang, accountId, youtubeCategory, youtubeTitle, youtubeDescription, youtubeTags,
+          localizations, youtubePrivacy, replayPrivacy, chatbotEnabled, scheduledMessages,
+          enableFallback, fallbackVideo, encoderEngine, outputResolution, orientation, monetization, targetPlaylist, videoLanguage
       };
 
       try {
           const url = taskToEdit ? `${API_BASE}/api/tasks/${taskToEdit.id}` : `${API_BASE}/api/tasks`;
           const method = taskToEdit ? 'PUT' : 'POST';
-          
           const res = await fetch(url, { method: method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
           const data = await res.json();
-          if(data.success) { 
-              alert(`✅ Sukses! ${data.message}`); 
-              if (clearEditTask) clearEditTask();
-              onNavigate('dashboard'); 
-          } 
+          if(data.success) { alert(`✅ Sukses! ${data.message}`); if (clearEditTask) clearEditTask(); onNavigate('dashboard'); } 
           else alert(`❌ Gagal: ${data.message}`);
       } catch(e) { alert('Terjadi kesalahan saat menghubungi server.'); }
   };
@@ -707,9 +836,10 @@ function TugasLiveView({ accounts, isPreview, API_BASE, onNavigate, taskToEdit, 
   const labelClassName = "block text-sm font-semibold mb-1.5 text-gray-700 dark:text-slate-300";
 
   return (
-    <div className="flex flex-col gap-6 pb-10">
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+    <div className="block pb-32 md:pb-24 animate-in fade-in duration-500">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-8">
         
+        {/* KOLOM KIRI */}
         <div className="lg:col-span-7 flex flex-col gap-6">
           <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700/60 p-5 md:p-6 shadow-sm">
             <h3 className="text-lg font-bold flex items-center gap-2 border-b border-gray-100 dark:border-slate-700/60 pb-4 mb-5 text-gray-800 dark:text-slate-100">
@@ -845,12 +975,12 @@ function TugasLiveView({ accounts, isPreview, API_BASE, onNavigate, taskToEdit, 
                 <div className="space-y-4">
                   <div>
                     <label className="block text-xs font-semibold mb-1.5 text-gray-600 dark:text-slate-400">Judul Video Utama <span className="font-normal font-mono text-[10px] ml-1">(Spintax Supported)</span></label>
-                    <input type="text" value={youtubeTitle} onChange={e => setYoutubeTitle(e.target.value)} placeholder="{Live|Update} Judul Video Anda..." className={`${inputClassName} ${youtubeTitle.length > 100 ? 'border-red-500 focus:border-red-500' : ''} font-mono`} />
+                    <input type="text" value={youtubeTitle} onChange={e => setYoutubeTitle(e.target.value)} onBlur={handleRetranslateAll} placeholder="{Live|Update} Judul Video Anda..." className={`${inputClassName} ${youtubeTitle.length > 100 ? 'border-red-500 focus:border-red-500' : ''} font-mono`} />
                     <p className={`text-[10px] mt-1.5 font-medium ${youtubeTitle.length > 100 ? 'text-red-500' : 'text-gray-500 dark:text-slate-400'}`}>{youtubeTitle.length} / 100 karakter</p>
                   </div>
                   <div>
                     <label className="block text-xs font-semibold mb-1.5 text-gray-600 dark:text-slate-400">Deskripsi Utama <span className="font-normal font-mono text-[10px] ml-1">(Spintax Supported)</span></label>
-                    <textarea rows="3" value={youtubeDescription} onChange={e => setYoutubeDescription(e.target.value)} placeholder="Deskripsi video stream..." className={`${inputClassName} font-mono resize-none`}></textarea>
+                    <textarea rows="3" value={youtubeDescription} onChange={e => setYoutubeDescription(e.target.value)} onBlur={handleRetranslateAll} placeholder="Deskripsi video stream..." className={`${inputClassName} font-mono resize-none`}></textarea>
                   </div>
                 </div>
               </div>
@@ -869,8 +999,18 @@ function TugasLiveView({ accounts, isPreview, API_BASE, onNavigate, taskToEdit, 
                 {showLocalizations && (
                   <div className="p-4 bg-white dark:bg-slate-800 space-y-5 animate-in fade-in">
                     <div className="space-y-2">
-                       <label className="block text-xs font-semibold text-gray-600 dark:text-slate-400">Pilih Bahasa Target Terjemahan:</label>
-                       <div className="flex flex-wrap gap-2 p-3 bg-gray-50 dark:bg-slate-900/50 rounded-lg border border-gray-100 dark:border-slate-700/50">
+                       <div className="flex items-center justify-between">
+                         <label className="block text-xs font-semibold text-gray-600 dark:text-slate-400">Pilih Bahasa Target Terjemahan:</label>
+                         <button 
+                           onClick={handleRetranslateAll} 
+                           disabled={isTranslatingAll || Object.keys(localizations).length === 0}
+                           className={`text-[11px] font-bold px-3 py-1.5 rounded-md flex items-center gap-1.5 transition-colors ${isTranslatingAll ? 'bg-gray-100 text-gray-400 dark:bg-slate-700 dark:text-slate-500 cursor-not-allowed' : 'bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-blue-500/10 dark:text-blue-400 dark:hover:bg-blue-500/20'}`}
+                         >
+                           <RefreshCw className={`w-3 h-3 ${isTranslatingAll ? 'animate-spin' : ''}`} />
+                           {isTranslatingAll ? 'Menyinkronkan...' : 'Sinkronkan Terjemahan'}
+                         </button>
+                       </div>
+                       <div className="flex flex-wrap gap-2 p-3 bg-gray-50 dark:bg-slate-900/50 rounded-lg border border-gray-100 dark:border-slate-700/50 max-h-48 overflow-y-auto custom-scrollbar">
                           {AVAILABLE_LANGUAGES.map(lang => {
                             if (lang.code === videoLanguage) return null; 
                             const isChecked = !!localizations[lang.code];
@@ -926,13 +1066,21 @@ function TugasLiveView({ accounts, isPreview, API_BASE, onNavigate, taskToEdit, 
                 <h4 className="text-sm font-bold text-gray-800 dark:text-slate-200 mb-4 flex items-center gap-2">
                   <Settings className="w-4 h-4 text-gray-500 dark:text-slate-400" /> Aturan Publikasi & Visibilitas
                 </h4>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   <div>
-                    <label className="block text-xs font-semibold text-gray-600 dark:text-slate-400 mb-1.5">Status Setelah Live</label>
+                    <label className="block text-xs font-semibold text-gray-600 dark:text-slate-400 mb-1.5">Privasi Saat Live</label>
                     <select value={youtubePrivacy} onChange={e => setYoutubePrivacy(e.target.value)} className="w-full bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600/60 rounded-lg px-3 py-2 outline-none focus:border-emerald-500 dark:focus:border-emerald-400 text-sm dark:text-slate-200">
-                      <option value="public">Publik</option>
+                      <option value="public">Publik (Disarankan)</option>
                       <option value="unlisted">Tidak Publik (Unlisted)</option>
                       <option value="private">Privat</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-600 dark:text-slate-400 mb-1.5">Privasi Replay (Selesai Live)</label>
+                    <select value={replayPrivacy} onChange={e => setReplayPrivacy(e.target.value)} className="w-full bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600/60 rounded-lg px-3 py-2 outline-none focus:border-emerald-500 dark:focus:border-emerald-400 text-sm dark:text-slate-200">
+                      <option value="public">Biarkan Tetap Publik</option>
+                      <option value="unlisted">Ubah ke Unlisted</option>
+                      <option value="private">Ubah ke Privat</option>
                     </select>
                   </div>
                   <div>
@@ -950,7 +1098,7 @@ function TugasLiveView({ accounts, isPreview, API_BASE, onNavigate, taskToEdit, 
                       <option value="off">Tidak Aktif (Off)</option>
                     </select>
                   </div>
-                  <div>
+                  <div className="sm:col-span-2">
                     <label className="block text-xs font-semibold text-gray-600 dark:text-slate-400 mb-1.5">Playlist Target</label>
                     <select value={targetPlaylist} onChange={e => setTargetPlaylist(e.target.value)} className="w-full bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600/60 rounded-lg px-3 py-2 outline-none focus:border-emerald-500 dark:focus:border-emerald-400 text-sm truncate dark:text-slate-200">
                       <option value="none">-- Jangan tambahkan --</option>
@@ -965,7 +1113,7 @@ function TugasLiveView({ accounts, isPreview, API_BASE, onNavigate, taskToEdit, 
           </div>
         </div>
 
-        {/* KOLOM KANAN: JADWAL, ENCODER, PERLINDUNGAN & CHATBOT */}
+        {/* KOLOM KANAN */}
         <div className="lg:col-span-5 flex flex-col gap-6">
           <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700/60 p-5 md:p-6 shadow-sm">
             <h3 className="text-lg font-bold flex items-center gap-2 border-b border-gray-100 dark:border-slate-700/60 pb-4 mb-5 text-gray-800 dark:text-slate-100"><Calendar className="w-5 h-5 text-blue-500 dark:text-blue-400" /> Jadwal Live</h3>
@@ -1024,10 +1172,16 @@ function TugasLiveView({ accounts, isPreview, API_BASE, onNavigate, taskToEdit, 
               <div className="flex items-center justify-between border-t border-gray-200 dark:border-slate-700/50 pt-4">
                 <div className="flex flex-col">
                    <span className="text-sm font-semibold text-gray-700 dark:text-slate-300">Stop Otomatis</span>
-                   <label className="flex items-center gap-1.5 mt-1 cursor-pointer">
-                      <input type="checkbox" checked={randomizeStop} onChange={() => setRandomizeStop(!randomizeStop)} className="w-3 h-3 text-emerald-600 rounded bg-white dark:bg-slate-900 border-gray-300 dark:border-slate-600 focus:ring-emerald-500" />
-                      <span className="text-[10px] text-gray-500 dark:text-slate-400 font-medium">Acak ±10 mnt (Anti-Spam)</span>
-                   </label>
+                   <div className="space-y-1.5 mt-1.5">
+                     <label className="flex items-center gap-1.5 cursor-pointer">
+                        <input type="checkbox" checked={randomizeStop} onChange={() => setRandomizeStop(!randomizeStop)} className="w-3 h-3 text-emerald-600 rounded bg-white dark:bg-slate-900 border-gray-300 dark:border-slate-600 focus:ring-emerald-500" />
+                        <span className="text-[10px] text-gray-500 dark:text-slate-400 font-medium hover:text-emerald-500 transition-colors">Acak ±15 mnt (Anti-Spam)</span>
+                     </label>
+                     <label className="flex items-center gap-1.5 cursor-pointer">
+                        <input type="checkbox" checked={smartStopEnabled} onChange={() => setSmartStopEnabled(!smartStopEnabled)} className="w-3 h-3 text-emerald-600 rounded bg-white dark:bg-slate-900 border-gray-300 dark:border-slate-600 focus:ring-emerald-500" />
+                        <span className="text-[10px] text-gray-500 dark:text-slate-400 font-medium hover:text-emerald-500 transition-colors">Smart Stop (Tunda jika ada penonton)</span>
+                     </label>
+                   </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="flex items-center gap-1.5 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600/60 rounded-md px-2 py-1">
@@ -1045,7 +1199,7 @@ function TugasLiveView({ accounts, isPreview, API_BASE, onNavigate, taskToEdit, 
             <h3 className="text-lg font-bold flex items-center gap-2 border-b border-gray-100 dark:border-slate-700/60 pb-4 mb-5 text-gray-800 dark:text-slate-100">
               <Cpu className="w-5 h-5 text-purple-500 dark:text-purple-400" /> Encoder & Output
             </h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
               <div>
                 <label className={labelClassName}>Engine Encoder</label>
                 <select value={encoderEngine} onChange={e=>setEncoderEngine(e.target.value)} className={inputClassName}>
@@ -1069,26 +1223,67 @@ function TugasLiveView({ accounts, isPreview, API_BASE, onNavigate, taskToEdit, 
                   <option value="720p30">720p 30FPS</option>
                 </select>
               </div>
+              <div>
+                <label className={labelClassName}>Orientasi Video</label>
+                <select value={orientation} onChange={e=>setOrientation(e.target.value)} className={inputClassName}>
+                  <option value="horizontal">Horizontal (16:9)</option>
+                  <option value="vertical">Vertikal (9:16) - Shorts</option>
+                </select>
+              </div>
             </div>
           </div>
 
           <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700/60 p-5 md:p-6 shadow-sm flex flex-col">
             <h3 className="text-lg font-bold flex items-center gap-2 border-b border-gray-100 dark:border-slate-700/60 pb-4 mb-5 text-gray-800 dark:text-slate-100"><Image className="w-5 h-5 text-emerald-500 dark:text-emerald-400" /> Pengaturan Thumbnail</h3>
-            <input type="file" ref={thumbInputRef} accept="image/*" onChange={handleThumbUploadChange} className="hidden" />
-            <div onClick={() => thumbInputRef.current?.click()} className="flex-1 min-h-[160px] border-2 border-dashed border-gray-300 dark:border-slate-600/60 rounded-xl p-2 flex flex-col items-center justify-center hover:bg-gray-50 dark:hover:bg-slate-700/30 transition-all cursor-pointer group overflow-hidden relative">
-              {isUploadingThumb ? ( <span className="text-sm font-semibold text-gray-500 animate-pulse">Mengupload...</span> ) : thumbnailUrl && !randomizeThumbnail ? ( <img src={thumbnailUrl} alt="Thumbnail Preview" className="w-full h-full object-cover rounded-lg" /> ) : (
-                <>
-                  <Upload className="w-8 h-8 text-gray-400 group-hover:text-emerald-500 mb-3 transition-colors" />
-                  <p className="text-sm font-bold text-gray-700 dark:text-slate-300 mb-1">{randomizeThumbnail ? 'Mode Acak Thumbnail Aktif' : 'Pilih File Gambar Thumbnail'}</p>
-                  <p className="text-xs text-gray-500 dark:text-slate-400">Klik di sini untuk upload gambar statis</p>
-                </>
-              )}
-            </div>
-            <div className="flex items-center justify-between mt-4 px-1 border-t border-gray-100 dark:border-slate-700/50 pt-4">
-               <label className="flex items-center gap-2 cursor-pointer group">
-                  <input type="checkbox" checked={randomizeThumbnail} onChange={(e) => setRandomizeThumbnail(e.target.checked)} className="w-4 h-4 text-emerald-600 rounded bg-gray-50 dark:bg-slate-900 border-gray-300 dark:border-slate-600 focus:ring-emerald-50 cursor-pointer" />
-                  <span className="text-xs font-semibold text-gray-700 dark:text-slate-300 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">Acak Thumbnail Otomatis (Dari direktori Media Anda)</span>
+            
+            {!randomizeThumbnail && (
+              <div className="flex flex-col gap-4 animate-in fade-in mb-4">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 dark:text-slate-400 mb-2">Pilih dari Media Tersimpan</label>
+                  <select 
+                    value={thumbnailUrl ? thumbnailUrl.split('/').pop() : ''} 
+                    onChange={(e) => {
+                       if(e.target.value) { setThumbnailUrl(`${API_BASE}/media/${e.target.value}`); }
+                       else { setThumbnailUrl(''); }
+                    }} 
+                    className={inputClassName}
+                  >
+                    <option value="">-- Pilih File Gambar --</option>
+                    {availableImages.map(img => <option key={img} value={img}>{img}</option>)}
+                  </select>
+                </div>
+
+                <div className="relative flex items-center gap-4">
+                  <div className="w-full h-px bg-gray-200 dark:bg-slate-700"></div>
+                  <span className="shrink-0 text-[10px] font-bold text-gray-400 uppercase">A T A U</span>
+                  <div className="w-full h-px bg-gray-200 dark:bg-slate-700"></div>
+                </div>
+
+                <div>
+                  <input type="file" ref={thumbInputRef} accept="image/*" onChange={handleThumbUploadChange} className="hidden" />
+                  <div onClick={() => thumbInputRef.current?.click()} className="min-h-[140px] border-2 border-dashed border-gray-300 dark:border-slate-600/60 rounded-xl p-2 flex flex-col items-center justify-center hover:bg-gray-50 dark:hover:bg-slate-700/30 transition-all cursor-pointer group overflow-hidden relative">
+                    {isUploadingThumb ? ( <span className="text-sm font-semibold text-gray-500 animate-pulse">Mengupload...</span> ) : thumbnailUrl ? ( <img src={thumbnailUrl} alt="Thumbnail Preview" className="w-full h-full object-cover rounded-lg" /> ) : (
+                      <>
+                        <Upload className="w-6 h-6 text-gray-400 group-hover:text-emerald-500 mb-2 transition-colors" />
+                        <p className="text-sm font-bold text-gray-700 dark:text-slate-300 mb-1">Upload Thumbnail Baru</p>
+                        <p className="text-xs text-gray-500 dark:text-slate-400">Klik untuk mencari file (JPG/PNG)</p>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="flex items-center justify-between mt-auto px-2 border-t border-gray-100 dark:border-slate-700/50 pt-4 bg-gray-50/50 dark:bg-slate-900/30 rounded-lg p-3 border">
+               <label className="flex items-center gap-2.5 cursor-pointer group">
+                  <input type="checkbox" checked={randomizeThumbnail} onChange={(e) => setRandomizeThumbnail(e.target.checked)} className="w-4 h-4 text-emerald-600 rounded bg-white dark:bg-slate-900 border-gray-300 dark:border-slate-600 focus:ring-emerald-500 cursor-pointer" />
+                  <span className="text-xs font-bold text-gray-700 dark:text-slate-200 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">Acak Thumbnail Otomatis</span>
                </label>
+               {randomizeThumbnail && (
+                 <span className="text-[10px] font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400 px-2.5 py-1 rounded-md border border-emerald-200 dark:border-emerald-800/50 shadow-sm animate-pulse">
+                   {availableImages.length} Gambar Media Tersedia
+                 </span>
+               )}
             </div>
           </div>
           
@@ -1157,7 +1352,8 @@ function TugasLiveView({ accounts, isPreview, API_BASE, onNavigate, taskToEdit, 
         </div>
       </div>
 
-      <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700/60 p-5 md:p-6 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4 mt-6">
+      {/* PANEL TOMBOL MENGAMBANG (FIXED BOTTOM) */}
+      <div className="fixed bottom-0 left-0 right-0 z-[60] bg-white/95 dark:bg-slate-800/95 backdrop-blur-md border-t border-gray-200 dark:border-slate-700/60 px-4 py-4 md:px-8 lg:px-12 shadow-[0_-10px_30px_-15px_rgba(0,0,0,0.3)] dark:shadow-[0_-10px_30px_-15px_rgba(0,0,0,0.7)] flex flex-col sm:flex-row items-center justify-between gap-4 transition-all">
          <div className="flex items-center gap-4 w-full sm:w-auto">
            <div className="w-10 h-10 rounded-full bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center shrink-0"><div className="w-3 h-3 rounded-full bg-blue-500 dark:bg-blue-400 animate-pulse"></div></div>
            <div><p className="text-xs text-gray-500 dark:text-slate-400 font-medium mb-0.5">Status Tugas Live</p><p className="text-sm font-bold text-blue-600 dark:text-blue-400">{taskToEdit ? 'Sedang Mode Edit' : 'Siap Disimpan'}</p></div>
@@ -1175,7 +1371,7 @@ function TugasLiveView({ accounts, isPreview, API_BASE, onNavigate, taskToEdit, 
 }
 
 // -----------------------------------------------------------------------------
-// TAB 3: MEDIA (DENGAN PREVIEW VIDEO BESAR & RENAME)
+// TAB MEDIA
 // -----------------------------------------------------------------------------
 function MediaView({ isPreview, API_BASE }) {
   const [isUploading, setIsUploading] = useState(false);
@@ -1191,10 +1387,8 @@ function MediaView({ isPreview, API_BASE }) {
   const [activeFolder, setActiveFolder] = useState('Video Berita Utama');
   const [fileToDelete, setFileToDelete] = useState(null);
   const [playlistToDelete, setPlaylistToDelete] = useState(null);
-  
   const [fileToRename, setFileToRename] = useState(null);
   const [newFileName, setNewFileName] = useState('');
-  
   const fileInputRef = useRef(null);
 
   const fetchMedia = async () => { if (isPreview) return; try { const res = await fetch(`${API_BASE}/api/media`); setMediaFiles(await res.json()); } catch (e) {} };
@@ -1202,8 +1396,8 @@ function MediaView({ isPreview, API_BASE }) {
 
   useEffect(() => { fetchMedia(); fetchPlaylists(); }, [API_BASE, isPreview]);
 
-  const videoList = mediaFiles.filter(file => !file.name.toLowerCase().match(/\.(jpg|jpeg|png|gif|webp)$/i));
-  const imageList = mediaFiles.filter(file => file.name.toLowerCase().match(/\.(jpg|jpeg|png|gif|webp)$/i));
+  const videoList = mediaFiles.filter(file => !/\.(jpg|jpeg|png|gif|webp)$/i.test(file.name));
+  const imageList = mediaFiles.filter(file => /\.(jpg|jpeg|png|gif|webp)$/i.test(file.name));
 
   const handleActualUpload = async (e) => {
     const files = e.target.files; if (!files || files.length === 0) return;
@@ -1381,14 +1575,13 @@ function MediaView({ isPreview, API_BASE }) {
             <div className="px-6 py-4 border-b border-gray-200 dark:border-slate-700/60 flex justify-between items-center"><h3 className="text-lg font-bold dark:text-slate-100 flex items-center gap-2"><LinkIcon className="w-5 h-5 text-blue-500" /> Import File URL</h3><button onClick={() => setShowImportUrlModal(false)} className="text-gray-400 hover:text-red-500"><XCircle className="w-6 h-6" /></button></div>
             <div className="p-6">
               <label className="block text-sm font-medium mb-2 dark:text-slate-300">URL Langsung</label>
-              <input type="text" value={importUrl} onChange={(e) => setImportUrl(e.target.value)} placeholder="Paste link di sini..." className="w-full bg-white dark:bg-slate-900/80 border border-gray-300 dark:border-slate-600/60 rounded-lg px-4 py-3 outline-none font-mono text-sm shadow-sm" autoFocus />
+              <input type="text" value={importUrl} onChange={(e) => setImportUrl(e.target.value)} placeholder="Paste link di sini..." className="w-full bg-white dark:bg-slate-900/80 border border-gray-300 dark:border-slate-600/60 rounded-lg px-4 py-3 outline-none font-mono text-sm shadow-sm dark:text-white" autoFocus />
             </div>
-            <div className="px-6 py-4 border-t border-gray-200 dark:border-slate-700/60 flex justify-end gap-3"><button onClick={() => setShowImportUrlModal(false)} className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 text-sm">Batal</button><button onClick={handleImportUrlSubmit} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm">Mulai Import</button></div>
+            <div className="px-6 py-4 border-t border-gray-200 dark:border-slate-700/60 flex justify-end gap-3"><button onClick={() => setShowImportUrlModal(false)} className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 text-sm hover:bg-slate-700/50">Batal</button><button onClick={handleImportUrlSubmit} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700">Mulai Import</button></div>
           </div>
         </div>
       )}
 
-      {/* Modal Rename */}
       {fileToRename && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4" onClick={() => setFileToRename(null)}>
           <div className="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-md shadow-2xl shadow-black/40 overflow-hidden border border-gray-200 dark:border-slate-700 flex flex-col" onClick={e => e.stopPropagation()}>
@@ -1396,9 +1589,9 @@ function MediaView({ isPreview, API_BASE }) {
             <div className="p-6">
               <label className="block text-sm font-medium mb-2 dark:text-slate-300">Nama File Baru</label>
               <input type="text" value={newFileName} onChange={(e) => setNewFileName(e.target.value)} className="w-full bg-gray-50 dark:bg-slate-900/80 border border-gray-300 dark:border-slate-600/60 rounded-lg px-4 py-3 outline-none font-mono text-sm shadow-sm dark:text-white" autoFocus />
-              <p className="text-xs text-gray-500 mt-2">Catatan: Spasi akan otomatis diubah menjadi garis bawah (_) agar sistem FFmpeg tidak error.</p>
+              <p className="text-xs text-gray-500 mt-2">Catatan: Spasi otomatis diubah jadi (_) garis bawah.</p>
             </div>
-            <div className="px-6 py-4 border-t border-gray-200 dark:border-slate-700/60 flex justify-end gap-3"><button onClick={() => setFileToRename(null)} className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 text-sm">Batal</button><button onClick={handleRenameFile} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm">Simpan</button></div>
+            <div className="px-6 py-4 border-t border-gray-200 dark:border-slate-700/60 flex justify-end gap-3"><button onClick={() => setFileToRename(null)} className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 text-sm hover:bg-slate-700/50">Batal</button><button onClick={handleRenameFile} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700">Simpan</button></div>
           </div>
         </div>
       )}
@@ -1408,20 +1601,21 @@ function MediaView({ isPreview, API_BASE }) {
           <div className="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-lg shadow-2xl shadow-black/40 overflow-hidden border border-gray-200 dark:border-slate-700 flex flex-col max-h-[90vh]">
             <div className="px-6 py-4 border-b border-gray-200 dark:border-slate-700/60 flex justify-between items-center"><h3 className="text-lg font-bold dark:text-slate-100">Buat Playlist</h3><button onClick={() => setShowPlaylistModal(false)} className="text-gray-400 hover:text-emerald-500"><XCircle className="w-6 h-6" /></button></div>
             <div className="p-6 overflow-y-auto flex-1 space-y-5 custom-scrollbar">
-              <div><label className="block text-sm font-medium mb-1.5 dark:text-slate-300">Nama Playlist</label><input type="text" value={newPlaylistName} onChange={(e) => setNewPlaylistName(e.target.value)} className="w-full bg-gray-50 border border-gray-300 rounded-lg px-4 py-2.5 outline-none" /></div>
+              <div><label className="block text-sm font-medium mb-1.5 dark:text-slate-300">Nama Playlist</label><input type="text" value={newPlaylistName} onChange={(e) => setNewPlaylistName(e.target.value)} className="w-full bg-gray-50 border border-gray-300 dark:border-slate-600/60 dark:bg-slate-900/50 dark:text-white rounded-lg px-4 py-2.5 outline-none" /></div>
               <div>
                 <label className="block text-sm font-medium dark:text-slate-300 mb-2">Pilih Video</label>
-                <div className="border border-gray-200 dark:border-slate-700/60 rounded-xl overflow-hidden">
+                <div className="border border-gray-200 dark:border-slate-700/60 rounded-xl overflow-hidden bg-slate-900/30">
                   <div className="max-h-48 overflow-y-auto p-2 space-y-1 custom-scrollbar">
-                    {videoList.map((file) => {
+                    {mediaFiles.map((file) => {
+                      if(/\.(jpg|jpeg|png|gif|webp)$/i.test(file.name)) return null;
                       const isSelected = selectedPlaylistVideos.includes(file.name);
                       return (
-                        <label key={file.id} className={`flex items-center gap-3 p-2.5 rounded-lg cursor-pointer border ${isSelected ? 'bg-emerald-50 border-emerald-200' : 'border-transparent hover:bg-gray-100'}`}>
+                        <label key={file.id} className={`flex items-center gap-3 p-2.5 rounded-lg cursor-pointer border ${isSelected ? 'bg-emerald-500/10 border-emerald-500/20' : 'border-transparent hover:bg-slate-700/50'}`}>
                           <input type="checkbox" checked={isSelected} onChange={() => {
                             if (isSelected) setSelectedPlaylistVideos(selectedPlaylistVideos.filter(v => v !== file.name));
                             else setSelectedPlaylistVideos([...selectedPlaylistVideos, file.name]);
-                          }} className="w-4 h-4 text-emerald-600" />
-                          <Video className="w-4 h-4 text-gray-400" /><span className="text-sm flex-1 truncate">{file.name}</span>
+                          }} className="w-4 h-4 text-emerald-600 bg-transparent border-gray-400" />
+                          <Video className="w-4 h-4 text-gray-400" /><span className="text-sm flex-1 truncate dark:text-slate-200">{file.name}</span>
                         </label>
                       )
                     })}
@@ -1429,7 +1623,7 @@ function MediaView({ isPreview, API_BASE }) {
                 </div>
               </div>
             </div>
-            <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 flex justify-end gap-3"><button onClick={() => setShowPlaylistModal(false)} className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 text-sm">Batal</button><button onClick={handleSavePlaylist} className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm">Simpan Playlist</button></div>
+            <div className="px-6 py-4 border-t border-gray-200 dark:border-slate-700/60 bg-gray-50 dark:bg-slate-800/50 flex justify-end gap-3"><button onClick={() => setShowPlaylistModal(false)} className="px-4 py-2 rounded-lg border border-gray-300 dark:border-slate-600 text-gray-700 dark:text-slate-300 text-sm hover:bg-slate-700/50">Batal</button><button onClick={handleSavePlaylist} className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm hover:bg-emerald-700">Simpan Playlist</button></div>
           </div>
         </div>
       )}
@@ -1439,7 +1633,7 @@ function MediaView({ isPreview, API_BASE }) {
           <div className="bg-white dark:bg-slate-800 rounded-xl w-full max-w-sm shadow-2xl p-6 text-center border border-gray-200 dark:border-slate-700">
             <Trash2 className="w-12 h-12 text-red-500 mx-auto mb-4" /><h3 className="text-lg font-bold mb-2 dark:text-slate-100">Hapus Media?</h3>
             <p className="text-sm text-gray-500 mb-6">File <strong>{fileToDelete.name}</strong> akan dihapus permanen.</p>
-            <div className="flex justify-center gap-3"><button onClick={() => setFileToDelete(null)} className="px-4 py-2 border rounded-lg text-sm">Batal</button><button onClick={confirmDeleteFile} className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm">Hapus</button></div>
+            <div className="flex justify-center gap-3"><button onClick={() => setFileToDelete(null)} className="px-4 py-2 border dark:border-slate-600 dark:text-slate-300 hover:bg-slate-700/50 rounded-lg text-sm">Batal</button><button onClick={confirmDeleteFile} className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm hover:bg-red-700">Hapus</button></div>
           </div>
         </div>
       )}
@@ -1449,7 +1643,7 @@ function MediaView({ isPreview, API_BASE }) {
           <div className="bg-white dark:bg-slate-800 rounded-xl w-full max-w-sm shadow-2xl p-6 text-center border border-gray-200 dark:border-slate-700">
             <Trash2 className="w-12 h-12 text-red-500 mx-auto mb-4" /><h3 className="text-lg font-bold mb-2 dark:text-slate-100">Hapus Playlist?</h3>
             <p className="text-sm text-gray-500 mb-6">Playlist <strong>{playlistToDelete.name}</strong> akan dihapus.</p>
-            <div className="flex justify-center gap-3"><button onClick={() => setPlaylistToDelete(null)} className="px-4 py-2 border rounded-lg text-sm">Batal</button><button onClick={confirmDeletePlaylist} className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm">Hapus</button></div>
+            <div className="flex justify-center gap-3"><button onClick={() => setPlaylistToDelete(null)} className="px-4 py-2 border dark:border-slate-600 dark:text-slate-300 hover:bg-slate-700/50 rounded-lg text-sm">Batal</button><button onClick={confirmDeletePlaylist} className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm hover:bg-red-700">Hapus</button></div>
           </div>
         </div>
       )}
@@ -1457,70 +1651,42 @@ function MediaView({ isPreview, API_BASE }) {
   );
 }
 
-// KOMPONEN BARU: VIDEO PREVIEW CARD (TAMPILAN BESAR)
-function VideoPreviewCard({ name, size, onEdit, onDelete, API_BASE }) {
-  const isImage = name.toLowerCase().match(/\.(jpg|jpeg|png|gif)$/i);
-  const mediaUrl = `${API_BASE}/media/${name}`;
-  const videoRef = useRef(null);
-
-  const handleMouseEnter = () => {
-      if (videoRef.current) {
-          videoRef.current.play().catch(() => {});
-      }
-  };
-
-  const handleMouseLeave = () => {
-      if (videoRef.current) {
-          videoRef.current.pause();
-          videoRef.current.currentTime = 1; 
-      }
-  };
-
-  return (
-    <div 
-      className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700/60 overflow-hidden shadow-sm hover:shadow-md transition-all group flex flex-col h-48 relative"
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
-    >
-      
-      {/* BAGIAN GAMBAR / VIDEO PREVIEW BESAR */}
-      <div className="flex-1 bg-gray-900 dark:bg-black relative overflow-hidden flex items-center justify-center">
-        {isImage ? (
-          <img src={mediaUrl} alt={name} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
-        ) : (
-          <video 
-             ref={videoRef}
-             src={`${mediaUrl}#t=1`} 
-             className="w-full h-full object-cover opacity-70 group-hover:opacity-100 transition-opacity" 
-             muted 
-             loop
-             playsInline
-             preload="metadata" 
-          />
-        )}
-        <div className="absolute inset-0 bg-black/20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-           {!isImage && <PlayCircle className="w-10 h-10 text-white opacity-80 scale-90 group-hover:scale-100 transition-transform" />}
-        </div>
-      </div>
-
-      {/* BAGIAN INFORMASI & TOMBOL RENAME/HAPUS BAWAH */}
-      <div className="p-3 bg-white dark:bg-slate-800 flex items-center justify-between gap-2 shrink-0 border-t border-gray-100 dark:border-slate-700/50">
-        <div className="overflow-hidden">
-          <p className="text-sm font-semibold text-gray-800 dark:text-slate-200 truncate" title={name}>{name}</p>
-          <p className="text-[10px] font-mono text-gray-500 mt-0.5">{size}</p>
-        </div>
-        <div className="flex gap-1.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-          <button onClick={onEdit} className="p-2 text-gray-500 hover:text-blue-500 bg-gray-100 hover:bg-blue-50 dark:bg-slate-700 dark:hover:bg-blue-900/30 rounded-lg transition-colors" title="Ganti Nama"><Pencil className="w-3.5 h-3.5" /></button>
-          <button onClick={onDelete} className="p-2 text-gray-500 hover:text-red-500 bg-gray-100 hover:bg-red-50 dark:bg-slate-700 dark:hover:bg-red-900/30 rounded-lg transition-colors" title="Hapus"><Trash2 className="w-3.5 h-3.5" /></button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-
+// -----------------------------------------------------------------------------
+// ANALYTICS VIEW
+// -----------------------------------------------------------------------------
 function AnalyticsView({ accounts, API_BASE }) {
   const [tasks, setTasks] = useState([]);
+  const [lastUpdate, setLastUpdate] = useState('');
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const [chartData, setChartData] = useState([]);
+  const [metrics, setMetrics] = useState({ revenue: 0, watchHours: 0, subscribers: 0, totalViews: 0 });
+
+  useEffect(() => {
+    const updateTime = () => {
+      const now = new Date();
+      setLastUpdate(now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }));
+    };
+    updateTime();
+  }, []);
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+        const res = await fetch(`${API_BASE}/api/analytics`);
+        if(res.ok) {
+            const data = await res.json();
+            setChartData(data.chart || []);
+            setMetrics(data.metrics || { revenue: 0, watchHours: 0, subscribers: 0, totalViews: 0 });
+        }
+    } catch (e) {}
+    
+    setTimeout(() => {
+      setIsRefreshing(false);
+      const now = new Date();
+      setLastUpdate(now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }));
+    }, 1000);
+  };
   
   useEffect(() => {
     const fetchTasks = async () => {
@@ -1530,87 +1696,98 @@ function AnalyticsView({ accounts, API_BASE }) {
         setTasks(Array.isArray(data) ? data : []);
       } catch (e) {}
     };
+
+    const fetchAnalytics = async () => {
+        try {
+            const res = await fetch(`${API_BASE}/api/analytics`);
+            if(res.ok) {
+                const data = await res.json();
+                setChartData(data.chart || []);
+                setMetrics(data.metrics || { revenue: 0, watchHours: 0, subscribers: 0, totalViews: 0 });
+            }
+        } catch (e) {}
+    };
+
     fetchTasks();
+    fetchAnalytics();
+
     const interval = setInterval(fetchTasks, 10000);
     return () => clearInterval(interval);
   }, [API_BASE]);
 
   const activeLiveTasks = tasks.filter(t => t.status === 'Live');
-  const totalViewers = activeLiveTasks.reduce((sum, t) => sum + (t.viewers || 0), 0);
+  const currentCcv = activeLiveTasks.reduce((sum, t) => sum + (t.viewers || 0), 0);
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap justify-between items-center bg-white dark:bg-slate-800 rounded-xl p-4 border border-gray-200 dark:border-slate-700/60 gap-4 shadow-sm">
-         <div className="flex flex-wrap gap-4">
-           <select className="bg-gray-50 dark:bg-slate-900/50 border border-gray-300 dark:border-slate-600/60 rounded-lg px-4 py-2 outline-none text-sm font-medium focus:border-emerald-500 dark:focus:border-emerald-400 dark:text-slate-200">
+    <div className="space-y-6 animate-in fade-in duration-500">
+      <div className="bg-white dark:bg-slate-800/80 rounded-xl p-4 border border-gray-200 dark:border-slate-700/60 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div className="flex flex-col sm:flex-row gap-4">
+          <div>
+            <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">CHANNEL</label>
+            <select className="bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-700 text-gray-800 dark:text-slate-200 text-sm rounded-lg px-3 py-2 outline-none focus:border-emerald-500 min-w-[200px]">
               <option value="all">Semua Channel (Keseluruhan)</option>
               {accounts?.map(acc => ( <option key={acc.id} value={acc.id}>{acc.name}</option> ))}
-           </select>
-           <select className="bg-gray-50 dark:bg-slate-900/50 border border-gray-300 dark:border-slate-600/60 rounded-lg px-4 py-2 outline-none text-sm font-medium focus:border-emerald-500 dark:focus:border-emerald-400 dark:text-slate-200">
-              <option>Hari Ini (Live)</option><option>7 Hari Terakhir</option><option>30 Hari Terakhir</option>
-           </select>
-         </div>
-         <div className="text-sm text-gray-500 dark:text-slate-400 flex items-center gap-2 bg-green-50 dark:bg-emerald-900/20 px-3 py-1.5 rounded-lg border border-green-200 dark:border-emerald-800/30">
-            <div className="w-2 h-2 rounded-full bg-green-500 dark:bg-emerald-400 animate-pulse"></div>
-            Sinkronisasi API: Real-time (1 Menit)
-         </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard title="Total Penonton (CCV)" value={totalViewers} icon={Users} color="text-blue-600" bgColor="bg-blue-50 dark:bg-blue-900/20" />
-        <StatCard title="Live Stream Aktif" value={activeLiveTasks.length} icon={Activity} color="text-purple-600" bgColor="bg-purple-50 dark:bg-purple-900/20" />
-        <StatCard title="Total Tugas Disimpan" value={tasks.length} icon={FolderOpen} color="text-yellow-600" bgColor="bg-yellow-50 dark:bg-amber-900/20" />
-        <StatCard title="Status Mesin Server" value="Optimal" icon={Server} color="text-emerald-600" bgColor="bg-emerald-50 dark:bg-emerald-900/20" />
-      </div>
-      
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700/60 p-6 shadow-sm flex flex-col">
-          <h3 className="text-lg font-semibold mb-6 dark:text-slate-100">Pemantauan Penonton Live</h3>
-          <div className="flex-1 overflow-x-auto pb-2">
-            <table className="w-full text-left">
-              <thead>
-                <tr className="text-xs text-gray-500 border-b border-gray-200 dark:border-slate-700/60">
-                  <th className="pb-3">NAMA TUGAS</th><th className="pb-3 text-center">PENONTON (CCV)</th><th className="pb-3 text-right">DURASI (UPTIME)</th>
-                </tr>
-              </thead>
-              <tbody>
-                {activeLiveTasks.length === 0 ? (
-                  <tr><td colSpan="3" className="py-8 text-center text-sm text-gray-400">Tidak ada Live Streaming yang berjalan.</td></tr>
-                ) : (
-                  activeLiveTasks.map(t => (
-                    <tr key={t.id} className="border-b border-gray-100 dark:border-slate-700/30">
-                      <td className="py-4 font-medium dark:text-slate-200">{t.taskName}</td>
-                      <td className="py-4 text-center font-bold text-emerald-600">{t.viewers || 0}</td>
-                      <td className="py-4 text-right font-mono text-gray-500">{t.uptime || '00:00'}</td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+            </select>
+          </div>
+          <div>
+            <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">PERIODE</label>
+            <select className="bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-700 text-gray-800 dark:text-slate-200 text-sm rounded-lg px-3 py-2 outline-none focus:border-emerald-500 min-w-[180px]">
+              <option>30 Hari Terakhir</option>
+              <option>7 Hari Terakhir</option>
+              <option>Hari Ini</option>
+            </select>
           </div>
         </div>
-
-        <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700/60 p-6 shadow-sm flex flex-col">
-          <h3 className="text-lg font-semibold mb-4 dark:text-slate-100">Top Performa Live</h3>
-          <div className="space-y-4 overflow-y-auto flex-1 pr-2 custom-scrollbar">
-            {activeLiveTasks.length === 0 ? (
-              <div className="flex items-center justify-center h-full"><p className="text-sm text-gray-400">Belum ada aktivitas live.</p></div>
-            ) : (
-              [...activeLiveTasks].sort((a,b) => (b.viewers || 0) - (a.viewers || 0)).map((stream, i) => (
-                <div key={i} className="flex items-center gap-3 p-3 rounded-lg border border-gray-100 dark:border-slate-700/50 hover:bg-gray-50 dark:hover:bg-slate-700/30">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs ${i === 0 ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100 text-gray-600 dark:bg-slate-900/50'}`}>#{i+1}</div>
-                  <div className="flex-1 overflow-hidden"><div className="text-sm font-semibold truncate dark:text-slate-200">{stream.taskName}</div></div>
-                  <div className="text-right"><div className="text-sm font-bold text-gray-900 dark:text-slate-100 flex items-center gap-1 justify-end"><Users className="w-3.5 h-3.5 text-gray-400" /> {stream.viewers || 0}</div></div>
-                </div>
-              ))
-            )}
-          </div>
+        
+        <div className="flex items-center gap-4 self-end md:self-end mt-4 md:mt-0">
+           <span className="text-xs text-gray-500 dark:text-slate-400">Update: <span className="text-blue-500 dark:text-blue-400 font-mono">{lastUpdate}</span></span>
+           <button 
+             onClick={handleRefresh}
+             className="flex items-center gap-2 bg-gray-100 hover:bg-gray-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-gray-800 dark:text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors border border-gray-200 dark:border-slate-600 shadow-sm"
+           >
+             <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} /> Refresh Data
+           </button>
         </div>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="bg-white dark:bg-slate-800/80 rounded-xl p-5 border border-gray-200 dark:border-slate-700/60 relative overflow-hidden flex flex-col justify-center min-h-[110px] shadow-sm">
+          <DollarSign className="absolute right-[-10px] bottom-[-10px] w-24 h-24 text-emerald-500/10 dark:text-emerald-900/20 opacity-40 dark:opacity-20 pointer-events-none rotate-12" strokeWidth={3} />
+          <p className="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-1 relative z-10">ESTIMASI PENDAPATAN</p>
+          <h3 className="text-3xl font-bold text-emerald-600 dark:text-emerald-500 tracking-tight relative z-10">Rp {metrics.revenue.toLocaleString('id-ID')}</h3>
+          <p className="text-xs text-gray-500 mt-1 relative z-10">Realtime</p>
+        </div>
+        <div className="bg-white dark:bg-slate-800/80 rounded-xl p-5 border border-gray-200 dark:border-slate-700/60 flex flex-col justify-center min-h-[110px] shadow-sm">
+          <p className="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-1">JAM TAYANG</p>
+          <h3 className="text-3xl font-bold text-rose-500 tracking-tight">{metrics.watchHours}</h3>
+          <p className="text-xs text-gray-500 mt-1">Total Jam</p>
+        </div>
+        <div className="bg-white dark:bg-slate-800/80 rounded-xl p-5 border border-gray-200 dark:border-slate-700/60 flex flex-col justify-center min-h-[110px] shadow-sm">
+          <p className="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-1">SUBSCRIBERS</p>
+          <h3 className="text-3xl font-bold text-gray-900 dark:text-white tracking-tight">+{metrics.subscribers}</h3>
+          <p className="text-xs text-gray-500 mt-1">Penambahan Baru</p>
+        </div>
+        <div className="bg-white dark:bg-slate-800/80 rounded-xl p-5 border border-gray-200 dark:border-slate-700/60 flex flex-col justify-center min-h-[110px] shadow-sm">
+          <p className="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-1">PENONTON AKTIF (CCV)</p>
+          <h3 className="text-3xl font-bold text-blue-500 dark:text-blue-400 tracking-tight">{currentCcv}</h3>
+          <p className="text-xs text-gray-500 mt-1">Sedang Menonton</p>
+        </div>
+      </div>
+
+      <div className="bg-white dark:bg-slate-800/80 rounded-xl border border-gray-200 dark:border-slate-700/60 p-6 shadow-sm flex flex-col">
+        <div className="flex items-center gap-2 mb-6">
+          <div className="w-1.5 h-4 bg-rose-500 rounded-sm"></div>
+          <h3 className="text-sm font-bold text-gray-900 dark:text-slate-100">Grafik Performa</h3>
+        </div>
+        <CustomLineChart data={chartData} />
       </div>
     </div>
   );
 }
 
+// -----------------------------------------------------------------------------
+// PENGATURAN VIEW
+// -----------------------------------------------------------------------------
 function SettingsView({ accounts, fetchAccounts, isPreview, API_BASE }) {
   const [notifPlatform, setNotifPlatform] = useState('telegram');
   const [notifEnabled, setNotifEnabled] = useState(false);
@@ -1777,7 +1954,7 @@ function SettingsView({ accounts, fetchAccounts, isPreview, API_BASE }) {
           </p>
 
           <div className={`transition-opacity ${notifEnabled ? 'opacity-100' : 'opacity-40 pointer-events-none'}`}>
-            <div className="space-y-5 mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Platform Notifikasi</label>
                 <select 
@@ -1789,25 +1966,27 @@ function SettingsView({ accounts, fetchAccounts, isPreview, API_BASE }) {
                 </select>
               </div>
               
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Bot Token</label>
-                <input 
-                   type="password" 
-                   value={telegramToken}
-                   onChange={(e) => setTelegramToken(e.target.value)}
-                   placeholder="123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11" 
-                   className={inputClassName} 
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Chat ID (Target Group/User)</label>
-                <input 
-                   type="text" 
-                   value={telegramChatId}
-                   onChange={(e) => setTelegramChatId(e.target.value)}
-                   placeholder="123456789" 
-                   className={inputClassName} 
-                />
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Bot Token</label>
+                  <input 
+                     type="password" 
+                     value={telegramToken}
+                     onChange={(e) => setTelegramToken(e.target.value)}
+                     placeholder="123456:ABC-DEF..." 
+                     className={inputClassName} 
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Chat ID (Target Group/User)</label>
+                  <input 
+                     type="text" 
+                     value={telegramChatId}
+                     onChange={(e) => setTelegramChatId(e.target.value)}
+                     placeholder="123456789" 
+                     className={inputClassName} 
+                  />
+                </div>
               </div>
             </div>
 
@@ -1846,6 +2025,9 @@ function SettingsView({ accounts, fetchAccounts, isPreview, API_BASE }) {
   );
 }
 
+// -----------------------------------------------------------------------------
+// LOG VIEW
+// -----------------------------------------------------------------------------
 function LogView({ isPreview, API_BASE }) {
   const [logs, setLogs] = useState([{ type: 'info', text: 'Menghubungkan ke log server VPS...' }]);
   const [bitrateHistory, setBitrateHistory] = useState(Array(20).fill(0));
@@ -1927,9 +2109,7 @@ function LogView({ isPreview, API_BASE }) {
   }, [API_BASE, isPreview, selectedTaskId]);
 
   useEffect(() => { 
-      if (autoScroll) {
-          logsEndRef.current?.scrollIntoView({ behavior: "smooth" }); 
-      }
+      if (autoScroll) logsEndRef.current?.scrollIntoView({ behavior: "smooth" }); 
   }, [logs]); 
 
   const createChartPath = () => {
@@ -2031,6 +2211,7 @@ function LogView({ isPreview, API_BASE }) {
           </div>
         </div>
         
+        {/* Tombol kembali ke bawah jika scroll dimatikan */}
         {!autoScroll && (
           <button 
             onClick={() => { setAutoScroll(true); logsEndRef.current?.scrollIntoView({ behavior: "smooth" }); }}
@@ -2040,70 +2221,6 @@ function LogView({ isPreview, API_BASE }) {
             <ArrowDown className="w-5 h-5" />
           </button>
         )}
-      </div>
-    </div>
-  );
-}
-
-function StatCard({ title, value, icon: Icon, color, bgColor, className = "" }) {
-  return (
-    <div className={`bg-white dark:bg-slate-800 p-5 rounded-xl border border-gray-200 dark:border-slate-700/60 shadow-sm transition-all flex items-center gap-4 ${className}`}>
-      <div className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 ${bgColor}`}><Icon className={`w-5 h-5 ${color}`} /></div>
-      <div><p className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider mb-0.5">{title}</p><p className="text-2xl font-bold text-gray-900 dark:text-slate-100 leading-none">{value}</p></div>
-    </div>
-  );
-}
-
-function ProgressBar({ label, percentage, color, valueText, subText }) {
-  return (
-    <div className="flex flex-col justify-end w-full">
-      <div className="flex justify-between items-end mb-1.5"><span className="text-[10px] font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider">{label}</span><span className="text-[10px] font-mono font-bold text-gray-700 dark:text-slate-300">{valueText || `${percentage}%`}</span></div>
-      <div className="w-full rounded-full h-1.5 bg-gray-100 dark:bg-slate-700/50 overflow-hidden"><div className={`h-full rounded-full ${color} transition-all duration-500`} style={{ width: `${percentage}%` }}></div></div>
-      <div className={`mt-1.5 text-[9px] text-gray-400 dark:text-slate-500 font-medium text-right leading-none ${subText ? 'opacity-100' : 'opacity-0 select-none'}`}>{subText || '-'}</div>
-    </div>
-  );
-}
-
-function FolderItem({ name, count, active }) {
-  return (
-    <div className={`flex items-center justify-between px-3 py-2 rounded-md cursor-pointer transition-colors ${active ? 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-medium border border-emerald-100 dark:border-emerald-500/20' : 'text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-700/50 border border-transparent'}`}>
-      <div className="flex items-center gap-2.5 overflow-hidden"><FolderOpen className={`w-3.5 h-3.5 shrink-0 ${active ? 'text-emerald-500 dark:text-emerald-400' : 'text-gray-400 dark:text-slate-500'}`} /><span className="text-[11px] truncate">{name}</span></div>
-      <span className={`text-[9px] px-1.5 py-0.5 rounded-sm font-mono ${active ? 'bg-white dark:bg-slate-800 text-emerald-500 dark:text-emerald-400 shadow-sm' : 'bg-gray-100 dark:bg-slate-700/50 text-gray-500 dark:text-slate-400'}`}>{count}</span>
-    </div>
-  );
-}
-
-function VideoFile({ name, size, onEdit, onDelete }) {
-  const isImage = name.toLowerCase().endsWith('.jpg') || name.toLowerCase().endsWith('.png') || name.toLowerCase().endsWith('.jpeg');
-
-  return (
-    <div className="group flex items-center justify-between p-2.5 bg-white dark:bg-slate-800 hover:bg-gray-50 dark:hover:bg-slate-700/50 border border-gray-100 dark:border-slate-700/60 hover:border-gray-200 dark:hover:border-slate-600/60 rounded-lg transition-all cursor-pointer shadow-sm hover:shadow dark:hover:shadow-black/20">
-      <div className="flex items-center gap-3 overflow-hidden flex-1">
-        <div className={`w-8 h-8 rounded-md flex items-center justify-center shrink-0 ${isImage ? 'bg-purple-50 text-purple-600 dark:bg-purple-500/10 dark:text-purple-400' : 'bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400'}`}>
-          {isImage ? <Image className="w-4 h-4" /> : <Video className="w-4 h-4" />}
-        </div>
-        <div className="overflow-hidden">
-          <p className="text-[13px] font-semibold text-gray-800 dark:text-slate-200 truncate pr-2" title={name}>{name}</p>
-          <p className="text-[10px] font-mono text-gray-400 dark:text-slate-500 mt-0.5">{size}</p>
-        </div>
-      </div>
-      
-      {/* Action Buttons */}
-      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-gradient-to-l from-white dark:from-slate-800 via-white dark:via-slate-800 pl-4 pr-1">
-        <button 
-          onClick={(e) => { e.stopPropagation(); onEdit && onEdit(); }} 
-          className="p-1.5 text-gray-400 dark:text-slate-400 hover:text-blue-500 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-500/10 rounded-md transition-colors"
-          title="Edit"
-        >
-          <Edit className="w-3.5 h-3.5" />
-        </button>
-        <button 
-          onClick={(e) => { e.stopPropagation(); onDelete && onDelete(); }} 
-          className="p-1.5 text-gray-400 dark:text-slate-400 hover:text-red-500 dark:hover:text-rose-400 hover:bg-red-50 dark:hover:bg-rose-500/10 rounded-md transition-colors"
-          title="Hapus"
-        >
-          <Trash2 className="w-3.5 h-3.5" />
-        </button>
       </div>
     </div>
   );

@@ -4,7 +4,7 @@ export default {
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
   ],
-  darkMode: 'class', // Tambahkan baris ini
+  light : 'class', // <--- INI KUNCI UTAMANYA BRO! (Wajib ada)
   theme: {
     extend: {},
   },
