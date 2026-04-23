@@ -310,7 +310,7 @@ async function updateYouTubeMetadata(task) {
 
         writeLog(task.id, `[YOUTUBE API] Ruang Live berhasil dibuat. Menerapkan Kategori & Tag ke Video...`);
 
-        // 1.5 UPDATE VIDEO RESOURCE (INI SOLUSI FIX KATEGORINYA BRO!)
+        // 1.5 UPDATE VIDEO RESOURCE
         try {
             let videoParts = 'snippet';
             let videoBody = {
@@ -898,95 +898,6 @@ setInterval(() => {
 
 // --- API ROUTES UNTUK FRONTEND ---
 
-// TAMBAHAN BARU: API UNTUK MENGAMBIL DATA ANALYTICS ASLI DARI CHANNEL YOUTUBE
-app.get('/api/analytics', async (req, res) => {
-    try {
-        const { accountId } = req.query; // Menangkap filter channel dari frontend
-        const files = fs.readdirSync(__dirname).filter(f => f.startsWith('token_') && f.endsWith('.json'));
-        
-        if (files.length === 0) {
-            return res.json({
-                success: true,
-                metrics: { revenue: 0, watchHours: 0, subscribers: 0, totalViews: 0 },
-                chart: []
-            });
-        }
-
-        let targetFiles = files;
-        // Jika user memilih spesifik channel (bukan 'all')
-        if (accountId && accountId !== 'all') {
-            if (fs.existsSync(path.join(__dirname, accountId))) {
-                targetFiles = [accountId];
-            }
-        }
-
-        let subscribers = 0;
-        let totalViews = 0;
-        let videoCount = 0;
-
-        // Looping ke channel yang dipilih (atau semua channel jika 'all')
-        for (const file of targetFiles) {
-            try {
-                const tokenPath = path.join(__dirname, file);
-                const tokens = JSON.parse(fs.readFileSync(tokenPath));
-                const oauth2Client = getOAuth2Client(tokens);
-                const youtube = google.youtube({ version: 'v3', auth: oauth2Client });
-
-                // Tarik data statistik asli dari channel YouTube
-                const channelRes = await youtube.channels.list({
-                    part: 'statistics',
-                    mine: true
-                });
-
-                if (channelRes.data.items && channelRes.data.items.length > 0) {
-                    const stats = channelRes.data.items[0].statistics;
-                    subscribers += parseInt(stats.subscriberCount || 0);
-                    totalViews += parseInt(stats.viewCount || 0);
-                    videoCount += parseInt(stats.videoCount || 0);
-                }
-            } catch(apiErr) {
-                console.error(`Gagal menarik data untuk ${file}:`, apiErr.message);
-            }
-        }
-
-        // Kalkulasi Estimasi (Karena YouTube Data API v3 tidak menyediakan endpoint Revenue/WatchHours. Itu ada di YouTube Analytics API)
-        const watchHours = (totalViews * 0.05).toFixed(1); 
-        const revenue = Math.floor(totalViews * 2.5); 
-
-        // Buat data grafik (Tanpa Math.random agar tidak terkesan fake. Dibagi rata dari total views riil)
-        const chartData = [];
-        const dailyViewsAvg = Math.floor(totalViews / 30) || 0;
-        const dailyRevAvg = Math.floor(revenue / 30) || 0;
-        
-        for (let i = 29; i >= 0; i--) {
-            const d = new Date();
-            d.setDate(d.getDate() - i);
-            const dateStr = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`;
-            chartData.push({ date: dateStr, views: dailyViewsAvg, revenue: dailyRevAvg });
-        }
-
-        res.json({
-            success: true,
-            metrics: {
-                revenue: revenue,
-                watchHours: watchHours,
-                subscribers: subscribers,
-                totalViews: totalViews
-            },
-            chart: chartData
-        });
-
-    } catch (error) {
-        console.error('Analytics API Error:', error.message);
-        res.json({
-            success: false,
-            metrics: { revenue: 0, watchHours: 0, subscribers: 0, totalViews: 0 },
-            chart: []
-        });
-    }
-});
-
-
 app.get('/api/status', (req, res) => res.json({ status: 'running', message: 'Backend VStream Aktif' }));
 
 let previousCpuTimes = getCpuTimes();
@@ -1320,9 +1231,25 @@ app.post('/api/auth/save', async (req, res) => {
         const oauth2Client = getOAuth2Client();
         const code = new URL(req.body.authUrl).searchParams.get('code');
         const { tokens } = await oauth2Client.getToken(code);
-        fs.writeFileSync(path.join(__dirname, `token_${req.body.accountName.replace(/\s+/g, '_')}.json`), JSON.stringify(tokens, null, 2));
-        res.json({ success: true, message: `Akun tersambung!` });
-    } catch (e) { res.status(500).json({ success: false, message: e.message }); }
+        oauth2Client.setCredentials(tokens);
+
+        // Tarik nama channel asli dari YouTube API
+        const youtube = google.youtube({ version: 'v3', auth: oauth2Client });
+        const channelRes = await youtube.channels.list({ part: 'snippet', mine: true });
+        
+        let realChannelName = "Channel_" + Date.now();
+        if (channelRes.data.items && channelRes.data.items.length > 0) {
+            realChannelName = channelRes.data.items[0].snippet.title;
+        }
+
+        // Simpan token dengan nama channel yang asli
+        const safeName = realChannelName.replace(/[^a-zA-Z0-9]/g, '_');
+        fs.writeFileSync(path.join(__dirname, `token_${safeName}.json`), JSON.stringify(tokens, null, 2));
+        
+        res.json({ success: true, message: `Akun "${realChannelName}" berhasil tersambung!` });
+    } catch (e) { 
+        res.status(500).json({ success: false, message: e.message }); 
+    }
 });
 
 app.get('/api/settings/notifications', (req, res) => {
