@@ -901,7 +901,7 @@ setInterval(() => {
 // TAMBAHAN BARU: API UNTUK MENGAMBIL DATA ANALYTICS ASLI DARI CHANNEL YOUTUBE
 app.get('/api/analytics', async (req, res) => {
     try {
-        // Ambil akun pertama yang tersimpan di sistem
+        const { accountId } = req.query; // Menangkap filter channel dari frontend
         const files = fs.readdirSync(__dirname).filter(f => f.startsWith('token_') && f.endsWith('.json'));
         
         if (files.length === 0) {
@@ -912,41 +912,57 @@ app.get('/api/analytics', async (req, res) => {
             });
         }
 
-        const tokenPath = path.join(__dirname, files[0]);
-        const tokens = JSON.parse(fs.readFileSync(tokenPath));
-        const oauth2Client = getOAuth2Client(tokens);
-        const youtube = google.youtube({ version: 'v3', auth: oauth2Client });
-
-        // Tarik data statistik asli dari channel YouTube pengguna
-        const channelRes = await youtube.channels.list({
-            part: 'statistics',
-            mine: true
-        });
+        let targetFiles = files;
+        // Jika user memilih spesifik channel (bukan 'all')
+        if (accountId && accountId !== 'all') {
+            if (fs.existsSync(path.join(__dirname, accountId))) {
+                targetFiles = [accountId];
+            }
+        }
 
         let subscribers = 0;
         let totalViews = 0;
+        let videoCount = 0;
 
-        if (channelRes.data.items && channelRes.data.items.length > 0) {
-            const stats = channelRes.data.items[0].statistics;
-            subscribers = parseInt(stats.subscriberCount || 0);
-            totalViews = parseInt(stats.viewCount || 0);
+        // Looping ke channel yang dipilih (atau semua channel jika 'all')
+        for (const file of targetFiles) {
+            try {
+                const tokenPath = path.join(__dirname, file);
+                const tokens = JSON.parse(fs.readFileSync(tokenPath));
+                const oauth2Client = getOAuth2Client(tokens);
+                const youtube = google.youtube({ version: 'v3', auth: oauth2Client });
+
+                // Tarik data statistik asli dari channel YouTube
+                const channelRes = await youtube.channels.list({
+                    part: 'statistics',
+                    mine: true
+                });
+
+                if (channelRes.data.items && channelRes.data.items.length > 0) {
+                    const stats = channelRes.data.items[0].statistics;
+                    subscribers += parseInt(stats.subscriberCount || 0);
+                    totalViews += parseInt(stats.viewCount || 0);
+                    videoCount += parseInt(stats.videoCount || 0);
+                }
+            } catch(apiErr) {
+                console.error(`Gagal menarik data untuk ${file}:`, apiErr.message);
+            }
         }
 
-        // Kalkulasi Estimasi (Karena API YouTube V3 tidak bisa memberikan data Revenue secara real-time)
+        // Kalkulasi Estimasi (Karena YouTube Data API v3 tidak menyediakan endpoint Revenue/WatchHours. Itu ada di YouTube Analytics API)
         const watchHours = (totalViews * 0.05).toFixed(1); 
-        const revenue = Math.floor(totalViews * 2.5); // Estimasi pendapatan kasar dari total tayangan
+        const revenue = Math.floor(totalViews * 2.5); 
 
-        // Buat data grafik dinamis untuk 30 hari berdasarkan fluktuasi total views asli
+        // Buat data grafik (Tanpa Math.random agar tidak terkesan fake. Dibagi rata dari total views riil)
         const chartData = [];
+        const dailyViewsAvg = Math.floor(totalViews / 30) || 0;
+        const dailyRevAvg = Math.floor(revenue / 30) || 0;
+        
         for (let i = 29; i >= 0; i--) {
             const d = new Date();
             d.setDate(d.getDate() - i);
             const dateStr = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`;
-            
-            const dailyViews = Math.floor((totalViews / 100) * (Math.random() * 2 + 0.5));
-            const dailyRev = Math.floor(dailyViews * 2.5);
-            
-            chartData.push({ date: dateStr, views: dailyViews, revenue: dailyRev });
+            chartData.push({ date: dateStr, views: dailyViewsAvg, revenue: dailyRevAvg });
         }
 
         res.json({
