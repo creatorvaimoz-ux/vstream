@@ -8,7 +8,7 @@ const multer = require('multer');
 const https = require('https');
 const http = require('http');
 const { URL } = require('url');
-const { spawn } = require('child_process');
+const { spawn, exec } = require('child_process'); // Perbaikan: Menambahkan exec
 const os = require('os');
 
 // Load .env file
@@ -236,7 +236,8 @@ function parseSpintax(text) {
 }
 
 function getCategoryId(categoryName) {
-    if (!isNaN(categoryName)) return categoryName;
+    if (!categoryName) return '24';
+    if (!isNaN(categoryName)) return categoryName.toString();
     const map = {
         'Film & Animation': '1', 'Autos & Vehicles': '2', 'Music': '10', 'Pets & Animals': '15',
         'Sports': '17', 'Travel & Events': '19', 'Gaming': '20', 'People & Blogs': '22',
@@ -279,7 +280,7 @@ async function updateYouTubeMetadata(task) {
 
         writeLog(task.id, `[YOUTUBE API] Membangun Ruang Live Studio Otomatis untuk "${finalTitle}"...`);
 
-        // 1. CREATE BROADCAST (Broadcast API tidak bisa menyuntikkan kategori/tag, ini wajar)
+        // 1. CREATE BROADCAST (Tahap 1: Membuka Ruang Live)
         const broadcastRes = await youtube.liveBroadcasts.insert({
             part: 'snippet,status,contentDetails',
             requestBody: {
@@ -305,40 +306,49 @@ async function updateYouTubeMetadata(task) {
         });
 
         const broadcast = broadcastRes.data;
-        resultData.broadcastId = broadcast.id; // Ini sama dengan Video ID
+        resultData.broadcastId = broadcast.id; 
         resultData.liveChatId = broadcast.snippet.liveChatId;
 
-        writeLog(task.id, `[YOUTUBE API] Ruang Live berhasil dibuat. Menerapkan Kategori & Tag ke Video...`);
+        writeLog(task.id, `[YOUTUBE API] Menunggu 5 detik agar YouTube memproses Kategori & Terjemahan...`);
+        
+        // JEDA PINTAR: Menunggu sistem YouTube menyegarkan database sebelum mengubah metadata
+        await new Promise(resolve => setTimeout(resolve, 5000));
 
-        // 1.5 UPDATE VIDEO RESOURCE
-        try {
-            let videoParts = 'snippet';
-            let videoBody = {
-                id: resultData.broadcastId,
-                snippet: {
-                    title: finalTitle,
-                    description: finalDesc,
-                    categoryId: finalCategory, // Kategori dipaksa masuk di sini
-                    tags: task.youtubeTags ? task.youtubeTags.split(',').map(t => t.trim()).filter(t => t) : [],
-                    defaultLanguage: task.videoLanguage || 'id',
-                    defaultAudioLanguage: task.videoLanguage || 'id'
-                }
-            };
-
-            // Jika ada translate bahasa, masukkan juga
-            if (task.localizations && Object.keys(task.localizations).length > 0) {
-                videoParts = 'snippet,localizations';
-                videoBody.localizations = task.localizations;
+        // 1.5 UPDATE VIDEO RESOURCE (Tahap 2: Suntik Kategori, Bahasa, dan Terjemahan)
+        let videoParts = 'snippet';
+        let videoBody = {
+            id: resultData.broadcastId,
+            snippet: {
+                title: finalTitle,
+                description: finalDesc,
+                categoryId: finalCategory, 
+                defaultLanguage: task.videoLanguage || 'id',
+                defaultAudioLanguage: task.videoLanguage || 'id',
+                tags: task.youtubeTags ? task.youtubeTags.split(',').map(t => t.trim()).filter(t => t) : []
             }
+        };
 
+        if (task.localizations && Object.keys(task.localizations).length > 0) {
+            videoParts = 'snippet,localizations';
+            videoBody.localizations = task.localizations;
+        }
+
+        try {
             await youtube.videos.update({
                 part: videoParts,
                 requestBody: videoBody
             });
-            
-            writeLog(task.id, `[YOUTUBE API] ✅ Kategori Video sukses diperbarui ke ID: ${finalCategory}`);
+            writeLog(task.id, `[YOUTUBE API] ✅ Kategori & Bahasa Video sukses disinkronkan ke YouTube Studio!`);
         } catch (vidErr) {
-            writeLog(task.id, `[YOUTUBE API WARNING] Gagal menimpa kategori video: ${vidErr.message}`);
+            writeLog(task.id, `[YOUTUBE API WARNING] Gagal sinkronisasi metadata: ${vidErr.message}. Mencoba lagi...`);
+            try {
+                // Retry jika YouTube masih delay
+                await new Promise(resolve => setTimeout(resolve, 3000));
+                await youtube.videos.update({ part: videoParts, requestBody: videoBody });
+                writeLog(task.id, `[YOUTUBE API] ✅ (Retry) Kategori & Bahasa berhasil disinkronkan!`);
+            } catch (retryErr) {
+                writeLog(task.id, `[YOUTUBE API ERROR] Gagal permanen sinkronisasi Kategori: ${retryErr.message}`);
+            }
         }
 
         writeLog(task.id, `[YOUTUBE API] Membuat Stream Key pengikat...`);
@@ -532,7 +542,15 @@ function stopStreamById(id, isError = false) {
 function startStreamInternal(task, isFallback = false) {
     if (activeStreams.has(task.id) && !isFallback) return false; 
 
-    const videoFileName = isFallback ? task.fallbackVideo : task.videoPath;
+    let videoFileName = isFallback ? task.fallbackVideo : task.videoPath;
+
+    // LOGIKA BARU: Undi & acak 1 video jika mode-nya "Acak Video Setiap Hari"
+    if (!isFallback && task.videoMode === 'Acak Video Setiap Hari' && task.selectedVideos && task.selectedVideos.length > 0) {
+        videoFileName = task.selectedVideos[Math.floor(Math.random() * task.selectedVideos.length)];
+        task.videoPath = videoFileName; // Update memori sementara
+        writeLog(task.id, `[SYSTEM] Mode Acak: Video yang diundi untuk live hari ini adalah "${videoFileName}"`);
+    }
+
     const fullVideoPath = path.join(MEDIA_DIR, videoFileName);
     
     if (!fs.existsSync(fullVideoPath)) {
@@ -600,14 +618,18 @@ function startStreamInternal(task, isFallback = false) {
         if (!isFallback) {
             let tasks = JSON.parse(fs.readFileSync(TASKS_FILE));
             let t = tasks.find(x => x.id === task.id);
-            if (t) { t.streamKey = finalStreamKey; fs.writeFileSync(TASKS_FILE, JSON.stringify(tasks, null, 2)); }
+            if (t) { 
+                t.streamKey = finalStreamKey; 
+                t.videoPath = task.videoPath; // Simpan video terpilih agar tampilannya berubah di Dashboard
+                fs.writeFileSync(TASKS_FILE, JSON.stringify(tasks, null, 2)); 
+            }
         }
 
         // --- MENYUSUN ARGUMEN FFMPEG ---
         const ffmpegArgs = ['-re']; 
-        if ((task.videoMode === 'Satu Video (Looping)' && !isFallback) || isFallback) {
-            ffmpegArgs.push('-stream_loop', '-1'); 
-        }
+        
+        // PAKSA STREAM_LOOP UNTUK SEMUA MODE TUNGGAL AGAR VIDEO TIDAK MATI
+        ffmpegArgs.push('-stream_loop', '-1'); 
         
         ffmpegArgs.push('-i', fullVideoPath);
 
@@ -742,10 +764,25 @@ function startStreamInternal(task, isFallback = false) {
         });
 
         ffmpegProcess.on('close', (code) => {
-            writeLog(task.id, `[SYSTEM] FFmpeg Terhenti (Kode Keluar: ${code})`);
+            // Jika tugas sudah tidak ada di Map, berarti user mematikan manual (atau lewat cron Stop)
+            if (!activeStreams.has(task.id)) {
+                writeLog(task.id, `[SYSTEM] FFmpeg Dihentikan Secara Manual/Otomatis. (Kode Keluar: ${code})`);
+                return;
+            }
+
+            writeLog(task.id, `[SYSTEM] FFmpeg Terhenti Tiba-Tiba (Kode Keluar: ${code})`);
             const isError = (code !== 0 && code !== 255 && code !== null);
             
-            // --- LOGIKA FALLBACK ---
+            // LOGIKA AUTO-RESTART: Jika video habis (Kode 0) atau force-restart internal
+            if (code === 0 || code === 255) {
+                writeLog(task.id, `[SYSTEM] Ujung video tercapai atau FFmpeg ter-reset. Melakukan Auto-Restart stream secara instan...`);
+                activeStreams.delete(task.id);
+                // Restart FFmpeg dalam 3 detik
+                setTimeout(() => startStreamInternal(task, isFallback), 3000);
+                return;
+            }
+
+            // --- LOGIKA FALLBACK (ERROR PADA JARINGAN/VPS) ---
             if (isError && task.enableFallback && task.fallbackVideo && !isFallback) {
                 writeLog(task.id, `[WARNING] Terdeteksi Error Putus Stream! Menjalankan Video Fallback dalam 5 detik...`);
                 const notifSettings = fs.existsSync(NOTIF_FILE) ? JSON.parse(fs.readFileSync(NOTIF_FILE)) : {};
@@ -911,6 +948,48 @@ function getCpuTimes() {
     return { idle, total: user + nice + sys + idle + irq };
 }
 
+// LOGIKA BARU PEMBACAAN DISK & BANDWIDTH REAL (ASLI)
+let currentDiskUsage = 0;
+let lastNetBytes = 0;
+let currentBandwidth = 0.0;
+
+// Fungsi membaca Disk VPS (Linux) berjalan tiap 1 menit
+function updateDiskUsage() {
+    if (os.platform() === 'win32') return; // Lewati jika di Windows
+    exec("df / | awk 'NR==2 {print $5}'", (err, stdout) => {
+        if (!err && stdout) {
+            const parsed = parseInt(stdout.replace('%', ''));
+            if (!isNaN(parsed)) currentDiskUsage = parsed;
+        }
+    });
+}
+updateDiskUsage();
+setInterval(updateDiskUsage, 60000);
+
+// Fungsi membaca Bandwidth Jaringan (Linux) berjalan tiap 1 detik
+setInterval(() => {
+    try {
+        if (os.platform() === 'linux') {
+            const netDev = fs.readFileSync('/proc/net/dev', 'utf8');
+            const lines = netDev.split('\n');
+            let totalBytes = 0;
+            for (let i = 2; i < lines.length; i++) {
+                const line = lines[i].trim();
+                if (!line || line.startsWith('lo:')) continue; // Abaikan jaringan lokal (localhost)
+                const parts = line.split(/:?\s+/);
+                if (parts.length > 9) {
+                    totalBytes += (parseInt(parts[1]) || 0) + (parseInt(parts[9]) || 0); // RX + TX bytes
+                }
+            }
+            if (lastNetBytes > 0 && totalBytes >= lastNetBytes) {
+                const diffBytes = totalBytes - lastNetBytes;
+                currentBandwidth = (diffBytes / (1024 * 1024)).toFixed(2); // Ubah ke MB/s
+            }
+            lastNetBytes = totalBytes;
+        }
+    } catch(e){}
+}, 1000);
+
 app.get('/api/system', (req, res) => {
     const currentCpuTimes = getCpuTimes();
     const idleDiff = currentCpuTimes.idle - previousCpuTimes.idle;
@@ -923,7 +1002,15 @@ app.get('/api/system', (req, res) => {
     const usedMem = totalMem - os.freemem();
     const ramUsage = Math.floor((usedMem / totalMem) * 100);
 
-    res.json({ cpu: cpuUsage, ram: ramUsage, disk: Math.floor(Math.random() * 10) + 15, bandwidth: (Math.random() * 2).toFixed(1) });
+    // Jika VPS Linux, kirim data disk asli. Jika Windows/local, pakai angka statis 15% (fallback).
+    const disk = currentDiskUsage > 0 ? currentDiskUsage : 15;
+
+    res.json({ 
+        cpu: cpuUsage, 
+        ram: ramUsage, 
+        disk: disk, 
+        bandwidth: currentBandwidth 
+    });
 });
 
 app.get('/api/logs', (req, res) => {
@@ -949,7 +1036,7 @@ app.post('/api/tasks', (req, res) => {
         tasks.push(newTask);
         fs.writeFileSync(TASKS_FILE, JSON.stringify(tasks, null, 2));
 
-        if (req.body.isMulaiSekarang) startStreamInternal(newTask);
+        if (newTask.status === 'Starting') startStreamInternal(newTask);
 
         res.json({ success: true, message: 'Tugas Live berhasil disimpan!', task: newTask });
     } catch (e) { res.status(500).json({ success: false, message: e.message }); }

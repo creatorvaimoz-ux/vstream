@@ -247,7 +247,7 @@ export default function App() {
         )}
 
         <main className="flex-1 overflow-y-auto p-4 md:p-6 relative z-10 w-full mx-auto">
-          {activeTab === 'dashboard' && <DashboardView isPreview={isPreview} API_BASE={API_BASE} onEditTask={handleEditTask} />}
+          {activeTab === 'dashboard' && <DashboardView accounts={accounts} isPreview={isPreview} API_BASE={API_BASE} onEditTask={handleEditTask} />}
           {activeTab === 'tugas-live' && <TugasLiveView accounts={accounts} isPreview={isPreview} API_BASE={API_BASE} onNavigate={setActiveTab} taskToEdit={taskToEdit} clearEditTask={clearEditTask} />}
           {activeTab === 'media' && <MediaView isPreview={isPreview} API_BASE={API_BASE} />}
           {activeTab === 'pengaturan' && <SettingsView accounts={accounts} fetchAccounts={fetchAccounts} isPreview={isPreview} API_BASE={API_BASE} />}
@@ -263,7 +263,7 @@ export default function App() {
 // 3. TAMPILAN HALAMAN UTAMA (VIEWS)
 // =============================================================================
 
-function DashboardView({ isPreview, API_BASE, onEditTask }) {
+function DashboardView({ accounts, isPreview, API_BASE, onEditTask }) {
   const [tasks, setTasks] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [sysInfo, setSysInfo] = useState({ cpu: 0, ram: 0, disk: 0, bandwidth: 0 });
@@ -413,7 +413,7 @@ function DashboardView({ isPreview, API_BASE, onEditTask }) {
               <tr className="text-[11px] font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider bg-white dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700/60">
                 <th className="px-5 py-3 w-10 text-center">#</th>
                 <th className="px-5 py-3">Informasi Stream</th>
-                <th className="px-5 py-3">Mode & Viewers</th>
+                <th className="px-5 py-3">Detail Tugas & Viewers</th>
                 <th className="px-5 py-3">Status Sistem</th>
                 <th className="px-5 py-3 text-right">Aksi Cepat</th>
               </tr>
@@ -441,12 +441,26 @@ function DashboardView({ isPreview, API_BASE, onEditTask }) {
                         </div>
                       </td>
                       <td className="px-5 py-4 align-middle">
-                        <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-md bg-gray-100 dark:bg-slate-900/50 border border-gray-200 dark:border-slate-700/60 text-xs text-gray-600 dark:text-slate-300">
-                          <Clock className="w-3 h-3 text-gray-400" />
-                          <span>{t.jadwalMode === 'smart-weekly' ? 'Mingguan' : t.jadwalMode === 'harian' ? `Harian | ${t.scheduleTime}` : t.jadwalMode === 'sekali' ? `${t.scheduleDate} | ${t.scheduleTime}` : 'Manual'}</span>
-                        </div>
+                        {(() => {
+                          const account = accounts?.find(a => a.id === t.accountId);
+                          const channelName = account ? account.name : (t.accountId ? t.accountId.replace('token_', '').replace('.json', '') : '-');
+                          const jadwalText = t.jadwalMode === 'smart-weekly' ? 'Mingguan' : t.jadwalMode === 'harian' ? `Harian | ${t.scheduleTime}` : t.jadwalMode === 'sekali' ? `${t.scheduleDate} | ${t.scheduleTime}` : 'Manual';
+                          const streamKeyMasked = t.streamKey ? `••••${t.streamKey.slice(-4)}` : '-';
+                          
+                          return (
+                            <div className="flex flex-col gap-1 text-[10px] text-gray-600 dark:text-slate-300 font-medium">
+                              <div className="grid grid-cols-[65px_1fr] gap-1"><span className="text-gray-500 dark:text-slate-400">Channel</span><span className="truncate" title={channelName}>: {channelName}</span></div>
+                              <div className="grid grid-cols-[65px_1fr] gap-1"><span className="text-gray-500 dark:text-slate-400">Video</span><span className="truncate" title={t.videoPath || t.videoMode}>: {t.videoPath || t.videoMode}</span></div>
+                              <div className="grid grid-cols-[65px_1fr] gap-1"><span className="text-gray-500 dark:text-slate-400">Jadwal</span><span>: {jadwalText}</span></div>
+                              <div className="grid grid-cols-[65px_1fr] gap-1"><span className="text-gray-500 dark:text-slate-400">Tipe</span><span className="truncate" title={t.videoMode}>: {t.videoMode}</span></div>
+                              <div className="grid grid-cols-[65px_1fr] gap-1"><span className="text-gray-500 dark:text-slate-400">Mode</span><span className="truncate" title={t.streamKeyMode}>: {t.streamKeyMode}</span></div>
+                              <div className="grid grid-cols-[65px_1fr] gap-1"><span className="text-gray-500 dark:text-slate-400">Stream Key</span><span>: {streamKeyMasked}</span></div>
+                            </div>
+                          );
+                        })()}
+
                         {t.status === 'Live' && (
-                          <div className="mt-2 space-y-1.5">
+                          <div className="mt-2.5 pt-2.5 border-t border-gray-100 dark:border-slate-700/50 space-y-1.5">
                             <div className="text-[11px] font-bold text-blue-600 dark:text-blue-400 flex items-center gap-1.5"><Users className="w-3 h-3" /> {t.viewers || 0} Penonton • {t.uptime || '00:00'}</div>
                             <div className={`text-[10px] font-medium flex items-center gap-1.5 ${healthStyle.text}`}><span className={`w-2 h-2 rounded-full ${healthStyle.dot} animate-pulse`}></span> Kondisi: {healthStyle.label}</div>
                           </div>
@@ -585,7 +599,7 @@ function TugasLiveView({ accounts, isPreview, API_BASE, onNavigate, taskToEdit, 
       setStreamKeyMode(taskToEdit.streamKeyMode || 'Otomatis (API v3)');
       setManualStreamKey(taskToEdit.streamKey || '');
       setVideoMode(taskToEdit.videoMode || 'Satu Video (Looping)');
-      setSelectedVideos(taskToEdit.videoPath ? [taskToEdit.videoPath] : []);
+      setSelectedVideos(taskToEdit.selectedVideos || (taskToEdit.videoPath ? [taskToEdit.videoPath] : []));
       setJadwalMode(taskToEdit.jadwalMode || 'manual');
       setScheduleDate(taskToEdit.scheduleDate || '');
       setScheduleTime(taskToEdit.scheduleTime || '');
@@ -717,7 +731,7 @@ function TugasLiveView({ accounts, isPreview, API_BASE, onNavigate, taskToEdit, 
       if(isPreview) return alert('Simulasi: Data berhasil disimpan.');
 
       const payload = {
-          taskName, videoMode, videoPath: selectedVideos[0], streamKeyMode, streamKey: manualStreamKey, jadwalMode, scheduleDate, scheduleTime,
+          taskName, videoMode, videoPath: selectedVideos[0], selectedVideos, streamKeyMode, streamKey: manualStreamKey, jadwalMode, scheduleDate, scheduleTime,
           scheduleGrid, stopHours, stopMinutes, randomizeStop, smartStopEnabled, thumbnailUrl, randomizeThumbnail, selectedThumbnails, 
           availableImages: selectedThumbnails.length > 0 ? selectedThumbnails : availableImages,
           isMulaiSekarang, accountId, youtubeCategory, youtubeTitle, youtubeDescription, youtubeTags,
@@ -1255,7 +1269,7 @@ function TugasLiveView({ accounts, isPreview, API_BASE, onNavigate, taskToEdit, 
                </div>
             )}
           </div>
-          
+
           <div className="bg-gradient-to-br from-white to-emerald-50/30 dark:from-slate-800 dark:to-emerald-900/10 rounded-xl border border-gray-200 dark:border-slate-700/60 p-5 md:p-6 shadow-sm">
             <div className="flex items-center justify-between mb-4 border-b border-gray-200 dark:border-slate-700/60 pb-4">
               <div className="flex items-center gap-3">
@@ -1290,7 +1304,7 @@ function TugasLiveView({ accounts, isPreview, API_BASE, onNavigate, taskToEdit, 
               </div>
             </div>
           </div>
-
+          
         </div>
       </div>
 
@@ -1312,7 +1326,7 @@ function TugasLiveView({ accounts, isPreview, API_BASE, onNavigate, taskToEdit, 
 }
 
 // -----------------------------------------------------------------------------
-// TAB 3: MEDIA
+// TAB MEDIA
 // -----------------------------------------------------------------------------
 function MediaView({ isPreview, API_BASE }) {
   const [isUploading, setIsUploading] = useState(false);
