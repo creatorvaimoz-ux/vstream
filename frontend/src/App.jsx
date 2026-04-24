@@ -1,12 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
-  LayoutDashboard, PlayCircle, FolderOpen, 
-  Settings, Moon, Sun, Plus, Upload, 
+  LayoutDashboard, PlayCircle, FolderOpen, BarChart2, 
+  Settings, Terminal, Moon, Sun, Plus, Upload, 
   Video, RefreshCw, Server, Activity, Users, 
   CheckCircle2, AlertCircle, Clock, Edit, StopCircle, Trash2,
-  XCircle, ChevronDown, Menu, Image, Monitor, Radio, Calendar, ShieldAlert,
-  Wifi, Zap, TerminalSquare, Cpu, Bell, Bot, Send, AlertTriangle,
-  Cast, Film, Sliders, ScrollText, Link as LinkIcon, ListVideo, ArrowDown, Archive, Pencil, Globe
+  AlertTriangle, XCircle, ChevronDown, TrendingUp, MessageSquare, ThumbsUp,
+  Menu, Image, Monitor, Radio, Calendar, ShieldAlert,
+  Wifi, Zap, TerminalSquare, Cpu, Bell, Bot, Send, MessageCircle, Copy,
+  Cast, Film, LineChart, Sliders, ScrollText, Link as LinkIcon, ListVideo, ArrowDown, Archive, Pencil, Globe,
+  LayoutGrid, List
 } from 'lucide-react';
 
 // === KONFIGURASI BRANDING APLIKASI ===
@@ -121,6 +123,7 @@ export default function App() {
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'tugas-live', label: 'Tugas Live', icon: Cast },
     { id: 'media', label: 'Media', icon: Film },
+    { id: 'analytics', label: 'Analytics', icon: LineChart },
     { id: 'pengaturan', label: 'Pengaturan', icon: Sliders },
     { id: 'log', label: 'Log', icon: ScrollText },
   ];
@@ -154,8 +157,8 @@ export default function App() {
                 <PlayCircle className="text-white w-5 h-5" />
               </div>
               <div className="hidden sm:flex flex-col justify-center">
-                <h1 className="text-xl font-bold tracking-tight leading-none mb-1">{BRAND_PREFIX}<span className="text-emerald-600 dark:text-emerald-400">{BRAND_SUFFIX}</span></h1>
-                <span className="text-[9px] font-bold tracking-widest text-gray-500 dark:text-slate-400 uppercase leading-none">{BRAND_TAGLINE}</span>
+                <h1 className="text-xl font-bold tracking-tight leading-none mb-1">V<span className="text-emerald-600 dark:text-emerald-400">Stream</span></h1>
+                <span className="text-[9px] font-bold tracking-widest text-gray-500 dark:text-slate-400 uppercase leading-none">Vaimoz Youtube Stream V.1</span>
               </div>
             </div>
 
@@ -250,6 +253,7 @@ export default function App() {
           {activeTab === 'dashboard' && <DashboardView accounts={accounts} isPreview={isPreview} API_BASE={API_BASE} onEditTask={handleEditTask} />}
           {activeTab === 'tugas-live' && <TugasLiveView accounts={accounts} isPreview={isPreview} API_BASE={API_BASE} onNavigate={setActiveTab} taskToEdit={taskToEdit} clearEditTask={clearEditTask} />}
           {activeTab === 'media' && <MediaView isPreview={isPreview} API_BASE={API_BASE} />}
+          {activeTab === 'analytics' && <AnalyticsView accounts={accounts} isPreview={isPreview} API_BASE={API_BASE} />}
           {activeTab === 'pengaturan' && <SettingsView accounts={accounts} fetchAccounts={fetchAccounts} isPreview={isPreview} API_BASE={API_BASE} />}
           {activeTab === 'log' && <LogView isPreview={isPreview} API_BASE={API_BASE} />}
         </main>
@@ -259,15 +263,12 @@ export default function App() {
   );
 }
 
-// =============================================================================
-// 3. TAMPILAN HALAMAN UTAMA (VIEWS)
-// =============================================================================
-
 function DashboardView({ accounts, isPreview, API_BASE, onEditTask }) {
   const [tasks, setTasks] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [sysInfo, setSysInfo] = useState({ cpu: 0, ram: 0, disk: 0, bandwidth: 0 });
-  const [tableFilter, setTableFilter] = useState('utama'); 
+  const [tableFilter, setTableFilter] = useState('utama'); // 'utama' | 'history'
+  const [viewMode, setViewMode] = useState('grid'); // 'grid' | 'list'
 
   const fetchTasks = async () => {
     if(isPreview) { setIsLoading(false); return; }
@@ -275,20 +276,17 @@ function DashboardView({ accounts, isPreview, API_BASE, onEditTask }) {
       const res = await fetch(`${API_BASE}/api/tasks`);
       const data = await res.json();
       setTasks(Array.isArray(data) ? data : []);
-    } catch(e) {}
+    } catch(e) { console.error(e); }
     setIsLoading(false);
   };
 
   useEffect(() => {
     fetchTasks();
-    if (!isPreview) fetch(`${API_BASE}/api/system`).then(res => res.json()).then(data => setSysInfo(data)).catch(e => {});
-    
-    const taskInterval = setInterval(() => fetchTasks(), 5000);
-    const sysInterval = setInterval(() => {
+    const interval = setInterval(() => {
+      fetchTasks();
       if (!isPreview) fetch(`${API_BASE}/api/system`).then(res => res.json()).then(data => setSysInfo(data)).catch(e => {});
-    }, 1000);
-
-    return () => { clearInterval(taskInterval); clearInterval(sysInterval); };
+    }, 5000);
+    return () => clearInterval(interval);
   }, [API_BASE, isPreview]);
 
   const handleDeleteTask = async (id) => {
@@ -305,12 +303,8 @@ function DashboardView({ accounts, isPreview, API_BASE, onEditTask }) {
       if(!window.confirm('Mulai Streaming untuk tugas ini sekarang?')) return;
       try {
           const payload = { ...task, isMulaiSekarang: true };
-          await fetch(`${API_BASE}/api/tasks/${task.id}`, { 
-              method: 'PUT', 
-              headers: { 'Content-Type': 'application/json' }, 
-              body: JSON.stringify(payload) 
-          });
-          setTableFilter('utama'); 
+          await fetch(`${API_BASE}/api/tasks`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+          await fetch(`${API_BASE}/api/tasks/${task.id}`, { method: 'DELETE' }); 
           fetchTasks();
       } catch(e) {}
   };
@@ -329,9 +323,9 @@ function DashboardView({ accounts, isPreview, API_BASE, onEditTask }) {
 
   const filteredTasks = tasks.filter(t => {
       if (tableFilter === 'utama') {
-          return t.status === 'Live' || t.status === 'Starting' || t.status === 'Terjadwal';
+          return t.status === 'Live' || t.status === 'Starting' || (t.status === 'Terjadwal' && ['sekali', 'manual'].includes(t.jadwalMode));
       } else {
-          return t.status === 'Berhenti' || t.status === 'Error';
+          return t.status === 'Berhenti' || t.status === 'Error' || (t.status !== 'Live' && ['harian', 'smart-weekly'].includes(t.jadwalMode));
       }
   });
 
@@ -380,10 +374,10 @@ function DashboardView({ accounts, isPreview, API_BASE, onEditTask }) {
         </div>
         
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 flex-1">
-          <ProgressBar label="CPU" percentage={sysInfo.cpu || 0} color="bg-blue-400 dark:bg-blue-500" />
-          <ProgressBar label="RAM" percentage={sysInfo.ram || 0} color="bg-purple-400 dark:bg-purple-500" />
-          <ProgressBar label="Disk" percentage={sysInfo.disk || 0} color="bg-yellow-400 dark:bg-amber-400" />
-          <ProgressBar label="Bandwidth" percentage={Math.min((sysInfo.bandwidth || 0) * 10, 100)} color="bg-cyan-400 dark:bg-cyan-500" valueText={sysInfo.bandwidth || 0} unitText="MB/s" />
+          <ProgressBar label="CPU" percentage={sysInfo.cpu} color="bg-blue-400 dark:bg-blue-500" />
+          <ProgressBar label="RAM" percentage={sysInfo.ram} color="bg-purple-400 dark:bg-purple-500" />
+          <ProgressBar label="Disk" percentage={sysInfo.disk} color="bg-yellow-400 dark:bg-amber-400" />
+          <ProgressBar label="Bandwidth" percentage={sysInfo.bandwidth * 10} color="bg-cyan-400 dark:bg-cyan-500" valueText={<span>{sysInfo.bandwidth}<span className="text-[8px] text-gray-400 dark:text-slate-500 font-normal ml-0.5">MB/s</span></span>} />
         </div>
       </div>
 
@@ -394,107 +388,257 @@ function DashboardView({ accounts, isPreview, API_BASE, onEditTask }) {
           </h3>
           
           <div className="flex items-center gap-2 bg-gray-200/50 dark:bg-slate-900 p-1 rounded-lg self-start sm:self-auto">
-             <button onClick={() => setTableFilter('utama')} className={`px-3 py-1.5 rounded-md text-xs font-bold transition-colors flex items-center gap-1.5 ${tableFilter === 'utama' ? 'bg-white dark:bg-slate-700 text-emerald-600 dark:text-emerald-400 shadow-sm' : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-300'}`}>
+             <div className="flex items-center bg-white dark:bg-slate-800 rounded-md p-0.5 shadow-sm border border-gray-200 dark:border-slate-700">
+                <button 
+                  onClick={() => setViewMode('grid')} 
+                  className={`p-1.5 rounded-sm transition-colors ${viewMode === 'grid' ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'}`} 
+                  title="Tampilan Grid (Kartu)"
+                >
+                  <LayoutGrid className="w-3.5 h-3.5" />
+                </button>
+                <button 
+                  onClick={() => setViewMode('list')} 
+                  className={`p-1.5 rounded-sm transition-colors ${viewMode === 'list' ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'}`} 
+                  title="Tampilan Daftar (Tabel)"
+                >
+                  <List className="w-3.5 h-3.5" />
+                </button>
+             </div>
+
+             <div className="w-px h-4 bg-gray-300 dark:bg-slate-600 mx-1"></div>
+
+             <button 
+                onClick={() => setTableFilter('utama')}
+                className={`px-3 py-1.5 rounded-md text-xs font-bold transition-colors flex items-center gap-1.5 ${tableFilter === 'utama' ? 'bg-white dark:bg-slate-700 text-emerald-600 dark:text-emerald-400 shadow-sm' : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-300'}`}
+             >
                 <PlayCircle className="w-3.5 h-3.5" /> Live & Antrean
              </button>
-             <button onClick={() => setTableFilter('history')} className={`px-3 py-1.5 rounded-md text-xs font-bold transition-colors flex items-center gap-1.5 ${tableFilter === 'history' ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-300'}`}>
+             <button 
+                onClick={() => setTableFilter('history')}
+                className={`px-3 py-1.5 rounded-md text-xs font-bold transition-colors flex items-center gap-1.5 ${tableFilter === 'history' ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-300'}`}
+             >
                 <Archive className="w-3.5 h-3.5" /> History & Rutin
              </button>
+             
              <div className="w-px h-4 bg-gray-300 dark:bg-slate-600 mx-1"></div>
+             
              <button onClick={fetchTasks} className="p-1.5 text-gray-500 hover:text-blue-600 dark:text-slate-400 dark:hover:text-blue-400 transition-colors rounded-md" title="Refresh Data">
                 <RefreshCw className="w-3.5 h-3.5" />
              </button>
           </div>
         </div>
         
-        <div className="overflow-x-auto w-full pb-2">
-          <table className="w-full text-left min-w-[850px]">
-            <thead>
-              <tr className="text-[11px] font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider bg-white dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700/60">
-                <th className="px-5 py-3 w-10 text-center">#</th>
-                <th className="px-5 py-3">Informasi Stream</th>
-                <th className="px-5 py-3">Detail Tugas & Viewers</th>
-                <th className="px-5 py-3">Status Sistem</th>
-                <th className="px-5 py-3 text-right">Aksi Cepat</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100 dark:divide-slate-700/50">
-              {isLoading ? (
-                <tr><td colSpan="5" className="px-5 py-12 text-center text-sm text-gray-500 dark:text-slate-400">Memuat data...</td></tr>
-              ) : filteredTasks.length === 0 ? (
-                <tr>
-                  <td colSpan="5" className="px-5 py-12 text-center text-gray-500 dark:text-slate-400 text-sm">
-                    {tableFilter === 'utama' ? 'Tidak ada tugas live yang sedang berjalan atau antre.' : 'Belum ada riwayat video yang berhenti atau jadwal rutin.'}
-                  </td>
-                </tr>
-              ) : (
-                filteredTasks.map((t, idx) => {
-                  const healthStyle = getHealthStyle(t.streamHealth || 'excellent');
-                  return (
-                    <tr key={t.id} className="hover:bg-gray-50/80 dark:hover:bg-slate-700/30 transition-colors group">
-                      <td className="px-5 py-4 align-middle text-center text-xs font-mono text-gray-400">{idx+1}</td>
-                      <td className="px-5 py-4 align-middle">
-                        <div className="font-semibold text-sm text-gray-900 dark:text-slate-100 leading-tight truncate max-w-[200px]" title={t.taskName}>{t.taskName || 'Tanpa Nama'}</div>
-                        <div className="text-[10px] text-gray-500 dark:text-slate-400 mt-1 truncate max-w-[200px] flex items-center gap-1">
-                          {t.videoMode === 'Play Playlist (Berurutan)' ? <ListVideo className="w-3 h-3 text-gray-400" /> : <Video className="w-3 h-3 text-gray-400" />}
-                          {t.videoPath || t.videoMode}
-                        </div>
-                      </td>
-                      <td className="px-5 py-4 align-middle">
-                        {(() => {
-                          const account = accounts?.find(a => a.id === t.accountId);
-                          const channelName = account ? account.name : (t.accountId ? t.accountId.replace('token_', '').replace('.json', '') : '-');
-                          const jadwalText = t.jadwalMode === 'smart-weekly' ? 'Mingguan' : t.jadwalMode === 'harian' ? `Harian | ${t.scheduleTime}` : t.jadwalMode === 'sekali' ? `${t.scheduleDate} | ${t.scheduleTime}` : 'Manual';
-                          const streamKeyMasked = t.streamKey ? `••••${t.streamKey.slice(-4)}` : '-';
-                          
-                          return (
-                            <div className="flex flex-col gap-1 text-[10px] text-gray-600 dark:text-slate-300 font-medium">
-                              <div className="grid grid-cols-[65px_1fr] gap-1"><span className="text-gray-500 dark:text-slate-400">Channel</span><span className="truncate" title={channelName}>: {channelName}</span></div>
-                              <div className="grid grid-cols-[65px_1fr] gap-1"><span className="text-gray-500 dark:text-slate-400">Video</span><span className="truncate" title={t.videoPath || t.videoMode}>: {t.videoPath || t.videoMode}</span></div>
-                              <div className="grid grid-cols-[65px_1fr] gap-1"><span className="text-gray-500 dark:text-slate-400">Jadwal</span><span>: {jadwalText}</span></div>
-                              <div className="grid grid-cols-[65px_1fr] gap-1"><span className="text-gray-500 dark:text-slate-400">Tipe</span><span className="truncate" title={t.videoMode}>: {t.videoMode}</span></div>
-                              <div className="grid grid-cols-[65px_1fr] gap-1"><span className="text-gray-500 dark:text-slate-400">Mode</span><span className="truncate" title={t.streamKeyMode}>: {t.streamKeyMode}</span></div>
-                              <div className="grid grid-cols-[65px_1fr] gap-1"><span className="text-gray-500 dark:text-slate-400">Stream Key</span><span>: {streamKeyMasked}</span></div>
-                            </div>
-                          );
-                        })()}
+        <div className="p-4 bg-gray-50/50 dark:bg-slate-800/20">
+          {isLoading ? (
+            <div className="py-12 text-center text-sm text-gray-500 dark:text-slate-400">Memuat data...</div>
+          ) : filteredTasks.length === 0 ? (
+            <div className="py-12 text-center text-gray-500 dark:text-slate-400 text-sm">
+              {tableFilter === 'utama' ? 'Tidak ada tugas live yang sedang berjalan atau antre.' : 'Belum ada riwayat video yang berhenti atau jadwal rutin.'}
+            </div>
+          ) : viewMode === 'grid' ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+              {filteredTasks.map((t, idx) => {
+                const account = accounts?.find(a => a.id === t.accountId);
+                const channelName = account ? account.name : (t.accountId ? t.accountId.replace('token_', '').replace('.json', '') : '-');
+                const jadwalText = t.jadwalMode === 'smart-weekly' ? 'Mingguan' : t.jadwalMode === 'harian' ? `Setiap hari pukul ${t.scheduleTime}` : t.jadwalMode === 'sekali' ? `${t.scheduleDate} pukul ${t.scheduleTime}` : 'Manual';
+                let statusBadge = t.status === 'Terjadwal' ? 'QUEUE' : t.status;
+                const streamKeyMasked = t.streamKeyMode === 'Otomatis (API v3)' ? 'Otomatis' : 'Manual';
+                
+                return (
+                  <div key={t.id} className="bg-white dark:bg-[#1a2234] border border-gray-200 dark:border-slate-700/80 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow flex flex-col">
+                    <div className="flex p-4 gap-4">
+                       <div className="w-28 h-28 bg-gray-100 dark:bg-slate-800/80 rounded-lg shrink-0 relative overflow-hidden flex flex-col items-center justify-center border border-gray-200 dark:border-slate-700/50">
+                           {t.thumbnailUrl ? (
+                               <img src={`${API_BASE}${t.thumbnailUrl}`} className="w-full h-full object-cover" />
+                           ) : (
+                               <>
+                                 <Video className="w-8 h-8 text-gray-400 dark:text-slate-600 mb-2" />
+                                 <span className="text-[9px] font-bold text-gray-400 dark:text-slate-600 uppercase tracking-widest text-center px-1">NO THUMBNAIL</span>
+                               </>
+                           )}
+                           <div className="absolute bottom-1 right-1 bg-black/80 text-white text-[8px] font-bold px-1.5 py-0.5 rounded uppercase">
+                             {t.jadwalMode === 'smart-weekly' ? 'MINGGUAN' : t.jadwalMode}
+                           </div>
+                       </div>
 
-                        {t.status === 'Live' && (
-                          <div className="mt-2.5 pt-2.5 border-t border-gray-100 dark:border-slate-700/50 space-y-1.5">
-                            <div className="text-[11px] font-bold text-blue-600 dark:text-blue-400 flex items-center gap-1.5"><Users className="w-3 h-3" /> {t.viewers || 0} Penonton • {t.uptime || '00:00'}</div>
-                            <div className={`text-[10px] font-medium flex items-center gap-1.5 ${healthStyle.text}`}><span className={`w-2 h-2 rounded-full ${healthStyle.dot} animate-pulse`}></span> Kondisi: {healthStyle.label}</div>
+                       <div className="flex-1 flex flex-col min-w-0">
+                          <div className="flex justify-between items-start mb-2">
+                             <div className="flex items-center gap-2 overflow-hidden">
+                                <div className="w-3 h-3 bg-white dark:bg-slate-200 rounded-sm shrink-0 border border-gray-300 dark:border-transparent flex items-center justify-center">
+                                   {t.status === 'Live' && <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></div>}
+                                </div>
+                                <h4 className="font-bold text-gray-900 dark:text-slate-100 text-sm truncate" title={t.taskName}>{t.taskName || 'Tanpa Nama'}</h4>
+                             </div>
+                             <div className={`text-[9px] font-bold px-2 py-0.5 rounded border uppercase shrink-0 ml-2 shadow-sm ${
+                                t.status === 'Live' ? 'bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20' : 
+                                t.status === 'Error' ? 'bg-red-50 text-red-600 border-red-200 dark:bg-red-500/10 dark:text-red-400 dark:border-red-500/20' : 
+                                'bg-blue-50 text-blue-600 border-blue-200 dark:bg-blue-500/10 dark:text-blue-400 dark:border-blue-500/20'
+                             }`}>
+                               {statusBadge}
+                             </div>
                           </div>
-                        )}
-                      </td>
-                      <td className="px-5 py-4 align-middle">
-                        <div className="flex items-start gap-2">
-                          <span className="relative flex h-2.5 w-2.5 mt-1 shrink-0">
-                            {t.status === 'Live' && <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 dark:bg-emerald-400 opacity-75"></span>}
-                            <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${t.status === 'Live' ? 'bg-emerald-500' : t.status === 'Terjadwal' ? 'bg-blue-500' : t.status === 'Error' ? 'bg-red-500' : 'bg-gray-400'}`}></span>
-                          </span>
-                          <div className="flex flex-col">
-                            <span className={`text-sm font-medium leading-none ${t.status === 'Live' ? 'text-emerald-600 dark:text-emerald-400' : t.status === 'Error' ? 'text-red-600 dark:text-rose-400' : 'text-gray-600 dark:text-slate-400'}`}>{t.status}</span>
-                            <span className={`text-[11px] mt-1 mb-1.5 ${t.condType === 'success' ? 'text-emerald-600 dark:text-emerald-400' : t.condType === 'warning' ? 'text-yellow-600 dark:text-amber-400' : t.condType === 'error' ? 'text-red-600 dark:text-rose-400' : 'text-gray-500 dark:text-slate-500'}`}>{t.condTitle || 'Menunggu Waktu'}</span>
-                            <div className="flex flex-col gap-1 border-t border-gray-100 dark:border-slate-700/50 pt-1.5 mt-0.5">
-                              <span className="text-[10px] text-gray-500 dark:text-slate-400 flex items-center gap-1"><StopCircle className="w-3 h-3" /> Stop: {t.stopHours || 0}j {t.stopMinutes || 0}m {t.randomizeStop ? '(Acak)' : ''}</span>
-                            </div>
+
+                          <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-700 dark:text-slate-300 mb-2 truncate">
+                             <PlayCircle className="w-4 h-4 text-red-500 shrink-0" />
+                             <span className="truncate uppercase tracking-wide">{channelName}</span>
+                          </div>
+
+                          <div className="bg-gray-50 dark:bg-slate-900/60 border border-gray-200 dark:border-slate-700/60 rounded-md px-2.5 py-1.5 mb-2 flex items-center shadow-inner">
+                             <span className="text-[10px] text-gray-500 dark:text-slate-400 font-semibold mr-2">KEY:</span>
+                             <span className="text-xs text-blue-600 dark:text-blue-400 font-medium truncate">{streamKeyMasked}</span>
+                          </div>
+
+                          <div className="grid grid-cols-[45px_1fr] gap-x-2 gap-y-1 text-[11px] mt-1">
+                             <span className="text-gray-500 dark:text-slate-400">Video:</span>
+                             <span className="text-gray-800 dark:text-slate-200 truncate font-medium" title={t.videoPath || t.videoMode}>{t.videoPath || t.videoMode}</span>
+                             
+                             <span className="text-gray-500 dark:text-slate-400">Mode:</span>
+                             <span className="text-blue-600 dark:text-blue-400 font-medium truncate">{t.videoMode.includes('Loop') ? 'Loop' : t.videoMode}</span>
+                             
+                             <span className="text-gray-500 dark:text-slate-400">Mulai:</span>
+                             <span className="text-emerald-600 dark:text-emerald-400 font-medium truncate">{jadwalText}</span>
+                             
+                             <span className="text-gray-500 dark:text-slate-400">Stop:</span>
+                             <span className="text-rose-600 dark:text-rose-400 font-medium truncate">{t.stopHours || 0}j {t.stopMinutes || 0}m {t.randomizeStop ? '(Acak)' : ''}</span>
+                          </div>
+                       </div>
+                    </div>
+
+                    {t.status === 'Live' && (
+                      <div className="px-4 pb-3">
+                        <div className="bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 rounded-lg p-2.5 flex items-center justify-between">
+                          <div className="flex items-center gap-1.5 text-[10px] text-emerald-700 dark:text-emerald-400 font-bold">
+                             <Users className="w-3.5 h-3.5" /> {t.viewers || 0} Penonton
+                          </div>
+                          <div className="flex items-center gap-1.5 text-[10px] text-emerald-700 dark:text-emerald-400 font-bold">
+                             <Clock className="w-3.5 h-3.5" /> Uptime: {t.uptime || '00:00'}
                           </div>
                         </div>
-                      </td>
-                      <td className="px-5 py-4 align-middle text-right">
-                          <div className="flex items-center justify-end gap-1.5">
-                             {t.status !== 'Live' && ( <button onClick={() => handleStartStream(t)} className="p-2 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-500/20 rounded-md transition-colors" title="Mulai Live Sekarang"><PlayCircle className="w-4 h-4"/></button> )}
-                             {t.status === 'Live' && ( <button onClick={() => handleStopStream(t.id)} className="p-2 bg-yellow-50 dark:bg-amber-500/10 text-yellow-600 dark:text-amber-400 hover:bg-yellow-100 dark:hover:bg-amber-500/20 rounded-md transition-colors" title="Hentikan Stream"><StopCircle className="w-4 h-4"/></button> )}
-                             <button onClick={() => onEditTask(t)} className="p-2 bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-500/20 rounded-md transition-colors" title="Edit Tugas"><Edit className="w-4 h-4"/></button>
-                             <button onClick={() => handleDeleteTask(t.id)} className="p-2 bg-red-50 dark:bg-rose-500/10 text-red-600 dark:text-rose-400 hover:bg-red-100 dark:hover:bg-rose-500/20 rounded-md transition-colors" title="Hapus Tugas"><Trash2 className="w-4 h-4"/></button>
-                          </div>
-                      </td>
-                    </tr>
-                  )
-                })
-              )}
-            </tbody>
-          </table>
+                      </div>
+                    )}
+
+                    <div className="flex items-center gap-2 p-3 border-t border-gray-100 dark:border-slate-700/60 bg-gray-50 dark:bg-slate-800/50 mt-auto">
+                       {t.status !== 'Live' ? (
+                           <button onClick={() => handleStartStream(t)} className="flex-1 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg transition-colors shadow-sm flex items-center justify-center gap-1.5">
+                             <PlayCircle className="w-4 h-4" /> Start
+                           </button>
+                       ) : (
+                           <button onClick={() => handleStopStream(t.id)} className="flex-1 py-2 bg-orange-600 hover:bg-orange-500 text-white text-xs font-bold rounded-lg transition-colors shadow-sm flex items-center justify-center gap-1.5">
+                             <StopCircle className="w-4 h-4" /> Stop
+                           </button>
+                       )}
+                       <button onClick={() => onEditTask(t)} className="px-4 py-2 bg-white hover:bg-gray-100 dark:bg-slate-700 dark:hover:bg-slate-600 text-gray-700 dark:text-slate-200 text-xs font-bold rounded-lg transition-colors border border-gray-200 dark:border-slate-600">
+                         Edit
+                       </button>
+                       <button onClick={() => {
+                            const duplicatedTask = { ...t, id: undefined, taskName: t.taskName + ' (Copy)', status: 'Terjadwal' };
+                            onEditTask(duplicatedTask);
+                       }} className="p-2 bg-white hover:bg-gray-100 dark:bg-slate-700 dark:hover:bg-slate-600 text-blue-600 dark:text-blue-400 rounded-lg transition-colors border border-gray-200 dark:border-slate-600" title="Duplikasi">
+                         <Copy className="w-4 h-4" />
+                       </button>
+                       <button onClick={() => handleDeleteTask(t.id)} className="p-2 bg-white hover:bg-gray-100 dark:bg-slate-700 dark:hover:bg-slate-600 text-red-600 dark:text-rose-400 rounded-lg transition-colors border border-gray-200 dark:border-slate-600" title="Hapus">
+                         <Trash2 className="w-4 h-4" />
+                       </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="overflow-x-auto w-full -mx-4 sm:mx-0 px-4 sm:px-0">
+               <table className="w-full text-left min-w-[850px] bg-white dark:bg-[#1a2234] border border-gray-200 dark:border-slate-700/80 rounded-xl overflow-hidden shadow-sm">
+                 <thead>
+                   <tr className="text-[11px] font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider border-b border-gray-200 dark:border-slate-700/60 bg-gray-50/80 dark:bg-slate-800/80">
+                     <th className="px-5 py-4 w-10 text-center border-r border-gray-100 dark:border-slate-700/40">#</th>
+                     <th className="px-5 py-4 border-r border-gray-100 dark:border-slate-700/40 w-1/3">Tugas & Video</th>
+                     <th className="px-5 py-4 border-r border-gray-100 dark:border-slate-700/40">Detail Lengkap & Jadwal</th>
+                     <th className="px-5 py-4 border-r border-gray-100 dark:border-slate-700/40">Status Live</th>
+                     <th className="px-5 py-4 text-center">Aksi Cepat</th>
+                   </tr>
+                 </thead>
+                 <tbody className="divide-y divide-gray-100 dark:divide-slate-700/50">
+                    {filteredTasks.map((t, idx) => {
+                       const account = accounts?.find(a => a.id === t.accountId);
+                       const channelName = account ? account.name : (t.accountId ? t.accountId.replace('token_', '').replace('.json', '') : '-');
+                       const jadwalText = t.jadwalMode === 'smart-weekly' ? 'Mingguan' : t.jadwalMode === 'harian' ? `Harian | ${t.scheduleTime}` : t.jadwalMode === 'sekali' ? `${t.scheduleDate} | ${t.scheduleTime}` : 'Manual';
+                       const streamKeyMasked = t.streamKeyMode === 'Otomatis (API v3)' ? 'Otomatis' : 'Manual';
+                       const healthStyle = getHealthStyle(t.streamHealth || 'excellent');
+
+                       return (
+                         <tr key={t.id} className="hover:bg-gray-50/50 dark:hover:bg-slate-800/40 transition-colors group">
+                            <td className="px-5 py-4 align-middle text-center text-xs font-mono text-gray-400 border-r border-gray-100 dark:border-slate-700/40">{idx+1}</td>
+                            
+                            <td className="px-5 py-4 align-middle border-r border-gray-100 dark:border-slate-700/40">
+                               <div className="flex items-center gap-3">
+                                  <div className="w-12 h-12 bg-gray-100 dark:bg-slate-800 rounded-md flex items-center justify-center overflow-hidden shrink-0 border border-gray-200 dark:border-slate-700">
+                                     {t.thumbnailUrl ? <img src={`${API_BASE}${t.thumbnailUrl}`} className="w-full h-full object-cover" /> : <Video className="w-5 h-5 text-gray-400" />}
+                                  </div>
+                                  <div className="overflow-hidden">
+                                     <div className="font-bold text-sm text-gray-900 dark:text-slate-100 leading-tight truncate" title={t.taskName}>{t.taskName || 'Tanpa Nama'}</div>
+                                     <div className="text-[10px] text-gray-500 dark:text-slate-400 mt-1 truncate flex items-center gap-1.5 font-medium bg-gray-100 dark:bg-slate-800 px-2 py-0.5 rounded w-fit">
+                                        <PlayCircle className="w-3 h-3 text-red-500" /> {channelName}
+                                     </div>
+                                  </div>
+                               </div>
+                            </td>
+
+                            <td className="px-5 py-4 align-middle border-r border-gray-100 dark:border-slate-700/40">
+                               <div className="flex flex-col gap-1.5 text-[10.5px] text-gray-600 dark:text-slate-300 font-medium">
+                                  <div className="grid grid-cols-[65px_1fr] gap-1"><span className="text-gray-400 dark:text-slate-500">Video</span><span className="truncate text-emerald-600 dark:text-emerald-400 font-bold" title={t.videoPath || t.videoMode}>: {t.videoPath || t.videoMode}</span></div>
+                                  <div className="grid grid-cols-[65px_1fr] gap-1"><span className="text-gray-400 dark:text-slate-500">Jadwal</span><span>: {jadwalText}</span></div>
+                                  <div className="grid grid-cols-[65px_1fr] gap-1"><span className="text-gray-400 dark:text-slate-500">Tipe / Mode</span><span className="truncate" title={t.videoMode}>: {t.videoMode.includes('Loop') ? 'Looping' : t.videoMode} / {streamKeyMasked}</span></div>
+                                  <div className="grid grid-cols-[65px_1fr] gap-1"><span className="text-gray-400 dark:text-slate-500">Stop Auto</span><span className="text-rose-500 dark:text-rose-400 font-bold">: {t.stopHours || 0}j {t.stopMinutes || 0}m {t.randomizeStop ? '(Acak)' : ''}</span></div>
+                               </div>
+                            </td>
+
+                            <td className="px-5 py-4 align-middle border-r border-gray-100 dark:border-slate-700/40">
+                               <div className="flex items-start gap-2.5">
+                                 <span className="relative flex h-2.5 w-2.5 mt-1 shrink-0">
+                                   {t.status === 'Live' && <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>}
+                                   <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${t.status === 'Live' ? 'bg-emerald-500' : t.status === 'Terjadwal' ? 'bg-blue-500' : t.status === 'Error' ? 'bg-red-500' : 'bg-gray-400'}`}></span>
+                                 </span>
+                                 
+                                 <div className="flex flex-col">
+                                   <span className={`text-sm font-bold leading-none ${t.status === 'Live' ? 'text-emerald-600 dark:text-emerald-400' : t.status === 'Error' ? 'text-red-600 dark:text-rose-400' : 'text-gray-600 dark:text-slate-400'}`}>
+                                     {t.status === 'Terjadwal' ? 'QUEUE' : t.status}
+                                   </span>
+                                   <span className={`text-[10px] mt-1 mb-2 ${t.condType === 'success' ? 'text-emerald-600 dark:text-emerald-400' : t.condType === 'warning' ? 'text-yellow-600 dark:text-amber-400' : t.condType === 'error' ? 'text-red-600 dark:text-rose-400' : 'text-gray-400 dark:text-slate-500'}`}>
+                                     {t.condTitle || 'Menunggu Waktu'}
+                                   </span>
+                                   
+                                   {t.status === 'Live' && (
+                                     <div className="flex flex-col gap-1 border-t border-gray-100 dark:border-slate-700/50 pt-2">
+                                       <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400 flex items-center gap-1.5"><Users className="w-3 h-3" /> {t.viewers || 0} Penonton</span>
+                                       <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5"><Clock className="w-3 h-3" /> {t.uptime || '00:00'}</span>
+                                     </div>
+                                   )}
+                                 </div>
+                               </div>
+                            </td>
+
+                            <td className="px-5 py-4 align-middle text-center">
+                               <div className="flex items-center justify-center gap-1.5">
+                                  {t.status !== 'Live' && (
+                                    <button onClick={() => handleStartStream(t)} className="p-2 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-500/20 rounded-md transition-colors" title="Mulai Live Sekarang"><PlayCircle className="w-4 h-4"/></button>
+                                  )}
+                                  {t.status === 'Live' && (
+                                    <button onClick={() => handleStopStream(t.id)} className="p-2 bg-orange-50 dark:bg-orange-500/10 text-orange-600 dark:text-orange-400 hover:bg-orange-100 dark:hover:bg-orange-500/20 rounded-md transition-colors" title="Hentikan Stream"><StopCircle className="w-4 h-4"/></button>
+                                  )}
+                                  <button onClick={() => onEditTask(t)} className="p-2 bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-500/20 rounded-md transition-colors" title="Edit Tugas"><Edit className="w-4 h-4"/></button>
+                                  <button onClick={() => {
+                                      const duplicatedTask = { ...t, id: undefined, taskName: t.taskName + ' (Copy)', status: 'Terjadwal' };
+                                      onEditTask(duplicatedTask);
+                                  }} className="p-2 bg-gray-100 dark:bg-slate-700/50 text-gray-600 dark:text-slate-400 hover:bg-gray-200 dark:hover:bg-slate-600 rounded-md transition-colors" title="Duplikasi"><Copy className="w-4 h-4" /></button>
+                                  <button onClick={() => handleDeleteTask(t.id)} className="p-2 bg-red-50 dark:bg-rose-500/10 text-red-600 dark:text-rose-400 hover:bg-red-100 dark:hover:bg-rose-500/20 rounded-md transition-colors" title="Hapus"><Trash2 className="w-4 h-4"/></button>
+                               </div>
+                            </td>
+                         </tr>
+                       );
+                    })}
+                 </tbody>
+               </table>
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -1326,7 +1470,7 @@ function TugasLiveView({ accounts, isPreview, API_BASE, onNavigate, taskToEdit, 
 }
 
 // -----------------------------------------------------------------------------
-// TAB MEDIA
+// TAB 3: MEDIA
 // -----------------------------------------------------------------------------
 function MediaView({ isPreview, API_BASE }) {
   const [isUploading, setIsUploading] = useState(false);
@@ -2044,6 +2188,170 @@ function LogView({ isPreview, API_BASE }) {
             <ArrowDown className="w-5 h-5" />
           </button>
         )}
+      </div>
+    </div>
+  );
+}
+
+function AnalyticsView({ accounts, API_BASE }) {
+  const [tasks, setTasks] = useState([]);
+  const [lastUpdate, setLastUpdate] = useState('');
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const [selectedAccount, setSelectedAccount] = useState('all');
+  const [chartData, setChartData] = useState([]);
+  const [metrics, setMetrics] = useState({ revenue: 0, watchHours: 0, subscribers: 0, totalViews: 0 });
+
+  useEffect(() => {
+    const updateTime = () => {
+      const now = new Date();
+      setLastUpdate(now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }));
+    };
+    updateTime();
+  }, []);
+
+  const fetchAnalyticsData = async () => {
+      try {
+          const res = await fetch(`${API_BASE}/api/analytics?accountId=${selectedAccount}`);
+          if(res.ok) {
+              const data = await res.json();
+              setChartData(data.chart || []);
+              setMetrics(data.metrics || { revenue: 0, watchHours: 0, subscribers: 0, totalViews: 0 });
+          }
+      } catch (e) {}
+  };
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await fetchAnalyticsData();
+    setTimeout(() => {
+      setIsRefreshing(false);
+      const now = new Date();
+      setLastUpdate(now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }));
+    }, 1000);
+  };
+  
+  useEffect(() => {
+    const fetchTasks = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/tasks`);
+        const data = await res.json();
+        setTasks(Array.isArray(data) ? data : []);
+      } catch (e) {}
+    };
+
+    fetchTasks();
+    fetchAnalyticsData();
+
+    const interval = setInterval(() => {
+        fetchTasks();
+        fetchAnalyticsData();
+    }, 10000);
+    return () => clearInterval(interval);
+  }, [API_BASE, selectedAccount]);
+
+  const activeLiveTasks = tasks.filter(t => t.status === 'Live' && (selectedAccount === 'all' || t.accountId === selectedAccount));
+  const currentCcv = activeLiveTasks.reduce((sum, t) => sum + (t.viewers || 0), 0);
+
+  return (
+    <div className="space-y-6 animate-in fade-in duration-500">
+      <div className="bg-white dark:bg-slate-800/80 rounded-xl p-4 border border-gray-200 dark:border-slate-700/60 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div className="flex flex-col sm:flex-row gap-4">
+          <div>
+            <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">CHANNEL</label>
+            <select 
+              value={selectedAccount} 
+              onChange={(e) => setSelectedAccount(e.target.value)} 
+              className="bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-700 text-gray-800 dark:text-slate-200 text-sm rounded-lg px-3 py-2 outline-none focus:border-emerald-500 min-w-[200px]"
+            >
+              <option value="all">Semua Channel (Keseluruhan)</option>
+              {accounts?.map(acc => ( <option key={acc.id} value={acc.id}>{acc.name}</option> ))}
+            </select>
+          </div>
+          <div className="flex items-center gap-2 mt-auto pb-1.5">
+            <span className="relative flex h-3 w-3"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span></span>
+            <span className="text-sm font-bold text-gray-700 dark:text-slate-200">CCV Saat Ini: <span className="text-emerald-600 dark:text-emerald-400 text-lg ml-1">{currentCcv.toLocaleString()}</span></span>
+          </div>
+        </div>
+        
+        <div className="flex items-center gap-3 w-full sm:w-auto mt-4 md:mt-0">
+          <p className="text-xs text-gray-500 dark:text-slate-400">Terakhir: {lastUpdate}</p>
+          <button onClick={handleRefresh} disabled={isRefreshing} className="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-500/20 text-xs font-bold rounded-lg transition-colors border border-blue-100 dark:border-blue-500/20 disabled:opacity-50 flex-1 sm:flex-none justify-center">
+            <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} /> {isRefreshing ? 'Memuat...' : 'Refresh Data'}
+          </button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        <StatCard title="Total Penayangan" value={metrics.totalViews.toLocaleString('id-ID')} icon={PlayCircle} color="text-blue-600 dark:text-blue-400" bgColor="bg-blue-50 dark:bg-blue-500/15" />
+        <StatCard title="Waktu Tonton (Jam)" value={metrics.watchHours.toLocaleString('id-ID')} icon={Clock} color="text-purple-600 dark:text-purple-400" bgColor="bg-purple-50 dark:bg-purple-500/15" />
+        <StatCard title="Subscriber Baru" value={`+${metrics.subscribers.toLocaleString('id-ID')}`} icon={Users} color="text-emerald-600 dark:text-emerald-400" bgColor="bg-emerald-50 dark:bg-emerald-500/15" />
+        <StatCard title="Estimasi Pendapatan" value={`$${metrics.revenue.toFixed(2)}`} icon={TrendingUp} color="text-orange-600 dark:text-orange-400" bgColor="bg-orange-50 dark:bg-orange-500/15" />
+      </div>
+
+      <div className="bg-white dark:bg-slate-800/80 rounded-xl border border-gray-200 dark:border-slate-700/60 p-5 shadow-sm">
+        <h3 className="text-sm font-bold text-gray-800 dark:text-slate-100 mb-6 flex items-center gap-2"><BarChart2 className="w-5 h-5 text-gray-400 dark:text-slate-500" /> Performa 7 Hari Terakhir</h3>
+        <div className="h-64 w-full relative flex items-end justify-between px-2 pb-6 border-b border-gray-200 dark:border-slate-700/50 pt-10">
+          {chartData.length === 0 ? (
+             <div className="absolute inset-0 flex items-center justify-center text-sm text-gray-400">Data analitik belum tersedia atau koneksi API tertunda.</div>
+          ) : chartData.map((data, idx) => {
+            const heightPerc = Math.max(10, Math.min(100, (data.views / Math.max(...chartData.map(d => d.views))) * 100));
+            return (
+              <div key={idx} className="flex flex-col items-center gap-2 group relative w-1/12 h-full justify-end">
+                <div className="absolute -top-8 bg-gray-900 dark:bg-slate-700 text-white text-[10px] font-bold px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity z-10">{data.views.toLocaleString()} View</div>
+                <div className="w-full max-w-[40px] bg-blue-100 dark:bg-blue-900/30 rounded-t-sm relative group-hover:bg-blue-200 dark:group-hover:bg-blue-800/50 transition-colors" style={{ height: `${heightPerc}%` }}>
+                   <div className="absolute bottom-0 w-full bg-blue-500 dark:bg-blue-400 rounded-t-sm" style={{ height: `${heightPerc * 0.7}%` }}></div>
+                </div>
+                <span className="text-[10px] text-gray-500 dark:text-slate-400 absolute -bottom-6 font-medium">{data.date}</span>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StatCard({ title, value, icon: Icon, color, bgColor, className = "" }) {
+  return (
+    <div className={`bg-white dark:bg-slate-800 p-5 rounded-xl border border-gray-200 dark:border-slate-700/60 shadow-sm transition-all flex items-center gap-4 ${className}`}>
+      <div className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 ${bgColor}`}><Icon className={`w-5 h-5 ${color}`} /></div>
+      <div><p className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider mb-0.5">{title}</p><p className="text-2xl font-bold text-gray-900 dark:text-slate-100 leading-none">{value}</p></div>
+    </div>
+  );
+}
+
+// Komponen VideoFile untuk MediaView
+function VideoFile({ name, size, onEdit, onDelete }) {
+  const isImage = name.toLowerCase().endsWith('.jpg') || name.toLowerCase().endsWith('.png') || name.toLowerCase().endsWith('.jpeg');
+
+  return (
+    <div className="group flex items-center justify-between p-2.5 bg-white dark:bg-slate-800 hover:bg-gray-50 dark:hover:bg-slate-700/50 border border-gray-100 dark:border-slate-700/60 hover:border-gray-200 dark:hover:border-slate-600/60 rounded-lg transition-all cursor-pointer shadow-sm hover:shadow dark:hover:shadow-black/20">
+      <div className="flex items-center gap-3 overflow-hidden flex-1">
+        <div className={`w-8 h-8 rounded-md flex items-center justify-center shrink-0 ${isImage ? 'bg-purple-50 text-purple-600 dark:bg-purple-500/10 dark:text-purple-400' : 'bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400'}`}>
+          {isImage ? <Image className="w-4 h-4" /> : <Video className="w-4 h-4" />}
+        </div>
+        <div className="overflow-hidden">
+          <p className="text-[13px] font-semibold text-gray-800 dark:text-slate-200 truncate pr-2" title={name}>{name}</p>
+          <p className="text-[10px] font-mono text-gray-400 dark:text-slate-500 mt-0.5">{size}</p>
+        </div>
+      </div>
+      
+      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-gradient-to-l from-white dark:from-slate-800 via-white dark:via-slate-800 pl-4 pr-1">
+        <button 
+          onClick={(e) => { e.stopPropagation(); onEdit && onEdit(); }} 
+          className="p-1.5 text-gray-400 dark:text-slate-400 hover:text-blue-500 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-500/10 rounded-md transition-colors"
+          title="Edit"
+        >
+          <Edit className="w-3.5 h-3.5" />
+        </button>
+        <button 
+          onClick={(e) => { e.stopPropagation(); onDelete && onDelete(); }} 
+          className="p-1.5 text-gray-400 dark:text-slate-400 hover:text-red-500 dark:hover:text-rose-400 hover:bg-red-50 dark:hover:bg-rose-500/10 rounded-md transition-colors"
+          title="Hapus"
+        >
+          <Trash2 className="w-3.5 h-3.5" />
+        </button>
       </div>
     </div>
   );
