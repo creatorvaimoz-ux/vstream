@@ -1086,6 +1086,10 @@ app.get('/api/analytics', async (req, res) => {
             }
         }
 
+        // Estimasi pendapatan berdasarkan CPM rata-rata ($1.50 per 1000 views)
+        const estimatedCPM = 1.50;
+        metrics.revenue = parseFloat(((metrics.totalViews / 1000) * estimatedCPM).toFixed(2));
+
         // Jika tidak ada data chart (belum ada akun/API error), kirim array kosong
         res.json({ chart: chartData, metrics });
     } catch (e) {

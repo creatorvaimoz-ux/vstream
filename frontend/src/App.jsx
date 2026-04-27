@@ -1041,12 +1041,33 @@ function TugasLiveView({ accounts, isPreview, API_BASE, onNavigate, taskToEdit, 
                 <div className="space-y-4">
                   <div>
                     <label className="block text-xs font-semibold mb-1.5 text-gray-600 dark:text-slate-400">Judul Video Utama <span className="font-normal font-mono text-[10px] ml-1">(Spintax Supported)</span></label>
-                    <input type="text" value={youtubeTitle} onChange={e => setYoutubeTitle(e.target.value)} onBlur={handleRetranslateAll} placeholder="{Live|Update} Judul Video Anda..." className={`${inputClassName} ${youtubeTitle.length > 100 ? 'border-red-500 focus:border-red-500' : ''} font-mono`} />
-                    <p className={`text-[10px] mt-1.5 font-medium ${youtubeTitle.length > 100 ? 'text-red-500' : 'text-gray-500 dark:text-slate-400'}`}>{youtubeTitle.length} / 100 karakter</p>
+                    <input type="text" value={youtubeTitle} onChange={e => setYoutubeTitle(e.target.value)} onBlur={handleRetranslateAll} placeholder="{Live|Update} Judul Video Anda..." className={`${inputClassName} ${(() => { const est = youtubeTitle.replace(/\{([^{}]+)\}/g, (_, opts) => opts.split('|').reduce((a, b) => a.length > b.length ? a : b, '')); return est.length > 100 ? 'border-red-500 focus:border-red-500' : ''; })()} font-mono`} />
+                    <div className="flex items-center justify-between mt-1.5">
+                      <p className={`text-[10px] font-medium ${(() => { const est = youtubeTitle.replace(/\{([^{}]+)\}/g, (_, opts) => opts.split('|').reduce((a, b) => a.length > b.length ? a : b, '')); return est.length > 100 ? 'text-red-500' : 'text-gray-500 dark:text-slate-400'; })()}`}>
+                        {(() => { const est = youtubeTitle.replace(/\{([^{}]+)\}/g, (_, opts) => opts.split('|').reduce((a, b) => a.length > b.length ? a : b, '')); return est.length; })()} / 100 karakter (estimasi output terpanjang)
+                      </p>
+                      {youtubeTitle.includes('{') && youtubeTitle.includes('|') && (
+                        <button type="button" onClick={() => {}} className="text-[10px] font-bold text-blue-600 dark:text-blue-400 flex items-center gap-1">
+                          <RefreshCw className="w-3 h-3" /> Spintax Aktif
+                        </button>
+                      )}
+                    </div>
+                    {youtubeTitle.includes('{') && youtubeTitle.includes('|') && (
+                      <div className="mt-2 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800/30 rounded-lg px-3 py-2 flex items-start gap-2">
+                        <span className="text-[10px] font-bold text-blue-500 dark:text-blue-400 uppercase shrink-0 mt-0.5">Preview:</span>
+                        <span className="text-xs text-blue-800 dark:text-blue-300 font-mono break-all">{youtubeTitle.replace(/\{([^{}]+)\}/g, (_, opts) => { const arr = opts.split('|'); return arr[Math.floor(Math.random() * arr.length)]; })}</span>
+                      </div>
+                    )}
                   </div>
                   <div>
                     <label className="block text-xs font-semibold mb-1.5 text-gray-600 dark:text-slate-400">Deskripsi Utama <span className="font-normal font-mono text-[10px] ml-1">(Spintax Supported)</span></label>
                     <textarea rows="3" value={youtubeDescription} onChange={e => setYoutubeDescription(e.target.value)} onBlur={handleRetranslateAll} placeholder="Deskripsi video stream..." className={`${inputClassName} font-mono resize-none`}></textarea>
+                    {youtubeDescription.includes('{') && youtubeDescription.includes('|') && (
+                      <div className="mt-2 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800/30 rounded-lg px-3 py-2 flex items-start gap-2">
+                        <span className="text-[10px] font-bold text-blue-500 dark:text-blue-400 uppercase shrink-0 mt-0.5">Preview:</span>
+                        <span className="text-xs text-blue-800 dark:text-blue-300 font-mono break-all whitespace-pre-wrap">{youtubeDescription.replace(/\{([^{}]+)\}/g, (_, opts) => { const arr = opts.split('|'); return arr[Math.floor(Math.random() * arr.length)]; })}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
