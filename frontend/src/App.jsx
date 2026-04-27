@@ -42,12 +42,12 @@ function ProgressBar({ label, percentage, color, valueText, unitText = '%', subT
 
 function FolderItem({ name, count, active }) {
   return (
-    <div className={`flex items-center justify-between px-3 py-2 rounded-md cursor-pointer transition-colors ${active ? 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-medium border border-emerald-100 dark:border-emerald-500/20' : 'text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-700/50 border border-transparent'}`}>
+    <div className={`flex items-center justify-between px-3 py-2 rounded-md cursor-pointer transition-colors ${active ? 'bg-cyan-50 dark:bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 font-medium border border-cyan-100 dark:border-cyan-500/20' : 'text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-700/50 border border-transparent'}`}>
       <div className="flex items-center gap-2.5 overflow-hidden">
-        <FolderOpen className={`w-3.5 h-3.5 shrink-0 ${active ? 'text-emerald-500 dark:text-emerald-400' : 'text-gray-400 dark:text-slate-500'}`} />
+        <FolderOpen className={`w-3.5 h-3.5 shrink-0 ${active ? 'text-cyan-500 dark:text-cyan-400' : 'text-gray-400 dark:text-slate-500'}`} />
         <span className="text-[11px] truncate">{name}</span>
       </div>
-      <span className={`text-[9px] px-1.5 py-0.5 rounded-sm font-mono ${active ? 'bg-white dark:bg-slate-800 text-emerald-500 dark:text-emerald-400 shadow-sm' : 'bg-gray-100 dark:bg-slate-700/50 text-gray-500 dark:text-slate-400'}`}>{count}</span>
+      <span className={`text-[9px] px-1.5 py-0.5 rounded-sm font-mono ${active ? 'bg-white dark:bg-slate-800 text-cyan-500 dark:text-cyan-400 shadow-sm' : 'bg-gray-100 dark:bg-slate-700/50 text-gray-500 dark:text-slate-400'}`}>{count}</span>
     </div>
   );
 }
@@ -153,18 +153,18 @@ export default function App() {
         <header className="shrink-0 bg-white dark:bg-slate-800 relative z-50 flex flex-col shadow-sm dark:shadow-black/20">
           <div className="h-16 flex items-center justify-between px-4 md:px-6 border-b border-gray-200 dark:border-slate-700/60">
             <div className="flex items-center gap-3 shrink-0">
-              <div className="w-8 h-8 bg-emerald-500 dark:bg-emerald-500 rounded-lg flex items-center justify-center shrink-0 shadow-sm shadow-emerald-500/20">
+              <div className="w-8 h-8 bg-cyan-500 dark:bg-cyan-500 rounded-lg flex items-center justify-center shrink-0 shadow-sm shadow-cyan-500/20">
                 <PlayCircle className="text-white w-5 h-5" />
               </div>
               <div className="hidden sm:flex flex-col justify-center">
-                <h1 className="text-xl font-bold tracking-tight leading-none mb-1">{BRAND_PREFIX}<span className="text-emerald-600 dark:text-emerald-400">{BRAND_SUFFIX}</span></h1>
+                <h1 className="text-xl font-bold tracking-tight leading-none mb-1">{BRAND_PREFIX}<span className="text-cyan-600 dark:text-cyan-400">{BRAND_SUFFIX}</span></h1>
                 <span className="text-[9px] font-bold tracking-widest text-gray-500 dark:text-slate-400 uppercase leading-none">{BRAND_TAGLINE}</span>
               </div>
             </div>
 
             <div className="flex items-center gap-2 sm:gap-4 shrink-0">
-              <div className="hidden lg:flex items-center gap-1.5 text-xs bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 px-2.5 py-1.5 rounded-full border border-emerald-200 dark:border-emerald-800/50 font-medium">
-                <div className="w-2 h-2 rounded-full bg-emerald-500 dark:bg-emerald-400 animate-pulse"></div>
+              <div className="hidden lg:flex items-center gap-1.5 text-xs bg-cyan-100 dark:bg-cyan-900/30 text-cyan-700 dark:text-cyan-400 px-2.5 py-1.5 rounded-full border border-cyan-200 dark:border-cyan-800/50 font-medium">
+                <div className="w-2 h-2 rounded-full bg-cyan-500 dark:bg-cyan-400 animate-pulse"></div>
                 Running
               </div>
               <button 
@@ -200,7 +200,7 @@ export default function App() {
                     }}
                     className={`flex items-center gap-2 px-3.5 py-2 rounded-lg transition-all text-sm font-medium whitespace-nowrap ${
                       isActive
-                        ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-500/20'
+                        ? 'bg-cyan-50 text-cyan-600 dark:bg-cyan-500/15 dark:text-cyan-400 border border-cyan-100 dark:border-cyan-500/20'
                         : 'text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-700/40 border border-transparent'
                     }`}
                   >
@@ -229,7 +229,7 @@ export default function App() {
                     }}
                     className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-sm font-medium ${
                       isActive
-                        ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-500/20'
+                        ? 'bg-cyan-50 text-cyan-600 dark:bg-cyan-500/15 dark:text-cyan-400 border border-cyan-100 dark:border-cyan-500/20'
                         : 'text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-700/40'
                     }`}
                   >
@@ -313,7 +313,7 @@ function DashboardView({ accounts, isPreview, API_BASE, onEditTask }) {
       case 'good': return { dot: 'bg-blue-500', text: 'text-blue-600 dark:text-blue-400', label: 'Bagus (Good)' };
       case 'poor': return { dot: 'bg-yellow-500', text: 'text-yellow-600 dark:text-yellow-400', label: 'Lemah (Poor)' };
       case 'bad': return { dot: 'bg-red-500', text: 'text-red-600 dark:text-red-400', label: 'Buruk / Putus' };
-      default: return { dot: 'bg-emerald-500', text: 'text-emerald-600 dark:text-emerald-400', label: 'Sangat Baik' }; 
+      default: return { dot: 'bg-cyan-500', text: 'text-cyan-600 dark:text-cyan-400', label: 'Sangat Baik' }; 
     }
   };
 
@@ -331,18 +331,18 @@ function DashboardView({ accounts, isPreview, API_BASE, onEditTask }) {
   return (
     <div className="space-y-3 animate-in fade-in duration-500">
       <div className="grid grid-cols-2 gap-3">
-        <div className="bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700/60 p-2.5 shadow-sm flex items-center justify-between hover:border-emerald-200 dark:hover:border-emerald-500/40 transition-colors">
+        <div className="bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700/60 p-2.5 shadow-sm flex items-center justify-between hover:border-cyan-200 dark:hover:border-cyan-500/40 transition-colors">
           <div className="flex items-center gap-2.5">
-            <div className="w-7 h-7 rounded-md flex items-center justify-center bg-emerald-50 dark:bg-emerald-500/15">
-              <Activity className="w-3.5 h-3.5 text-emerald-500 dark:text-emerald-400" />
+            <div className="w-7 h-7 rounded-md flex items-center justify-center bg-cyan-50 dark:bg-cyan-500/15">
+              <Activity className="w-3.5 h-3.5 text-cyan-500 dark:text-cyan-400" />
             </div>
             <div>
               <p className="text-[9px] font-bold text-gray-500 dark:text-slate-400 uppercase tracking-widest leading-none mb-1">Streaming Aktif</p>
               <p className="text-base font-black text-gray-900 dark:text-slate-100 leading-none">{liveTasks.length}</p>
             </div>
           </div>
-          <span className="text-[9px] font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1 bg-emerald-50 dark:bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-100 dark:border-emerald-500/20">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 dark:bg-emerald-400 animate-pulse"></span> LIVE
+          <span className="text-[9px] font-bold text-cyan-600 dark:text-cyan-400 flex items-center gap-1 bg-cyan-50 dark:bg-cyan-500/10 px-1.5 py-0.5 rounded border border-cyan-100 dark:border-cyan-500/20">
+            <span className="w-1.5 h-1.5 rounded-full bg-cyan-500 dark:bg-cyan-400 animate-pulse"></span> LIVE
           </span>
         </div>
 
@@ -367,8 +367,8 @@ function DashboardView({ accounts, isPreview, API_BASE, onEditTask }) {
           <h3 className="text-[10px] font-bold text-gray-800 dark:text-slate-200 flex items-center gap-1 uppercase tracking-widest">
             <Server className="w-3.5 h-3.5 text-gray-400 dark:text-slate-500" /> Resource VPS
           </h3>
-          <div className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-widest text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-100 dark:border-emerald-500/20 mt-0 md:mt-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 dark:bg-emerald-400 animate-pulse"></span> Optimal
+          <div className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-widest text-cyan-600 dark:text-cyan-400 bg-cyan-50 dark:bg-cyan-500/10 px-1.5 py-0.5 rounded border border-cyan-100 dark:border-cyan-500/20 mt-0 md:mt-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-cyan-500 dark:bg-cyan-400 animate-pulse"></span> Optimal
           </div>
         </div>
         
@@ -383,21 +383,21 @@ function DashboardView({ accounts, isPreview, API_BASE, onEditTask }) {
       <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700/60 shadow-sm overflow-hidden flex flex-col">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 border-b border-gray-200 dark:border-slate-700/60 bg-gray-50/50 dark:bg-slate-800/50 gap-4">
           <h3 className="text-base font-semibold text-gray-900 dark:text-slate-100 flex items-center gap-2">
-            <Radio className="w-4 h-4 text-emerald-500 dark:text-emerald-400" /> Daftar Tugas & Streaming
+            <Radio className="w-4 h-4 text-cyan-500 dark:text-cyan-400" /> Daftar Tugas & Streaming
           </h3>
           
           <div className="flex items-center gap-2 bg-gray-200/50 dark:bg-slate-900 p-1 rounded-lg self-start sm:self-auto">
              <div className="flex items-center bg-white dark:bg-slate-800 rounded-md p-0.5 shadow-sm border border-gray-200 dark:border-slate-700">
                 <button 
                   onClick={() => setViewMode('grid')} 
-                  className={`p-1.5 rounded-sm transition-colors ${viewMode === 'grid' ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'}`} 
+                  className={`p-1.5 rounded-sm transition-colors ${viewMode === 'grid' ? 'bg-cyan-50 text-cyan-600 dark:bg-cyan-500/20 dark:text-cyan-400' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'}`} 
                   title="Tampilan Grid (Kartu)"
                 >
                   <LayoutGrid className="w-3.5 h-3.5" />
                 </button>
                 <button 
                   onClick={() => setViewMode('list')} 
-                  className={`p-1.5 rounded-sm transition-colors ${viewMode === 'list' ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'}`} 
+                  className={`p-1.5 rounded-sm transition-colors ${viewMode === 'list' ? 'bg-cyan-50 text-cyan-600 dark:bg-cyan-500/20 dark:text-cyan-400' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'}`} 
                   title="Tampilan Daftar (Tabel)"
                 >
                   <List className="w-3.5 h-3.5" />
@@ -408,7 +408,7 @@ function DashboardView({ accounts, isPreview, API_BASE, onEditTask }) {
 
              <button 
                 onClick={() => setTableFilter('utama')}
-                className={`px-3 py-1.5 rounded-md text-xs font-bold transition-colors flex items-center gap-1.5 ${tableFilter === 'utama' ? 'bg-white dark:bg-slate-700 text-emerald-600 dark:text-emerald-400 shadow-sm' : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-300'}`}
+                className={`px-3 py-1.5 rounded-md text-xs font-bold transition-colors flex items-center gap-1.5 ${tableFilter === 'utama' ? 'bg-white dark:bg-slate-700 text-cyan-600 dark:text-cyan-400 shadow-sm' : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-300'}`}
              >
                 <PlayCircle className="w-3.5 h-3.5" /> Live & Antrean
              </button>
@@ -464,12 +464,12 @@ function DashboardView({ accounts, isPreview, API_BASE, onEditTask }) {
                           <div className="flex justify-between items-start mb-2">
                              <div className="flex items-center gap-2 overflow-hidden">
                                 <div className="w-3 h-3 bg-white dark:bg-slate-200 rounded-sm shrink-0 border border-gray-300 dark:border-transparent flex items-center justify-center">
-                                   {t.status === 'Live' && <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></div>}
+                                   {t.status === 'Live' && <div className="w-1.5 h-1.5 bg-cyan-500 rounded-full animate-pulse"></div>}
                                 </div>
                                 <h4 className="font-bold text-gray-900 dark:text-slate-100 text-sm truncate" title={t.taskName}>{t.taskName || 'Tanpa Nama'}</h4>
                              </div>
                              <div className={`text-[9px] font-bold px-2 py-0.5 rounded border uppercase shrink-0 ml-2 shadow-sm ${
-                                t.status === 'Live' ? 'bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20' : 
+                                t.status === 'Live' ? 'bg-cyan-50 text-cyan-600 border-cyan-200 dark:bg-cyan-500/10 dark:text-cyan-400 dark:border-cyan-500/20' : 
                                 t.status === 'Error' ? 'bg-red-50 text-red-600 border-red-200 dark:bg-red-500/10 dark:text-red-400 dark:border-red-500/20' : 
                                 'bg-blue-50 text-blue-600 border-blue-200 dark:bg-blue-500/10 dark:text-blue-400 dark:border-blue-500/20'
                              }`}>
@@ -477,39 +477,40 @@ function DashboardView({ accounts, isPreview, API_BASE, onEditTask }) {
                              </div>
                           </div>
 
-                          <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-700 dark:text-slate-300 mb-2 truncate">
+                          <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1 truncate">
                              <PlayCircle className="w-4 h-4 text-red-500 shrink-0" />
                              <span className="truncate uppercase tracking-wide">{channelName}</span>
                           </div>
 
-                          <div className="bg-gray-50 dark:bg-slate-900/60 border border-gray-200 dark:border-slate-700/60 rounded-md px-2.5 py-1.5 mb-2 flex items-center shadow-inner">
-                             <span className="text-[10px] text-gray-500 dark:text-slate-400 font-semibold mr-2">KEY:</span>
-                             <span className="text-xs text-blue-600 dark:text-blue-400 font-medium truncate">{streamKeyMasked}</span>
-                          </div>
+                          {t.youtubeTitle && (
+                            <div className="text-[10px] text-gray-500 dark:text-slate-400 truncate mb-2 pl-5.5 italic" title={t.youtubeTitle}>
+                              🎬 {t.youtubeTitle}
+                            </div>
+                          )}
 
-                          <div className="grid grid-cols-[45px_1fr] gap-x-2 gap-y-1 text-[11px] mt-1">
+                          <div className="grid grid-cols-[50px_1fr] gap-x-2 gap-y-1 text-[11px] mt-1">
                              <span className="text-gray-500 dark:text-slate-400">Video:</span>
                              <span className="text-gray-800 dark:text-slate-200 truncate font-medium" title={t.videoPath || t.videoMode}>{t.videoPath || t.videoMode}</span>
                              
                              <span className="text-gray-500 dark:text-slate-400">Mode:</span>
-                             <span className="text-blue-600 dark:text-blue-400 font-medium truncate">{t.videoMode.includes('Loop') ? 'Loop' : t.videoMode}</span>
+                             <span className="text-blue-600 dark:text-blue-400 font-medium truncate">{t.videoMode.includes('Loop') ? 'Loop' : t.videoMode} / {streamKeyMasked}</span>
                              
                              <span className="text-gray-500 dark:text-slate-400">Mulai:</span>
-                             <span className="text-emerald-600 dark:text-emerald-400 font-medium truncate">{jadwalText}</span>
+                             <span className="text-cyan-600 dark:text-cyan-400 font-medium truncate">{jadwalText}</span>
                              
                              <span className="text-gray-500 dark:text-slate-400">Stop:</span>
-                             <span className="text-rose-600 dark:text-rose-400 font-medium truncate">{t.stopHours || 0}j {t.stopMinutes || 0}m {t.randomizeStop ? '(Acak)' : ''}</span>
+                             <span className="text-rose-600 dark:text-rose-400 font-medium truncate">{(t.stopHours > 0 || t.stopMinutes > 0) ? `${t.stopHours || 0}j ${t.stopMinutes || 0}m ${t.randomizeStop ? '(Acak)' : ''}` : 'Tanpa Batas'}</span>
                           </div>
                        </div>
                     </div>
 
                     {t.status === 'Live' && (
                       <div className="px-4 pb-3">
-                        <div className="bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 rounded-lg p-2.5 flex items-center justify-between">
-                          <div className="flex items-center gap-1.5 text-[10px] text-emerald-700 dark:text-emerald-400 font-bold">
+                        <div className="bg-cyan-50 dark:bg-cyan-500/10 border border-cyan-200 dark:border-cyan-500/20 rounded-lg p-2.5 flex items-center justify-between">
+                          <div className="flex items-center gap-1.5 text-[10px] text-cyan-700 dark:text-cyan-400 font-bold">
                              <Users className="w-3.5 h-3.5" /> {t.viewers || 0} Penonton
                           </div>
-                          <div className="flex items-center gap-1.5 text-[10px] text-emerald-700 dark:text-emerald-400 font-bold">
+                          <div className="flex items-center gap-1.5 text-[10px] text-cyan-700 dark:text-cyan-400 font-bold">
                              <Clock className="w-3.5 h-3.5" /> Uptime: {t.uptime || '00:00'}
                           </div>
                         </div>
@@ -518,7 +519,7 @@ function DashboardView({ accounts, isPreview, API_BASE, onEditTask }) {
 
                     <div className="flex items-center gap-2 p-3 border-t border-gray-100 dark:border-slate-700/60 bg-gray-50 dark:bg-slate-800/50 mt-auto">
                        {t.status !== 'Live' ? (
-                           <button onClick={() => handleStartStream(t)} className="flex-1 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg transition-colors shadow-sm flex items-center justify-center gap-1.5">
+                           <button onClick={() => handleStartStream(t)} className="flex-1 py-2 bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold rounded-lg transition-colors shadow-sm flex items-center justify-center gap-1.5">
                              <PlayCircle className="w-4 h-4" /> Start
                            </button>
                        ) : (
@@ -583,32 +584,33 @@ function DashboardView({ accounts, isPreview, API_BASE, onEditTask }) {
 
                             <td className="px-5 py-4 align-middle border-r border-gray-100 dark:border-slate-700/40">
                                <div className="flex flex-col gap-1.5 text-[10.5px] text-gray-600 dark:text-slate-300 font-medium">
-                                  <div className="grid grid-cols-[65px_1fr] gap-1"><span className="text-gray-400 dark:text-slate-500">Video</span><span className="truncate text-emerald-600 dark:text-emerald-400 font-bold" title={t.videoPath || t.videoMode}>: {t.videoPath || t.videoMode}</span></div>
-                                  <div className="grid grid-cols-[65px_1fr] gap-1"><span className="text-gray-400 dark:text-slate-500">Jadwal</span><span>: {jadwalText}</span></div>
+                                  {t.youtubeTitle && <div className="grid grid-cols-[65px_1fr] gap-1"><span className="text-gray-400 dark:text-slate-500">Judul Live</span><span className="truncate text-purple-600 dark:text-purple-400 font-bold" title={t.youtubeTitle}>: {t.youtubeTitle}</span></div>}
+                                  <div className="grid grid-cols-[65px_1fr] gap-1"><span className="text-gray-400 dark:text-slate-500">Video</span><span className="truncate text-cyan-600 dark:text-cyan-400 font-bold" title={t.videoPath || t.videoMode}>: {t.videoPath || t.videoMode}</span></div>
+                                  <div className="grid grid-cols-[65px_1fr] gap-1"><span className="text-gray-400 dark:text-slate-500">Mulai</span><span className="text-cyan-600 dark:text-cyan-400">: {jadwalText}</span></div>
+                                  <div className="grid grid-cols-[65px_1fr] gap-1"><span className="text-gray-400 dark:text-slate-500">Stop Auto</span><span className="text-rose-500 dark:text-rose-400 font-bold">: {(t.stopHours > 0 || t.stopMinutes > 0) ? `${t.stopHours || 0}j ${t.stopMinutes || 0}m ${t.randomizeStop ? '(Acak)' : ''}` : 'Tanpa Batas'}</span></div>
                                   <div className="grid grid-cols-[65px_1fr] gap-1"><span className="text-gray-400 dark:text-slate-500">Tipe / Mode</span><span className="truncate" title={t.videoMode}>: {t.videoMode.includes('Loop') ? 'Looping' : t.videoMode} / {streamKeyMasked}</span></div>
-                                  <div className="grid grid-cols-[65px_1fr] gap-1"><span className="text-gray-400 dark:text-slate-500">Stop Auto</span><span className="text-rose-500 dark:text-rose-400 font-bold">: {t.stopHours || 0}j {t.stopMinutes || 0}m {t.randomizeStop ? '(Acak)' : ''}</span></div>
                                </div>
                             </td>
 
                             <td className="px-5 py-4 align-middle border-r border-gray-100 dark:border-slate-700/40">
                                <div className="flex items-start gap-2.5">
                                  <span className="relative flex h-2.5 w-2.5 mt-1 shrink-0">
-                                   {t.status === 'Live' && <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>}
-                                   <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${t.status === 'Live' ? 'bg-emerald-500' : t.status === 'Terjadwal' ? 'bg-blue-500' : t.status === 'Error' ? 'bg-red-500' : 'bg-gray-400'}`}></span>
+                                   {t.status === 'Live' && <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>}
+                                   <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${t.status === 'Live' ? 'bg-cyan-500' : t.status === 'Terjadwal' ? 'bg-blue-500' : t.status === 'Error' ? 'bg-red-500' : 'bg-gray-400'}`}></span>
                                  </span>
                                  
                                  <div className="flex flex-col">
-                                   <span className={`text-sm font-bold leading-none ${t.status === 'Live' ? 'text-emerald-600 dark:text-emerald-400' : t.status === 'Error' ? 'text-red-600 dark:text-rose-400' : 'text-gray-600 dark:text-slate-400'}`}>
+                                   <span className={`text-sm font-bold leading-none ${t.status === 'Live' ? 'text-cyan-600 dark:text-cyan-400' : t.status === 'Error' ? 'text-red-600 dark:text-rose-400' : 'text-gray-600 dark:text-slate-400'}`}>
                                      {t.status === 'Terjadwal' ? 'QUEUE' : t.status}
                                    </span>
-                                   <span className={`text-[10px] mt-1 mb-2 ${t.condType === 'success' ? 'text-emerald-600 dark:text-emerald-400' : t.condType === 'warning' ? 'text-yellow-600 dark:text-amber-400' : t.condType === 'error' ? 'text-red-600 dark:text-rose-400' : 'text-gray-400 dark:text-slate-500'}`}>
+                                   <span className={`text-[10px] mt-1 mb-2 ${t.condType === 'success' ? 'text-cyan-600 dark:text-cyan-400' : t.condType === 'warning' ? 'text-yellow-600 dark:text-amber-400' : t.condType === 'error' ? 'text-red-600 dark:text-rose-400' : 'text-gray-400 dark:text-slate-500'}`}>
                                      {t.condTitle || 'Menunggu Waktu'}
                                    </span>
                                    
                                    {t.status === 'Live' && (
                                      <div className="flex flex-col gap-1 border-t border-gray-100 dark:border-slate-700/50 pt-2">
                                        <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400 flex items-center gap-1.5"><Users className="w-3 h-3" /> {t.viewers || 0} Penonton</span>
-                                       <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5"><Clock className="w-3 h-3" /> {t.uptime || '00:00'}</span>
+                                       <span className="text-[10px] font-bold text-cyan-600 dark:text-cyan-400 flex items-center gap-1.5"><Clock className="w-3 h-3" /> {t.uptime || '00:00'}</span>
                                      </div>
                                    )}
                                  </div>
@@ -618,7 +620,7 @@ function DashboardView({ accounts, isPreview, API_BASE, onEditTask }) {
                             <td className="px-5 py-4 align-middle text-center">
                                <div className="flex items-center justify-center gap-1.5">
                                   {t.status !== 'Live' && (
-                                    <button onClick={() => handleStartStream(t)} className="p-2 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-500/20 rounded-md transition-colors" title="Mulai Live Sekarang"><PlayCircle className="w-4 h-4"/></button>
+                                    <button onClick={() => handleStartStream(t)} className="p-2 bg-cyan-50 dark:bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 hover:bg-cyan-100 dark:hover:bg-cyan-500/20 rounded-md transition-colors" title="Mulai Live Sekarang"><PlayCircle className="w-4 h-4"/></button>
                                   )}
                                   {t.status === 'Live' && (
                                     <button onClick={() => handleStopStream(t.id)} className="p-2 bg-orange-50 dark:bg-orange-500/10 text-orange-600 dark:text-orange-400 hover:bg-orange-100 dark:hover:bg-orange-500/20 rounded-md transition-colors" title="Hentikan Stream"><StopCircle className="w-4 h-4"/></button>
@@ -897,7 +899,7 @@ function TugasLiveView({ accounts, isPreview, API_BASE, onNavigate, taskToEdit, 
     else { if (selectedVideos.includes(item)) setSelectedVideos(selectedVideos.filter(v => v !== item)); else setSelectedVideos([...selectedVideos, item]); }
   };
 
-  const inputClassName = "w-full bg-gray-50 dark:bg-slate-900/50 border border-gray-300 dark:border-slate-600/60 rounded-lg px-4 py-2.5 outline-none focus:border-emerald-500 dark:focus:border-emerald-400 text-sm transition-all dark:text-slate-200 dark:placeholder-slate-500";
+  const inputClassName = "w-full bg-gray-50 dark:bg-slate-900/50 border border-gray-300 dark:border-slate-600/60 rounded-lg px-4 py-2.5 outline-none focus:border-cyan-500 dark:focus:border-cyan-400 text-sm transition-all dark:text-slate-200 dark:placeholder-slate-500";
   const labelClassName = "block text-sm font-semibold mb-1.5 text-gray-700 dark:text-slate-300";
 
   return (
@@ -908,7 +910,7 @@ function TugasLiveView({ accounts, isPreview, API_BASE, onNavigate, taskToEdit, 
         <div className="lg:col-span-7 flex flex-col gap-6">
           <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700/60 p-5 md:p-6 shadow-sm">
             <h3 className="text-lg font-bold flex items-center gap-2 border-b border-gray-100 dark:border-slate-700/60 pb-4 mb-5 text-gray-800 dark:text-slate-100">
-              <PlayCircle className="w-5 h-5 text-emerald-500 dark:text-emerald-400" /> Pengaturan Stream Utama
+              <PlayCircle className="w-5 h-5 text-cyan-500 dark:text-cyan-400" /> Pengaturan Stream Utama
             </h3>
             <div className="flex flex-col gap-5 bg-gray-50/50 dark:bg-slate-900/20 p-4 rounded-xl border border-gray-100 dark:border-slate-700/50">
               <div>
@@ -941,7 +943,7 @@ function TugasLiveView({ accounts, isPreview, API_BASE, onNavigate, taskToEdit, 
                 <div className="min-h-[44px] w-full bg-white dark:bg-slate-900/50 border border-gray-300 dark:border-slate-600/60 rounded-lg px-3 py-2 cursor-pointer flex flex-wrap gap-2 items-center relative z-40" onClick={() => setIsVideoDropdownOpen(!isVideoDropdownOpen)}>
                   {selectedVideos.length === 0 ? ( <span className="text-sm text-gray-400 px-1">Klik untuk memilih...</span> ) : (
                     selectedVideos.map(vid => (
-                      <span key={vid} className="bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300 text-xs px-2.5 py-1.5 rounded-md flex items-center gap-1.5 border border-emerald-200 dark:border-emerald-500/20">
+                      <span key={vid} className="bg-cyan-50 text-cyan-700 dark:bg-cyan-500/15 dark:text-cyan-300 text-xs px-2.5 py-1.5 rounded-md flex items-center gap-1.5 border border-cyan-200 dark:border-cyan-500/20">
                         {videoMode === 'Play Playlist (Berurutan)' ? <ListVideo className="w-3 h-3" /> : <Video className="w-3 h-3" />}
                         {vid} <button onClick={(e) => { e.stopPropagation(); handleVideoSelection(vid); }} className="hover:text-red-500 ml-1"><XCircle className="w-3.5 h-3.5" /></button>
                       </span>
@@ -954,17 +956,17 @@ function TugasLiveView({ accounts, isPreview, API_BASE, onNavigate, taskToEdit, 
                     {videoMode === 'Play Playlist (Berurutan)' ? playlists.map((pl, idx) => {
                       const isSelected = selectedVideos.includes(pl.name);
                       return (
-                        <div key={idx} onClick={() => handleVideoSelection(pl.name)} className={`flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-700/40 ${isSelected ? 'bg-emerald-50/50 dark:bg-emerald-500/10' : ''}`}>
-                          <input type="radio" checked={isSelected} readOnly className="w-4 h-4 text-emerald-600 rounded-sm bg-white dark:bg-slate-900 border-gray-300 dark:border-slate-600" />
-                          <span className={`text-sm flex-1 ${isSelected ? 'font-medium text-emerald-700 dark:text-emerald-400' : 'text-gray-700 dark:text-slate-300'}`}>{pl.name} ({pl.count} video)</span>
+                        <div key={idx} onClick={() => handleVideoSelection(pl.name)} className={`flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-700/40 ${isSelected ? 'bg-cyan-50/50 dark:bg-cyan-500/10' : ''}`}>
+                          <input type="radio" checked={isSelected} readOnly className="w-4 h-4 text-cyan-600 rounded-sm bg-white dark:bg-slate-900 border-gray-300 dark:border-slate-600" />
+                          <span className={`text-sm flex-1 ${isSelected ? 'font-medium text-cyan-700 dark:text-cyan-400' : 'text-gray-700 dark:text-slate-300'}`}>{pl.name} ({pl.count} video)</span>
                         </div>
                       )
                     }) : availableVideos.map((vid, idx) => {
                       const isSelected = selectedVideos.includes(vid);
                       return (
-                        <div key={idx} onClick={() => handleVideoSelection(vid)} className={`flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-700/40 ${isSelected ? 'bg-emerald-50/50 dark:bg-emerald-500/10' : ''}`}>
-                          <input type={videoMode === 'Satu Video (Looping)' ? 'radio' : 'checkbox'} checked={isSelected} readOnly className="w-4 h-4 text-emerald-600 rounded-sm bg-white dark:bg-slate-900 border-gray-300 dark:border-slate-600" />
-                          <span className={`text-sm flex-1 ${isSelected ? 'font-medium text-emerald-700 dark:text-emerald-400' : 'text-gray-700 dark:text-slate-300'}`}>{vid}</span>
+                        <div key={idx} onClick={() => handleVideoSelection(vid)} className={`flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-700/40 ${isSelected ? 'bg-cyan-50/50 dark:bg-cyan-500/10' : ''}`}>
+                          <input type={videoMode === 'Satu Video (Looping)' ? 'radio' : 'checkbox'} checked={isSelected} readOnly className="w-4 h-4 text-cyan-600 rounded-sm bg-white dark:bg-slate-900 border-gray-300 dark:border-slate-600" />
+                          <span className={`text-sm flex-1 ${isSelected ? 'font-medium text-cyan-700 dark:text-cyan-400' : 'text-gray-700 dark:text-slate-300'}`}>{vid}</span>
                         </div>
                       )
                     })}
@@ -988,7 +990,7 @@ function TugasLiveView({ accounts, isPreview, API_BASE, onNavigate, taskToEdit, 
                 </div>
               ) : (
                 <div className="animate-in fade-in pt-2 border-t border-gray-200 dark:border-slate-700/60">
-                   <div className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800/30 p-3 rounded-lg flex gap-3 text-sm text-emerald-800 dark:text-emerald-300">
+                   <div className="bg-cyan-50 dark:bg-cyan-900/20 border border-cyan-200 dark:border-cyan-800/30 p-3 rounded-lg flex gap-3 text-sm text-cyan-800 dark:text-cyan-300">
                      <CheckCircle2 className="w-5 h-5 shrink-0 mt-0.5" />
                      <p>Mode API Otomatis aktif. Sistem akan langsung mengikat Stream Key dari YouTube Studio menggunakan Channel yang Anda pilih di menu Metadata di bawah.</p>
                    </div>
@@ -1000,7 +1002,7 @@ function TugasLiveView({ accounts, isPreview, API_BASE, onNavigate, taskToEdit, 
           {/* Blok Metadata */}
           <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700/60 p-5 md:p-6 shadow-sm">
             <h3 className="text-lg font-bold flex items-center gap-2 border-b border-gray-100 dark:border-slate-700/60 pb-4 mb-5 text-gray-800 dark:text-slate-100">
-              <LayoutDashboard className="w-5 h-5 text-emerald-500 dark:text-emerald-400" /> Metadata YouTube Studio
+              <LayoutDashboard className="w-5 h-5 text-cyan-500 dark:text-cyan-400" /> Metadata YouTube Studio
             </h3>
             <div className="flex flex-col gap-5">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -1156,7 +1158,7 @@ function TugasLiveView({ accounts, isPreview, API_BASE, onNavigate, taskToEdit, 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-semibold text-gray-600 dark:text-slate-400 mb-1.5">Privasi Saat Live</label>
-                    <select value={youtubePrivacy} onChange={e => setYoutubePrivacy(e.target.value)} className="w-full bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600/60 rounded-lg px-3 py-2 outline-none focus:border-emerald-500 dark:focus:border-emerald-400 text-sm dark:text-slate-200">
+                    <select value={youtubePrivacy} onChange={e => setYoutubePrivacy(e.target.value)} className="w-full bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600/60 rounded-lg px-3 py-2 outline-none focus:border-cyan-500 dark:focus:border-cyan-400 text-sm dark:text-slate-200">
                       <option value="public">Publik (Disarankan)</option>
                       <option value="unlisted">Tidak Publik (Unlisted)</option>
                       <option value="private">Privat</option>
@@ -1164,14 +1166,14 @@ function TugasLiveView({ accounts, isPreview, API_BASE, onNavigate, taskToEdit, 
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-gray-600 dark:text-slate-400 mb-1.5">Konten Sintetis (AI)</label>
-                    <select value={syntheticContent} onChange={e => setSyntheticContent(e.target.value)} className="w-full bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600/60 rounded-lg px-3 py-2 outline-none focus:border-emerald-500 dark:focus:border-emerald-400 text-sm dark:text-slate-200">
+                    <select value={syntheticContent} onChange={e => setSyntheticContent(e.target.value)} className="w-full bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600/60 rounded-lg px-3 py-2 outline-none focus:border-cyan-500 dark:focus:border-cyan-400 text-sm dark:text-slate-200">
                       <option value="no">Tidak (Konten Asli)</option>
                       <option value="yes">Ya (Menggunakan AI)</option>
                     </select>
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-gray-600 dark:text-slate-400 mb-1.5">Privasi Replay (Selesai Live)</label>
-                    <select value={replayPrivacy} onChange={e => setReplayPrivacy(e.target.value)} className="w-full bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600/60 rounded-lg px-3 py-2 outline-none focus:border-emerald-500 dark:focus:border-emerald-400 text-sm dark:text-slate-200">
+                    <select value={replayPrivacy} onChange={e => setReplayPrivacy(e.target.value)} className="w-full bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600/60 rounded-lg px-3 py-2 outline-none focus:border-cyan-500 dark:focus:border-cyan-400 text-sm dark:text-slate-200">
                       <option value="public">Biarkan Tetap Publik</option>
                       <option value="unlisted">Ubah ke Unlisted</option>
                       <option value="private">Ubah ke Privat</option>
@@ -1179,7 +1181,7 @@ function TugasLiveView({ accounts, isPreview, API_BASE, onNavigate, taskToEdit, 
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-gray-600 dark:text-slate-400 mb-1.5">Bahasa Asli Video</label>
-                    <select value={videoLanguage} onChange={e => setVideoLanguage(e.target.value)} className="w-full bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600/60 rounded-lg px-3 py-2 outline-none focus:border-emerald-500 dark:focus:border-emerald-400 text-sm dark:text-slate-200">
+                    <select value={videoLanguage} onChange={e => setVideoLanguage(e.target.value)} className="w-full bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600/60 rounded-lg px-3 py-2 outline-none focus:border-cyan-500 dark:focus:border-cyan-400 text-sm dark:text-slate-200">
                       {AVAILABLE_LANGUAGES.map(lang => (
                         <option key={`orig-${lang.code}`} value={lang.code}>{lang.name}</option>
                       ))}
@@ -1187,14 +1189,14 @@ function TugasLiveView({ accounts, isPreview, API_BASE, onNavigate, taskToEdit, 
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-gray-600 dark:text-slate-400 mb-1.5">Monetisasi (Ads)</label>
-                    <select value={monetization} onChange={e => setMonetization(e.target.value)} className="w-full bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600/60 rounded-lg px-3 py-2 outline-none focus:border-emerald-500 dark:focus:border-emerald-400 text-sm dark:text-slate-200">
+                    <select value={monetization} onChange={e => setMonetization(e.target.value)} className="w-full bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600/60 rounded-lg px-3 py-2 outline-none focus:border-cyan-500 dark:focus:border-cyan-400 text-sm dark:text-slate-200">
                       <option value="on">Aktif (On)</option>
                       <option value="off">Tidak Aktif (Off)</option>
                     </select>
                   </div>
                   <div className="sm:col-span-2 lg:col-span-1">
                     <label className="block text-xs font-semibold text-gray-600 dark:text-slate-400 mb-1.5">Playlist Target</label>
-                    <select value={targetPlaylist} onChange={e => setTargetPlaylist(e.target.value)} className="w-full bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600/60 rounded-lg px-3 py-2 outline-none focus:border-emerald-500 dark:focus:border-emerald-400 text-sm truncate dark:text-slate-200">
+                    <select value={targetPlaylist} onChange={e => setTargetPlaylist(e.target.value)} className="w-full bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600/60 rounded-lg px-3 py-2 outline-none focus:border-cyan-500 dark:focus:border-cyan-400 text-sm truncate dark:text-slate-200">
                       <option value="none">-- Jangan tambahkan --</option>
                       {youtubePlaylists.map(pl => (
                         <option key={pl.id} value={pl.id}>{pl.title}</option>
@@ -1269,12 +1271,12 @@ function TugasLiveView({ accounts, isPreview, API_BASE, onNavigate, taskToEdit, 
                    <span className="text-sm font-semibold text-gray-700 dark:text-slate-300">Stop Otomatis</span>
                    <div className="space-y-1.5 mt-1.5">
                      <label className="flex items-center gap-1.5 cursor-pointer">
-                        <input type="checkbox" checked={randomizeStop} onChange={() => setRandomizeStop(!randomizeStop)} className="w-3 h-3 text-emerald-600 rounded bg-white dark:bg-slate-900 border-gray-300 dark:border-slate-600 focus:ring-emerald-500" />
-                        <span className="text-[10px] text-gray-500 dark:text-slate-400 font-medium hover:text-emerald-500 transition-colors">Acak ±15 mnt (Anti-Spam)</span>
+                        <input type="checkbox" checked={randomizeStop} onChange={() => setRandomizeStop(!randomizeStop)} className="w-3 h-3 text-cyan-600 rounded bg-white dark:bg-slate-900 border-gray-300 dark:border-slate-600 focus:ring-cyan-500" />
+                        <span className="text-[10px] text-gray-500 dark:text-slate-400 font-medium hover:text-cyan-500 transition-colors">Acak ±15 mnt (Anti-Spam)</span>
                      </label>
                      <label className="flex items-center gap-1.5 cursor-pointer">
-                        <input type="checkbox" checked={smartStopEnabled} onChange={() => setSmartStopEnabled(!smartStopEnabled)} className="w-3 h-3 text-emerald-600 rounded bg-white dark:bg-slate-900 border-gray-300 dark:border-slate-600 focus:ring-emerald-500" />
-                        <span className="text-[10px] text-gray-500 dark:text-slate-400 font-medium hover:text-emerald-500 transition-colors">Smart Stop (Tunda jika ada penonton)</span>
+                        <input type="checkbox" checked={smartStopEnabled} onChange={() => setSmartStopEnabled(!smartStopEnabled)} className="w-3 h-3 text-cyan-600 rounded bg-white dark:bg-slate-900 border-gray-300 dark:border-slate-600 focus:ring-cyan-500" />
+                        <span className="text-[10px] text-gray-500 dark:text-slate-400 font-medium hover:text-cyan-500 transition-colors">Smart Stop (Tunda jika ada penonton)</span>
                      </label>
                    </div>
                 </div>
@@ -1329,7 +1331,7 @@ function TugasLiveView({ accounts, isPreview, API_BASE, onNavigate, taskToEdit, 
           </div>
 
           <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700/60 p-5 md:p-6 shadow-sm flex flex-col">
-            <h3 className="text-lg font-bold flex items-center gap-2 border-b border-gray-100 dark:border-slate-700/60 pb-4 mb-5 text-gray-800 dark:text-slate-100"><Image className="w-5 h-5 text-emerald-500 dark:text-emerald-400" /> Pengaturan Thumbnail</h3>
+            <h3 className="text-lg font-bold flex items-center gap-2 border-b border-gray-100 dark:border-slate-700/60 pb-4 mb-5 text-gray-800 dark:text-slate-100"><Image className="w-5 h-5 text-cyan-500 dark:text-cyan-400" /> Pengaturan Thumbnail</h3>
             
             {!randomizeThumbnail && (
               <div className="flex flex-col gap-4 animate-in fade-in mb-4">
@@ -1359,7 +1361,7 @@ function TugasLiveView({ accounts, isPreview, API_BASE, onNavigate, taskToEdit, 
                   <div onClick={() => thumbInputRef.current?.click()} className="min-h-[140px] border-2 border-dashed border-gray-300 dark:border-slate-600/60 rounded-xl p-2 flex flex-col items-center justify-center hover:bg-gray-50 dark:hover:bg-slate-700/30 transition-all cursor-pointer group overflow-hidden relative">
                     {isUploadingThumb ? ( <span className="text-sm font-semibold text-gray-500 animate-pulse">Mengupload...</span> ) : thumbnailUrl ? ( <img src={thumbnailUrl} alt="Thumbnail Preview" className="w-full h-full object-cover rounded-lg" /> ) : (
                       <>
-                        <Upload className="w-6 h-6 text-gray-400 group-hover:text-emerald-500 mb-2 transition-colors" />
+                        <Upload className="w-6 h-6 text-gray-400 group-hover:text-cyan-500 mb-2 transition-colors" />
                         <p className="text-sm font-bold text-gray-700 dark:text-slate-300 mb-1">Upload Thumbnail Baru</p>
                         <p className="text-xs text-gray-500 dark:text-slate-400">Klik untuk mencari file (JPG/PNG)</p>
                       </>
@@ -1372,11 +1374,11 @@ function TugasLiveView({ accounts, isPreview, API_BASE, onNavigate, taskToEdit, 
             <div className="flex flex-col mt-auto px-2 border-t border-gray-100 dark:border-slate-700/50 pt-4 bg-gray-50/50 dark:bg-slate-900/30 rounded-lg p-3 border gap-3">
                <div className="flex items-center justify-between">
                  <label className="flex items-center gap-2.5 cursor-pointer group">
-                    <input type="checkbox" checked={randomizeThumbnail} onChange={(e) => setRandomizeThumbnail(e.target.checked)} className="w-4 h-4 text-emerald-600 rounded bg-white dark:bg-slate-900 border-gray-300 dark:border-slate-600 focus:ring-emerald-500 cursor-pointer" />
-                    <span className="text-xs font-bold text-gray-700 dark:text-slate-200 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">Acak Thumbnail Otomatis</span>
+                    <input type="checkbox" checked={randomizeThumbnail} onChange={(e) => setRandomizeThumbnail(e.target.checked)} className="w-4 h-4 text-cyan-600 rounded bg-white dark:bg-slate-900 border-gray-300 dark:border-slate-600 focus:ring-cyan-500 cursor-pointer" />
+                    <span className="text-xs font-bold text-gray-700 dark:text-slate-200 group-hover:text-cyan-600 dark:group-hover:text-cyan-400 transition-colors">Acak Thumbnail Otomatis</span>
                  </label>
                  {randomizeThumbnail && (
-                   <span className="text-[10px] font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400 px-2.5 py-1 rounded-md border border-emerald-200 dark:border-emerald-800/50 shadow-sm animate-pulse">
+                   <span className="text-[10px] font-bold bg-cyan-100 text-cyan-700 dark:bg-cyan-900/40 dark:text-cyan-400 px-2.5 py-1 rounded-md border border-cyan-200 dark:border-cyan-800/50 shadow-sm animate-pulse">
                      {selectedThumbnails.length > 0 ? selectedThumbnails.length : availableImages.length} Gambar Dipilih
                    </span>
                  )}
@@ -1389,11 +1391,11 @@ function TugasLiveView({ accounts, isPreview, API_BASE, onNavigate, taskToEdit, 
                        {availableImages.map(img => {
                           const isChecked = selectedThumbnails.includes(img);
                           return (
-                             <label key={img} className={`flex items-center gap-2 px-3 py-2 rounded-md border cursor-pointer transition-colors text-xs font-medium mb-1 ${isChecked ? 'bg-emerald-50 border-emerald-200 text-emerald-700 dark:bg-emerald-500/10 dark:border-emerald-500/30 dark:text-emerald-400' : 'bg-transparent border-transparent text-gray-600 hover:bg-gray-50 dark:text-slate-300 dark:hover:bg-slate-800'}`}>
+                             <label key={img} className={`flex items-center gap-2 px-3 py-2 rounded-md border cursor-pointer transition-colors text-xs font-medium mb-1 ${isChecked ? 'bg-cyan-50 border-cyan-200 text-cyan-700 dark:bg-cyan-500/10 dark:border-cyan-500/30 dark:text-cyan-400' : 'bg-transparent border-transparent text-gray-600 hover:bg-gray-50 dark:text-slate-300 dark:hover:bg-slate-800'}`}>
                                 <input type="checkbox" checked={isChecked} onChange={() => {
                                    if (isChecked) setSelectedThumbnails(selectedThumbnails.filter(t => t !== img));
                                    else setSelectedThumbnails([...selectedThumbnails, img]);
-                                }} className="w-3.5 h-3.5 text-emerald-600 rounded bg-white dark:bg-slate-900 border-gray-300 dark:border-slate-600 focus:ring-emerald-500" />
+                                }} className="w-3.5 h-3.5 text-cyan-600 rounded bg-white dark:bg-slate-900 border-gray-300 dark:border-slate-600 focus:ring-cyan-500" />
                                 <Image className="w-3.5 h-3.5 text-gray-400" />
                                 <span className="truncate">{img}</span>
                              </label>
@@ -1434,21 +1436,21 @@ function TugasLiveView({ accounts, isPreview, API_BASE, onNavigate, taskToEdit, 
             )}
           </div>
 
-          <div className="bg-gradient-to-br from-white to-emerald-50/30 dark:from-slate-800 dark:to-emerald-900/10 rounded-xl border border-gray-200 dark:border-slate-700/60 p-5 md:p-6 shadow-sm">
+          <div className="bg-gradient-to-br from-white to-cyan-50/30 dark:from-slate-800 dark:to-cyan-900/10 rounded-xl border border-gray-200 dark:border-slate-700/60 p-5 md:p-6 shadow-sm">
             <div className="flex items-center justify-between mb-4 border-b border-gray-200 dark:border-slate-700/60 pb-4">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-500/15 flex items-center justify-center"><Bot className="w-6 h-6 text-emerald-600 dark:text-emerald-400" /></div>
+                <div className="w-10 h-10 rounded-full bg-cyan-100 dark:bg-cyan-500/15 flex items-center justify-center"><Bot className="w-6 h-6 text-cyan-600 dark:text-cyan-400" /></div>
                 <div><h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100">YouTube Chatbot Terintegrasi</h3><p className="text-xs text-gray-500 dark:text-slate-400">Pesan otomatis di Live Chat</p></div>
               </div>
               <label className="relative inline-flex items-center cursor-pointer">
                 <input type="checkbox" className="sr-only peer" checked={chatbotEnabled} onChange={() => setChatbotEnabled(!chatbotEnabled)} />
-                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600 dark:peer-checked:bg-emerald-500"></div>
+                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-cyan-600 dark:peer-checked:bg-cyan-500"></div>
               </label>
             </div>
             <div className={`space-y-4 transition-opacity ${chatbotEnabled ? 'opacity-100' : 'opacity-40 pointer-events-none'}`}>
               <div className="flex justify-between items-center">
                 <h4 className="text-sm font-semibold flex items-center gap-2 dark:text-slate-200"><Clock className="w-4 h-4 text-gray-500" /> Timeline Pesan Bot</h4>
-                <button onClick={() => setScheduledMessages([...scheduledMessages, { id: Date.now(), hour: 0, minute: 5, text: "" }])} className="text-xs text-emerald-600 font-medium">+ Tambah Jadwal</button>
+                <button onClick={() => setScheduledMessages([...scheduledMessages, { id: Date.now(), hour: 0, minute: 5, text: "" }])} className="text-xs text-cyan-600 font-medium">+ Tambah Jadwal</button>
               </div>
               <div className="space-y-3">
                 {scheduledMessages.map((msg) => (
@@ -1482,7 +1484,7 @@ function TugasLiveView({ accounts, isPreview, API_BASE, onNavigate, taskToEdit, 
              <button onClick={() => { if(clearEditTask) clearEditTask(); onNavigate('dashboard'); }} className="flex-1 sm:flex-none px-6 py-2.5 rounded-xl border border-gray-300 hover:bg-gray-100 text-gray-700 font-semibold transition-colors text-sm bg-white dark:bg-slate-700 dark:text-slate-200 dark:border-slate-600 dark:hover:bg-slate-600">Batalkan Edit</button>
            )}
            <button onClick={() => handleSaveTask(false)} className="flex-1 sm:flex-none px-6 py-2.5 rounded-xl border border-gray-300 hover:bg-gray-100 text-gray-700 font-semibold transition-colors text-sm bg-white dark:bg-slate-800 dark:text-slate-200 dark:border-slate-600">💾 {taskToEdit ? 'Simpan Perubahan' : 'Simpan ke Database'}</button>
-           <button onClick={() => handleSaveTask(true)} className="flex-1 sm:flex-none px-8 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl flex items-center justify-center gap-2 font-semibold transition-colors text-sm shadow-md"><PlayCircle className="w-5 h-5" /> {taskToEdit ? 'Simpan & Mulai Ulang' : 'Simpan & Mulai Live'}</button>
+           <button onClick={() => handleSaveTask(true)} className="flex-1 sm:flex-none px-8 py-2.5 bg-cyan-600 hover:bg-cyan-700 text-white rounded-xl flex items-center justify-center gap-2 font-semibold transition-colors text-sm shadow-md"><PlayCircle className="w-5 h-5" /> {taskToEdit ? 'Simpan & Mulai Ulang' : 'Simpan & Mulai Live'}</button>
          </div>
       </div>
     </div>
@@ -1619,7 +1621,7 @@ function MediaView({ isPreview, API_BASE }) {
             <div onClick={() => setActiveFolder('Playlist Looping')}><FolderItem name="Playlist Tersimpan" count={playlists.length} active={activeFolder === 'Playlist Looping'} /></div>
           </div>
           <div className="p-3 border-t border-gray-100 dark:border-slate-700/60 space-y-1.5 bg-white dark:bg-slate-800/50 shrink-0">
-            <button onClick={() => setShowPlaylistModal(true)} className="w-full text-left px-3 py-2 text-xs font-medium text-gray-600 dark:text-slate-300 hover:text-emerald-600 hover:bg-emerald-50 rounded-md transition-colors flex items-center gap-2"><Plus className="w-3.5 h-3.5" /> Buat Playlist Baru</button>
+            <button onClick={() => setShowPlaylistModal(true)} className="w-full text-left px-3 py-2 text-xs font-medium text-gray-600 dark:text-slate-300 hover:text-cyan-600 hover:bg-cyan-50 rounded-md transition-colors flex items-center gap-2"><Plus className="w-3.5 h-3.5" /> Buat Playlist Baru</button>
           </div>
         </div>
 
@@ -1661,7 +1663,7 @@ function MediaView({ isPreview, API_BASE }) {
               ) : (
                 playlists.map((pl) => (
                   <div key={pl.id} className="bg-gray-50 dark:bg-slate-900/50 border border-gray-200 dark:border-slate-700/60 rounded-xl p-4 shadow-sm hover:shadow transition-shadow group relative">
-                    <div className="flex items-center gap-3 mb-3"><div className="w-10 h-10 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0"><ListVideo className="w-5 h-5" /></div><div><h4 className="font-bold text-gray-900 dark:text-slate-100 text-sm">{pl.name}</h4><p className="text-xs text-gray-500">{pl.count} Video</p></div></div>
+                    <div className="flex items-center gap-3 mb-3"><div className="w-10 h-10 rounded-lg bg-cyan-100 text-cyan-600 flex items-center justify-center shrink-0"><ListVideo className="w-5 h-5" /></div><div><h4 className="font-bold text-gray-900 dark:text-slate-100 text-sm">{pl.name}</h4><p className="text-xs text-gray-500">{pl.count} Video</p></div></div>
                     <div className="space-y-1 mt-3 pt-3 border-t border-gray-200 dark:border-slate-700/50 max-h-24 overflow-y-auto custom-scrollbar">
                        {pl.videos.map((vid, idx) => <div key={idx} className="text-[11px] text-gray-600 dark:text-slate-300 flex items-center gap-2 truncate"><span className="text-gray-400">{idx+1}.</span> {vid}</div>)}
                     </div>
@@ -1707,7 +1709,7 @@ function MediaView({ isPreview, API_BASE }) {
       {showPlaylistModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
           <div className="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-lg shadow-2xl shadow-black/40 overflow-hidden border border-gray-200 dark:border-slate-700 flex flex-col max-h-[90vh]">
-            <div className="px-6 py-4 border-b border-gray-200 dark:border-slate-700/60 flex justify-between items-center"><h3 className="text-lg font-bold dark:text-slate-100">Buat Playlist</h3><button onClick={() => setShowPlaylistModal(false)} className="text-gray-400 hover:text-emerald-500"><XCircle className="w-6 h-6" /></button></div>
+            <div className="px-6 py-4 border-b border-gray-200 dark:border-slate-700/60 flex justify-between items-center"><h3 className="text-lg font-bold dark:text-slate-100">Buat Playlist</h3><button onClick={() => setShowPlaylistModal(false)} className="text-gray-400 hover:text-cyan-500"><XCircle className="w-6 h-6" /></button></div>
             <div className="p-6 overflow-y-auto flex-1 space-y-5 custom-scrollbar">
               <div><label className="block text-sm font-medium mb-1.5 dark:text-slate-300">Nama Playlist</label><input type="text" value={newPlaylistName} onChange={(e) => setNewPlaylistName(e.target.value)} className="w-full bg-gray-50 border border-gray-300 dark:border-slate-600/60 dark:bg-slate-900/50 dark:text-white rounded-lg px-4 py-2.5 outline-none" /></div>
               <div>
@@ -1718,11 +1720,11 @@ function MediaView({ isPreview, API_BASE }) {
                       if(/\.(jpg|jpeg|png|gif|webp)$/i.test(file.name)) return null;
                       const isSelected = selectedPlaylistVideos.includes(file.name);
                       return (
-                        <label key={file.id} className={`flex items-center gap-3 p-2.5 rounded-lg cursor-pointer border ${isSelected ? 'bg-emerald-500/10 border-emerald-500/20' : 'border-transparent hover:bg-slate-700/50'}`}>
+                        <label key={file.id} className={`flex items-center gap-3 p-2.5 rounded-lg cursor-pointer border ${isSelected ? 'bg-cyan-500/10 border-cyan-500/20' : 'border-transparent hover:bg-slate-700/50'}`}>
                           <input type="checkbox" checked={isSelected} onChange={() => {
                             if (isSelected) setSelectedPlaylistVideos(selectedPlaylistVideos.filter(v => v !== file.name));
                             else setSelectedPlaylistVideos([...selectedPlaylistVideos, file.name]);
-                          }} className="w-4 h-4 text-emerald-600 bg-transparent border-gray-400" />
+                          }} className="w-4 h-4 text-cyan-600 bg-transparent border-gray-400" />
                           <Video className="w-4 h-4 text-gray-400" /><span className="text-sm flex-1 truncate dark:text-slate-200">{file.name}</span>
                         </label>
                       )
@@ -1731,7 +1733,7 @@ function MediaView({ isPreview, API_BASE }) {
                 </div>
               </div>
             </div>
-            <div className="px-6 py-4 border-t border-gray-200 dark:border-slate-700/60 bg-gray-50 dark:bg-slate-800/50 flex justify-end gap-3"><button onClick={() => setShowPlaylistModal(false)} className="px-4 py-2 rounded-lg border dark:border-slate-600 text-gray-700 dark:text-slate-300 text-sm hover:bg-slate-700/50">Batal</button><button onClick={handleSavePlaylist} className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm hover:bg-emerald-700">Simpan Playlist</button></div>
+            <div className="px-6 py-4 border-t border-gray-200 dark:border-slate-700/60 bg-gray-50 dark:bg-slate-800/50 flex justify-end gap-3"><button onClick={() => setShowPlaylistModal(false)} className="px-4 py-2 rounded-lg border dark:border-slate-600 text-gray-700 dark:text-slate-300 text-sm hover:bg-slate-700/50">Batal</button><button onClick={handleSavePlaylist} className="px-4 py-2 bg-cyan-600 text-white rounded-lg text-sm hover:bg-cyan-700">Simpan Playlist</button></div>
           </div>
         </div>
       )}
@@ -1762,6 +1764,191 @@ function MediaView({ isPreview, API_BASE }) {
 }
 
 // -----------------------------------------------------------------------------
+// TAB 4: ANALYTICS
+// -----------------------------------------------------------------------------
+function AnalyticsView({ accounts, isPreview, API_BASE }) {
+  const [selectedAccount, setSelectedAccount] = useState('all');
+  const [metrics, setMetrics] = useState({ revenue: 0, watchHours: 0, subscribers: 0, totalViews: 0 });
+  const [chartData, setChartData] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const inputClassName = "w-full bg-gray-50 dark:bg-slate-900/50 border border-gray-300 dark:border-slate-600/60 rounded-lg px-4 py-2.5 outline-none focus:border-cyan-500 dark:focus:border-cyan-400 text-sm dark:text-slate-200 transition-colors";
+
+  useEffect(() => {
+    if (isPreview) { setIsLoading(false); return; }
+    const fetchAnalytics = async () => {
+      setIsLoading(true);
+      try {
+        const res = await fetch(`${API_BASE}/api/analytics?accountId=${selectedAccount}`);
+        const data = await res.json();
+        if (data.metrics) setMetrics(data.metrics);
+        if (data.chart) setChartData(data.chart);
+      } catch (e) {
+        console.log('Analytics fetch error:', e);
+      }
+      setIsLoading(false);
+    };
+    fetchAnalytics();
+    const interval = setInterval(fetchAnalytics, 120000);
+    return () => clearInterval(interval);
+  }, [API_BASE, isPreview, selectedAccount]);
+
+  const formatNumber = (num) => {
+    if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+    if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+    return num.toString();
+  };
+
+  const maxViews = Math.max(...chartData.map(d => d.views), 1);
+  const chartPath = chartData.length > 1 ? chartData.map((d, i) => {
+    const x = (i / (chartData.length - 1)) * 100;
+    const y = 100 - ((d.views / maxViews) * 80);
+    return `${i === 0 ? 'M' : 'L'} ${x} ${y}`;
+  }).join(' ') : '';
+
+  const metricCards = [
+    { label: 'Estimasi Pendapatan', value: `$${metrics.revenue.toFixed(2)}`, icon: TrendingUp, color: 'text-cyan-600 dark:text-cyan-400', bgColor: 'bg-cyan-50 dark:bg-cyan-500/10', desc: 'Berdasarkan CPM rata-rata' },
+    { label: 'Jam Tayang', value: formatNumber(metrics.watchHours), icon: Clock, color: 'text-blue-600 dark:text-blue-400', bgColor: 'bg-blue-50 dark:bg-blue-500/10', desc: 'Estimasi total jam' },
+    { label: 'Subscribers', value: formatNumber(metrics.subscribers), icon: Users, color: 'text-purple-600 dark:text-purple-400', bgColor: 'bg-purple-50 dark:bg-purple-500/10', desc: 'Total subscriber channel' },
+    { label: 'Total Views', value: formatNumber(metrics.totalViews), icon: BarChart2, color: 'text-orange-600 dark:text-orange-400', bgColor: 'bg-orange-50 dark:bg-orange-500/10', desc: 'Total penayangan video' },
+  ];
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h2 className="text-xl font-bold text-gray-900 dark:text-slate-100 flex items-center gap-2">
+            <LineChart className="w-6 h-6 text-cyan-500" /> Analytics Dashboard
+          </h2>
+          <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">Pantau statistik channel YouTube Anda secara real-time</p>
+        </div>
+        <select value={selectedAccount} onChange={(e) => setSelectedAccount(e.target.value)} className={`${inputClassName} max-w-xs`}>
+          <option value="all">Semua Akun</option>
+          {accounts.map(acc => <option key={acc.id} value={acc.id}>{acc.name}</option>)}
+        </select>
+      </div>
+
+      {/* Loading State */}
+      {isLoading && (
+        <div className="flex items-center justify-center py-12">
+          <div className="flex items-center gap-3 text-gray-500 dark:text-slate-400">
+            <RefreshCw className="w-5 h-5 animate-spin" />
+            <span className="text-sm font-medium">Memuat data dari YouTube API...</span>
+          </div>
+        </div>
+      )}
+
+      {/* Metric Cards */}
+      {!isLoading && (
+        <>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            {metricCards.map((card, idx) => (
+              <div key={idx} className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700/60 p-5 shadow-sm hover:shadow-md transition-shadow">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className={`p-2.5 rounded-lg ${card.bgColor}`}>
+                    <card.icon className={`w-5 h-5 ${card.color}`} />
+                  </div>
+                </div>
+                <p className="text-2xl font-bold text-gray-900 dark:text-slate-100">{card.value}</p>
+                <p className="text-xs font-semibold text-gray-600 dark:text-slate-300 mt-1">{card.label}</p>
+                <p className="text-[10px] text-gray-400 dark:text-slate-500 mt-0.5">{card.desc}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Chart */}
+          <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700/60 p-6 shadow-sm">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h3 className="text-sm font-bold text-gray-800 dark:text-slate-200">Views per Video (Terbaru)</h3>
+                <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">Data dari 7 video terakhir yang diunggah</p>
+              </div>
+              <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-slate-400">
+                <div className="w-3 h-1 rounded-full bg-cyan-500"></div>
+                Views
+              </div>
+            </div>
+
+            {chartData.length > 0 ? (
+              <div className="relative h-52">
+                {/* Y-axis labels */}
+                <div className="absolute left-0 top-0 bottom-6 w-12 flex flex-col justify-between text-right pr-2">
+                  <span className="text-[9px] font-mono text-gray-400 dark:text-slate-500">{formatNumber(maxViews)}</span>
+                  <span className="text-[9px] font-mono text-gray-400 dark:text-slate-500">{formatNumber(Math.round(maxViews / 2))}</span>
+                  <span className="text-[9px] font-mono text-gray-400 dark:text-slate-500">0</span>
+                </div>
+
+                {/* Chart Area */}
+                <div className="ml-14 h-full pb-6 relative">
+                  <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="w-full h-full">
+                    {/* Grid lines */}
+                    <line x1="0" y1="20" x2="100" y2="20" stroke="currentColor" className="text-gray-100 dark:text-slate-700/50" strokeWidth="0.3" />
+                    <line x1="0" y1="60" x2="100" y2="60" stroke="currentColor" className="text-gray-100 dark:text-slate-700/50" strokeWidth="0.3" />
+
+                    {/* Area fill */}
+                    {chartPath && (
+                      <path d={`${chartPath} L 100 100 L 0 100 Z`} fill="url(#analyticsGrad)" opacity="0.3" />
+                    )}
+
+                    {/* Line */}
+                    {chartPath && (
+                      <path d={chartPath} fill="none" stroke="#10b981" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                    )}
+
+                    {/* Dots */}
+                    {chartData.map((d, i) => {
+                      const x = chartData.length > 1 ? (i / (chartData.length - 1)) * 100 : 50;
+                      const y = 100 - ((d.views / maxViews) * 80);
+                      return <circle key={i} cx={x} cy={y} r="2" fill="#10b981" stroke="white" strokeWidth="1" className="dark:stroke-slate-800" />;
+                    })}
+
+                    <defs>
+                      <linearGradient id="analyticsGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#10b981" stopOpacity="0.4" />
+                        <stop offset="100%" stopColor="#10b981" stopOpacity="0" />
+                      </linearGradient>
+                    </defs>
+                  </svg>
+
+                  {/* X-axis labels */}
+                  <div className="absolute bottom-0 left-0 right-0 flex justify-between">
+                    {chartData.map((d, i) => (
+                      <div key={i} className="text-center" style={{ width: `${100 / chartData.length}%` }}>
+                        <span className="text-[9px] font-mono text-gray-400 dark:text-slate-500">{d.date}</span>
+                        <span className="block text-[8px] font-mono text-gray-500 dark:text-slate-400 font-bold">{formatNumber(d.views)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-12 text-gray-400 dark:text-slate-500">
+                <BarChart2 className="w-12 h-12 mb-3 opacity-30" />
+                <p className="text-sm font-medium">Belum ada data chart</p>
+                <p className="text-xs mt-1">Pastikan akun YouTube sudah terhubung di Pengaturan</p>
+              </div>
+            )}
+          </div>
+
+          {/* Info Note */}
+          <div className="bg-blue-50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800/30 rounded-xl p-4 flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-blue-500 dark:text-blue-400 shrink-0 mt-0.5" />
+            <div>
+              <p className="text-xs font-semibold text-blue-800 dark:text-blue-300">Catatan tentang Analytics</p>
+              <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+                Data analytics diambil dari YouTube Data API v3. Estimasi pendapatan dihitung berdasarkan CPM rata-rata ($1.50/1000 views) dan mungkin berbeda dengan YouTube Studio. 
+                Untuk data revenue yang lebih akurat, silakan cek langsung di YouTube Studio → Analytics → Revenue.
+              </p>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+// -----------------------------------------------------------------------------
 // PENGATURAN VIEW
 // -----------------------------------------------------------------------------
 function SettingsView({ accounts, fetchAccounts, isPreview, API_BASE }) {
@@ -1779,7 +1966,7 @@ function SettingsView({ accounts, fetchAccounts, isPreview, API_BASE }) {
   const [isSavingCreds, setIsSavingCreds] = useState(false);
   const [showApiSetup, setShowApiSetup] = useState(false); 
 
-  const inputClassName = "w-full bg-gray-50 dark:bg-slate-900/50 border border-gray-300 dark:border-slate-600/60 rounded-lg px-4 py-2.5 outline-none focus:border-emerald-500 dark:focus:border-emerald-400 font-mono text-sm dark:text-slate-200 transition-colors";
+  const inputClassName = "w-full bg-gray-50 dark:bg-slate-900/50 border border-gray-300 dark:border-slate-600/60 rounded-lg px-4 py-2.5 outline-none focus:border-cyan-500 dark:focus:border-cyan-400 font-mono text-sm dark:text-slate-200 transition-colors";
 
   useEffect(() => {
     if (isPreview) return;
@@ -1865,19 +2052,19 @@ function SettingsView({ accounts, fetchAccounts, isPreview, API_BASE }) {
           <div className="flex justify-between items-center border-b border-gray-200 dark:border-slate-700/60 pb-4 mb-5"><h3 className="text-lg font-bold text-gray-800 dark:text-slate-100 flex items-center gap-2"><PlayCircle className="w-5 h-5 text-red-500" /> Channel YouTube Terhubung</h3></div>
           
           {accounts?.length > 0 && (
-            <div className="mb-5 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800/30 rounded-xl p-4 flex items-start gap-3">
-              <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
-              <div><p className="text-sm text-emerald-800 dark:text-emerald-300 font-bold">Koneksi API Aktif</p><p className="text-xs text-emerald-600 dark:text-emerald-400/90 mt-1">Sistem telah terhubung dengan <strong>{accounts.length} Channel YouTube</strong>. API siap digunakan untuk Live Streaming Otomatis dan Fitur Chatbot.</p></div>
+            <div className="mb-5 bg-cyan-50 dark:bg-cyan-900/20 border border-cyan-200 dark:border-cyan-800/30 rounded-xl p-4 flex items-start gap-3">
+              <CheckCircle2 className="w-5 h-5 text-cyan-600 dark:text-cyan-400 shrink-0 mt-0.5" />
+              <div><p className="text-sm text-cyan-800 dark:text-cyan-300 font-bold">Koneksi API Aktif</p><p className="text-xs text-cyan-600 dark:text-cyan-400/90 mt-1">Sistem telah terhubung dengan <strong>{accounts.length} Channel YouTube</strong>. API siap digunakan untuk Live Streaming Otomatis dan Fitur Chatbot.</p></div>
             </div>
           )}
 
           {accounts?.length > 0 ? (
             <div className="grid grid-cols-1 gap-4">
               {accounts.map(acc => (
-                <div key={acc.id} className="flex justify-between items-center p-4 bg-gray-50 dark:bg-slate-900/50 rounded-xl border border-gray-200 dark:border-slate-700 hover:border-emerald-300 dark:hover:border-emerald-500/50 transition-all shadow-sm group">
+                <div key={acc.id} className="flex justify-between items-center p-4 bg-gray-50 dark:bg-slate-900/50 rounded-xl border border-gray-200 dark:border-slate-700 hover:border-cyan-300 dark:hover:border-cyan-500/50 transition-all shadow-sm group">
                   <div className="flex items-center gap-3 overflow-hidden">
                     <div className="w-10 h-10 rounded-full bg-red-100 dark:bg-red-500/15 flex items-center justify-center text-red-600 dark:text-red-400 shrink-0"><PlayCircle className="w-5 h-5" /></div>
-                    <div className="overflow-hidden"><p className="text-sm font-bold text-gray-800 dark:text-slate-200 truncate">{acc.name}</p><p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1 mt-0.5"><CheckCircle2 className="w-3 h-3" /> Siap digunakan</p></div>
+                    <div className="overflow-hidden"><p className="text-sm font-bold text-gray-800 dark:text-slate-200 truncate">{acc.name}</p><p className="text-[10px] text-cyan-600 dark:text-cyan-400 font-medium flex items-center gap-1 mt-0.5"><CheckCircle2 className="w-3 h-3" /> Siap digunakan</p></div>
                   </div>
                   <button onClick={() => deleteAccount(acc.id)} className="text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 p-2 rounded-lg transition-colors sm:opacity-0 sm:group-hover:opacity-100" title="Putus Koneksi Akun"><Trash2 size={18} /></button>
                 </div>
@@ -1940,7 +2127,7 @@ function SettingsView({ accounts, fetchAccounts, isPreview, API_BASE }) {
             </div>
             <label className="relative inline-flex items-center cursor-pointer">
               <input type="checkbox" className="sr-only peer" checked={notifEnabled} onChange={(e) => setNotifEnabled(e.target.checked)} />
-              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-600 peer-checked:bg-emerald-600 dark:peer-checked:bg-emerald-500"></div>
+              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-600 peer-checked:bg-cyan-600 dark:peer-checked:bg-cyan-500"></div>
             </label>
           </div>
           
@@ -1973,16 +2160,16 @@ function SettingsView({ accounts, fetchAccounts, isPreview, API_BASE }) {
               <h4 className="text-sm font-semibold mb-3 dark:text-slate-200">Pemicu Peringatan (Triggers)</h4>
               <div className="space-y-3">
                 <label className="flex items-center gap-3 cursor-pointer">
-                  <input type="checkbox" checked={triggerError} onChange={(e) => setTriggerError(e.target.checked)} className="w-4 h-4 text-emerald-600 dark:text-emerald-500 rounded border-gray-300 dark:border-slate-600 focus:ring-emerald-500 bg-white dark:bg-slate-800" />
+                  <input type="checkbox" checked={triggerError} onChange={(e) => setTriggerError(e.target.checked)} className="w-4 h-4 text-cyan-600 dark:text-cyan-500 rounded border-gray-300 dark:border-slate-600 focus:ring-cyan-500 bg-white dark:bg-slate-800" />
                   <span className="text-sm text-gray-700 dark:text-slate-300">Stream dimulai, terputus (Error), atau dihentikan.</span>
                 </label>
                 <label className="flex items-center gap-3 cursor-pointer">
-                  <input type="checkbox" checked={triggerCpu} onChange={(e) => setTriggerCpu(e.target.checked)} className="w-4 h-4 text-emerald-600 dark:text-emerald-500 rounded border-gray-300 dark:border-slate-600 focus:ring-emerald-500 bg-white dark:bg-slate-800" />
+                  <input type="checkbox" checked={triggerCpu} onChange={(e) => setTriggerCpu(e.target.checked)} className="w-4 h-4 text-cyan-600 dark:text-cyan-500 rounded border-gray-300 dark:border-slate-600 focus:ring-cyan-500 bg-white dark:bg-slate-800" />
                   <span className="text-sm text-gray-700 dark:text-slate-300">Penggunaan CPU VPS melebihi 85%</span>
                 </label>
               </div>
               <div className="mt-5 pt-4 border-t border-gray-200 dark:border-slate-700/60 flex flex-wrap gap-3 justify-end">
-                <button onClick={handleSaveNotif} className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg transition-colors shadow-sm">
+                <button onClick={handleSaveNotif} className="flex items-center gap-2 px-4 py-2 bg-cyan-600 hover:bg-cyan-700 text-white text-xs font-bold rounded-lg transition-colors shadow-sm">
                   💾 Simpan Pengaturan
                 </button>
                 <button onClick={handleTestNotif} className="flex items-center gap-2 px-4 py-2 bg-gray-200 dark:bg-slate-700 hover:bg-gray-300 dark:hover:bg-slate-600 text-gray-800 dark:text-slate-200 text-xs font-bold rounded-lg transition-colors shadow-sm">
@@ -2094,7 +2281,7 @@ function LogView({ isPreview, API_BASE }) {
   };
 
   const currentBitrateNum = bitrateHistory[bitrateHistory.length - 1];
-  const bitrateColor = currentBitrateNum > 0 ? (currentBitrateNum > 4500000 ? 'text-green-500 dark:text-emerald-400' : currentBitrateNum > 2000000 ? 'text-yellow-500 dark:text-amber-400' : 'text-red-500 dark:text-rose-400') : 'text-gray-500 dark:text-slate-500';
+  const bitrateColor = currentBitrateNum > 0 ? (currentBitrateNum > 4500000 ? 'text-green-500 dark:text-cyan-400' : currentBitrateNum > 2000000 ? 'text-yellow-500 dark:text-amber-400' : 'text-red-500 dark:text-rose-400') : 'text-gray-500 dark:text-slate-500';
 
   // DETEKSI ENCODER DINAMIS
   const activeTaskData = tasks.find(t => t.id === selectedTaskId);
@@ -2115,7 +2302,7 @@ function LogView({ isPreview, API_BASE }) {
   return (
     <div className="flex flex-col lg:flex-row gap-6 h-[calc(100vh-8rem)] animate-in fade-in duration-500">
       <div className="lg:w-1/3 flex flex-col gap-4 overflow-y-auto pr-2 custom-scrollbar">
-        <h3 className="text-lg font-bold flex items-center gap-2 mb-2 dark:text-slate-100"><Activity className="w-5 h-5 text-emerald-500 dark:text-emerald-400" /> Stream Health</h3>
+        <h3 className="text-lg font-bold flex items-center gap-2 mb-2 dark:text-slate-100"><Activity className="w-5 h-5 text-cyan-500 dark:text-cyan-400" /> Stream Health</h3>
         <div className="grid grid-cols-2 gap-3">
           <div className="bg-gray-900 dark:bg-slate-800 text-white p-4 rounded-xl border border-gray-800 dark:border-slate-700/60 shadow-sm">
             <div className="flex items-center gap-1.5 text-xs text-gray-400 dark:text-slate-400 font-bold uppercase tracking-wider mb-1"><Wifi className="w-3 h-3" /> Bitrate</div>
@@ -2123,7 +2310,7 @@ function LogView({ isPreview, API_BASE }) {
           </div>
           <div className="bg-gray-900 dark:bg-slate-800 text-white p-4 rounded-xl border border-gray-800 dark:border-slate-700/60 shadow-sm">
             <div className="flex items-center gap-1.5 text-xs text-gray-400 dark:text-slate-400 font-bold uppercase tracking-wider mb-1"><Monitor className="w-3 h-3" /> FPS</div>
-            <div className={`text-2xl font-black font-mono tracking-tighter ${currentFps >= 30 ? 'text-green-400 dark:text-emerald-400' : currentFps > 0 ? 'text-yellow-400 dark:text-amber-400' : 'text-gray-500 dark:text-slate-500'}`}>{currentFps} <span className="text-xs font-normal text-gray-500 dark:text-slate-500">/ 60</span></div>
+            <div className={`text-2xl font-black font-mono tracking-tighter ${currentFps >= 30 ? 'text-green-400 dark:text-cyan-400' : currentFps > 0 ? 'text-yellow-400 dark:text-amber-400' : 'text-gray-500 dark:text-slate-500'}`}>{currentFps} <span className="text-xs font-normal text-gray-500 dark:text-slate-500">/ 60</span></div>
           </div>
           <div className="bg-gray-900 dark:bg-slate-800 text-white p-4 rounded-xl border border-gray-800 dark:border-slate-700/60 shadow-sm">
             <div className="flex items-center gap-1.5 text-xs text-gray-400 dark:text-slate-400 font-bold uppercase tracking-wider mb-1"><Zap className="w-3 h-3" /> Frame Drops</div>
@@ -2131,7 +2318,7 @@ function LogView({ isPreview, API_BASE }) {
           </div>
           <div className="bg-gray-900 dark:bg-slate-800 text-white p-4 rounded-xl border border-gray-800 dark:border-slate-700/60 shadow-sm">
             <div className="flex items-center gap-1.5 text-xs text-gray-400 dark:text-slate-400 font-bold uppercase tracking-wider mb-1"><Cpu className="w-3 h-3" /> Encoder</div>
-            <div className="text-sm font-black font-mono mt-1 text-emerald-400 dark:text-emerald-500">{encoderDisplay}</div>
+            <div className="text-sm font-black font-mono mt-1 text-cyan-400 dark:text-cyan-500">{encoderDisplay}</div>
             <div className="text-xs text-gray-500 dark:text-slate-500 mt-1">Preset: {presetDisplay}</div>
           </div>
         </div>
@@ -2143,7 +2330,7 @@ function LogView({ isPreview, API_BASE }) {
           </div>
           <div className="flex-1 relative mt-2 w-full">
             <div className="absolute inset-0 flex flex-col justify-between opacity-10 dark:opacity-20 pointer-events-none"><div className="border-t border-gray-400 dark:border-slate-500 w-full"></div><div className="border-t border-gray-400 dark:border-slate-500 w-full"></div><div className="border-t border-gray-400 dark:border-slate-400 w-full"></div><div className="border-t border-gray-400 dark:border-slate-500 w-full"></div></div>
-            <svg className="w-full h-full text-green-500 dark:text-emerald-400 opacity-50" viewBox="0 0 100 100" preserveAspectRatio="none"><defs><linearGradient id="gradientBitrate" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stopColor="currentColor" stopOpacity="0.4" /><stop offset="100%" stopColor="currentColor" stopOpacity="0.0" /></linearGradient></defs><polyline points={`0,100 ${createChartPath()} 100,100`} fill="url(#gradientBitrate)" /><polyline points={createChartPath()} fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" /></svg>
+            <svg className="w-full h-full text-green-500 dark:text-cyan-400 opacity-50" viewBox="0 0 100 100" preserveAspectRatio="none"><defs><linearGradient id="gradientBitrate" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stopColor="currentColor" stopOpacity="0.4" /><stop offset="100%" stopColor="currentColor" stopOpacity="0.0" /></linearGradient></defs><polyline points={`0,100 ${createChartPath()} 100,100`} fill="url(#gradientBitrate)" /><polyline points={createChartPath()} fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" /></svg>
           </div>
           <div className="flex justify-between mt-2 text-[10px] text-gray-600 dark:text-slate-400 font-mono"><span>T-20s</span><span>T-10s</span><span>Now</span></div>
         </div>
@@ -2160,7 +2347,7 @@ function LogView({ isPreview, API_BASE }) {
                 setSelectedTaskId(e.target.value);
                 setLogs([{ type: 'info', text: 'Memuat log...' }]); 
               }}
-              className="bg-transparent border-none outline-none text-emerald-400 font-bold focus:ring-0 cursor-pointer text-xs truncate max-w-[200px]"
+              className="bg-transparent border-none outline-none text-cyan-400 font-bold focus:ring-0 cursor-pointer text-xs truncate max-w-[200px]"
             >
               <option value="">[Log Sistem Utama]</option>
               {tasks.map(t => (
@@ -2182,7 +2369,7 @@ function LogView({ isPreview, API_BASE }) {
                 let colorClass = "text-gray-300 dark:text-slate-300";
                 if (log.type === 'system') colorClass = "text-purple-400 dark:text-purple-300 font-bold";
                 if (log.type === 'info') colorClass = "text-blue-400 dark:text-blue-300";
-                if (log.type === 'success') colorClass = "text-green-400 dark:text-emerald-300";
+                if (log.type === 'success') colorClass = "text-green-400 dark:text-cyan-300";
                 if (log.type === 'warning') colorClass = "text-yellow-400 dark:text-amber-300";
                 if (log.type === 'error') colorClass = "text-red-500 dark:text-rose-400 font-bold";
                 if (log.type === 'ffmpeg') colorClass = "text-gray-400 dark:text-slate-500";
@@ -2282,15 +2469,15 @@ function AnalyticsView({ accounts, API_BASE }) {
             <select 
               value={selectedAccount} 
               onChange={(e) => setSelectedAccount(e.target.value)} 
-              className="bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-700 text-gray-800 dark:text-slate-200 text-sm rounded-lg px-3 py-2 outline-none focus:border-emerald-500 min-w-[200px]"
+              className="bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-700 text-gray-800 dark:text-slate-200 text-sm rounded-lg px-3 py-2 outline-none focus:border-cyan-500 min-w-[200px]"
             >
               <option value="all">Semua Channel (Keseluruhan)</option>
               {accounts?.map(acc => ( <option key={acc.id} value={acc.id}>{acc.name}</option> ))}
             </select>
           </div>
           <div className="flex items-center gap-2 mt-auto pb-1.5">
-            <span className="relative flex h-3 w-3"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span></span>
-            <span className="text-sm font-bold text-gray-700 dark:text-slate-200">CCV Saat Ini: <span className="text-emerald-600 dark:text-emerald-400 text-lg ml-1">{currentCcv.toLocaleString()}</span></span>
+            <span className="relative flex h-3 w-3"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span><span className="relative inline-flex rounded-full h-3 w-3 bg-cyan-500"></span></span>
+            <span className="text-sm font-bold text-gray-700 dark:text-slate-200">CCV Saat Ini: <span className="text-cyan-600 dark:text-cyan-400 text-lg ml-1">{currentCcv.toLocaleString()}</span></span>
           </div>
         </div>
         
@@ -2305,7 +2492,7 @@ function AnalyticsView({ accounts, API_BASE }) {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
         <StatCard title="Total Penayangan" value={metrics.totalViews.toLocaleString('id-ID')} icon={PlayCircle} color="text-blue-600 dark:text-blue-400" bgColor="bg-blue-50 dark:bg-blue-500/15" />
         <StatCard title="Waktu Tonton (Jam)" value={metrics.watchHours.toLocaleString('id-ID')} icon={Clock} color="text-purple-600 dark:text-purple-400" bgColor="bg-purple-50 dark:bg-purple-500/15" />
-        <StatCard title="Subscriber Baru" value={`+${metrics.subscribers.toLocaleString('id-ID')}`} icon={Users} color="text-emerald-600 dark:text-emerald-400" bgColor="bg-emerald-50 dark:bg-emerald-500/15" />
+        <StatCard title="Subscriber Baru" value={`+${metrics.subscribers.toLocaleString('id-ID')}`} icon={Users} color="text-cyan-600 dark:text-cyan-400" bgColor="bg-cyan-50 dark:bg-cyan-500/15" />
         <StatCard title="Estimasi Pendapatan" value={`$${metrics.revenue.toFixed(2)}`} icon={TrendingUp} color="text-orange-600 dark:text-orange-400" bgColor="bg-orange-50 dark:bg-orange-500/15" />
       </div>
 

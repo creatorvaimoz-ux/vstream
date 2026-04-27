@@ -308,15 +308,14 @@ async function updateYouTubeMetadata(task) {
         const broadcast = broadcastRes.data;
         resultData.broadcastId = broadcast.id; 
         resultData.liveChatId = broadcast.snippet.liveChatId;
-
-        writeLog(task.id, `[YOUTUBE API] Menunggu 5 detik agar YouTube memproses Kategori & Terjemahan...`);
+        
+        writeLog(task.id, `[YOUTUBE API] Menunggu 8 detik agar YouTube memproses video resource...`);
         
         // JEDA PINTAR: Menunggu sistem YouTube menyegarkan database sebelum mengubah metadata
-        await new Promise(resolve => setTimeout(resolve, 5000));
+        await new Promise(resolve => setTimeout(resolve, 8000));
 
-        // 1.5 UPDATE VIDEO RESOURCE (Tahap 2: Suntik Kategori, Bahasa, dan Terjemahan)
-        let videoParts = 'snippet';
-        let videoBody = {
+        // 1.5 UPDATE VIDEO RESOURCE — TAHAP A: Suntik Kategori, Bahasa, Tags (KRITIS)
+        const snippetBody = {
             id: resultData.broadcastId,
             snippet: {
                 title: finalTitle,
@@ -328,26 +327,64 @@ async function updateYouTubeMetadata(task) {
             }
         };
 
-        if (task.localizations && Object.keys(task.localizations).length > 0) {
-            videoParts = 'snippet,localizations';
-            videoBody.localizations = task.localizations;
+        let snippetSuccess = false;
+        for (let attempt = 1; attempt <= 3; attempt++) {
+            try {
+                await youtube.videos.update({ part: 'snippet', requestBody: snippetBody });
+                writeLog(task.id, `[YOUTUBE API] ✅ Kategori (${finalCategory}), Bahasa & Tags berhasil disinkronkan ke YouTube Studio!`);
+                snippetSuccess = true;
+                break;
+            } catch (vidErr) {
+                writeLog(task.id, `[YOUTUBE API WARNING] Percobaan ${attempt}/3 gagal sinkronisasi Kategori: ${vidErr.message}`);
+                if (attempt < 3) await new Promise(resolve => setTimeout(resolve, 3000));
+                else writeLog(task.id, `[YOUTUBE API ERROR] Gagal permanen sinkronisasi Kategori setelah 3 percobaan.`);
+            }
         }
 
-        try {
-            await youtube.videos.update({
-                part: videoParts,
-                requestBody: videoBody
-            });
-            writeLog(task.id, `[YOUTUBE API] ✅ Kategori & Bahasa Video sukses disinkronkan ke YouTube Studio!`);
-        } catch (vidErr) {
-            writeLog(task.id, `[YOUTUBE API WARNING] Gagal sinkronisasi metadata: ${vidErr.message}. Mencoba lagi...`);
-            try {
-                // Retry jika YouTube masih delay
-                await new Promise(resolve => setTimeout(resolve, 3000));
-                await youtube.videos.update({ part: videoParts, requestBody: videoBody });
-                writeLog(task.id, `[YOUTUBE API] ✅ (Retry) Kategori & Bahasa berhasil disinkronkan!`);
-            } catch (retryErr) {
-                writeLog(task.id, `[YOUTUBE API ERROR] Gagal permanen sinkronisasi Kategori: ${retryErr.message}`);
+        // 1.5 UPDATE VIDEO RESOURCE — TAHAP B: Suntik Localizations (Terjemahan Judul & Deskripsi)
+        if (task.localizations && Object.keys(task.localizations).length > 0) {
+            // Jeda agar YouTube memproses defaultLanguage dari Tahap A
+            await new Promise(resolve => setTimeout(resolve, 3000));
+
+            // Bersihkan localizations kosong
+            const cleanLocs = {};
+            for (const [lang, data] of Object.entries(task.localizations)) {
+                if (data.title || data.description) {
+                    cleanLocs[lang] = {
+                        title: data.title || finalTitle,
+                        description: data.description || finalDesc
+                    };
+                }
+            }
+
+            const locLangs = Object.keys(cleanLocs);
+            if (locLangs.length > 0) {
+                writeLog(task.id, `[YOUTUBE API] Menyinkronkan Terjemahan untuk ${locLangs.length} bahasa: [${locLangs.join(', ')}]...`);
+
+                for (let attempt = 1; attempt <= 2; attempt++) {
+                    try {
+                        await youtube.videos.update({
+                            part: 'snippet,localizations',
+                            requestBody: {
+                                id: resultData.broadcastId,
+                                snippet: {
+                                    title: finalTitle,
+                                    description: finalDesc,
+                                    categoryId: finalCategory,
+                                    defaultLanguage: task.videoLanguage || 'id',
+                                    defaultAudioLanguage: task.videoLanguage || 'id'
+                                },
+                                localizations: cleanLocs
+                            }
+                        });
+                        writeLog(task.id, `[YOUTUBE API] ✅ Terjemahan (${locLangs.length} bahasa) berhasil disinkronkan ke YouTube Studio!`);
+                        break;
+                    } catch (locErr) {
+                        writeLog(task.id, `[YOUTUBE API WARNING] Percobaan ${attempt}/2 gagal Terjemahan: ${locErr.message}`);
+                        if (attempt < 2) await new Promise(resolve => setTimeout(resolve, 3000));
+                        else writeLog(task.id, `[YOUTUBE API ERROR] Gagal permanen sinkronisasi Terjemahan.`);
+                    }
+                }
             }
         }
 
