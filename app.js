@@ -907,6 +907,17 @@ setInterval(async () => {
     }
 }, 120000);
 
+// --- FUNGSI HELPER CPU ---
+function getCpuTimes() {
+    const cpus = os.cpus();
+    let user = 0, nice = 0, sys = 0, idle = 0, irq = 0;
+    for (let cpu of cpus) {
+        user += cpu.times.user; nice += cpu.times.nice; sys += cpu.times.sys;
+        idle += cpu.times.idle; irq += cpu.times.irq;
+    }
+    return { idle, total: user + nice + sys + idle + irq };
+}
+
 let lastCpuAlertTime = 0;
 let prevCpuForMonitor = getCpuTimes();
 
@@ -938,15 +949,6 @@ setInterval(() => {
 app.get('/api/status', (req, res) => res.json({ status: 'running', message: 'Backend VStream Aktif' }));
 
 let previousCpuTimes = getCpuTimes();
-function getCpuTimes() {
-    const cpus = os.cpus();
-    let user = 0, nice = 0, sys = 0, idle = 0, irq = 0;
-    for (let cpu of cpus) {
-        user += cpu.times.user; nice += cpu.times.nice; sys += cpu.times.sys;
-        idle += cpu.times.idle; irq += cpu.times.irq;
-    }
-    return { idle, total: user + nice + sys + idle + irq };
-}
 
 // LOGIKA BARU PEMBACAAN DISK & BANDWIDTH REAL (ASLI)
 let currentDiskUsage = 0;
@@ -1011,6 +1013,84 @@ app.get('/api/system', (req, res) => {
         disk: disk, 
         bandwidth: currentBandwidth 
     });
+});
+
+// --- ANALYTICS ROUTE (UNTUK FRONTEND ANALYTICS VIEW) ---
+app.get('/api/analytics', async (req, res) => {
+    try {
+        const { accountId } = req.query;
+        let chartData = [];
+        let metrics = { revenue: 0, watchHours: 0, subscribers: 0, totalViews: 0 };
+
+        // Coba tarik data real dari YouTube Analytics API jika akun tersedia
+        const accountIds = [];
+        if (accountId && accountId !== 'all') {
+            accountIds.push(accountId);
+        } else {
+            // Ambil semua akun
+            const files = fs.readdirSync(__dirname).filter(f => f.startsWith('token_') && f.endsWith('.json'));
+            files.forEach(f => accountIds.push(f));
+        }
+
+        for (const accId of accountIds) {
+            try {
+                const tokenPath = path.join(__dirname, accId);
+                if (!fs.existsSync(tokenPath)) continue;
+
+                const tokens = JSON.parse(fs.readFileSync(tokenPath));
+                const oauth2Client = getOAuth2Client(tokens);
+                if (!oauth2Client) continue;
+
+                const youtube = google.youtube({ version: 'v3', auth: oauth2Client });
+
+                // Ambil statistik channel
+                const channelRes = await youtube.channels.list({ part: 'statistics', mine: true });
+                if (channelRes.data.items && channelRes.data.items.length > 0) {
+                    const stats = channelRes.data.items[0].statistics;
+                    metrics.totalViews += parseInt(stats.viewCount || 0);
+                    metrics.subscribers += parseInt(stats.subscriberCount || 0);
+                }
+
+                // Ambil video terbaru untuk estimasi data chart (7 hari terakhir)
+                if (chartData.length === 0) {
+                    const searchRes = await youtube.search.list({
+                        part: 'snippet',
+                        forMine: true,
+                        type: 'video',
+                        maxResults: 7,
+                        order: 'date'
+                    });
+
+                    if (searchRes.data.items && searchRes.data.items.length > 0) {
+                        const videoIds = searchRes.data.items.map(i => i.id.videoId).filter(Boolean);
+                        if (videoIds.length > 0) {
+                            const videoRes = await youtube.videos.list({ part: 'statistics', id: videoIds.join(',') });
+                            const today = new Date();
+                            chartData = (videoRes.data.items || []).map((item, idx) => {
+                                const d = new Date(today);
+                                d.setDate(d.getDate() - (videoRes.data.items.length - 1 - idx));
+                                const dateStr = d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short' });
+                                return {
+                                    date: dateStr,
+                                    views: parseInt(item.statistics.viewCount || 0)
+                                };
+                            });
+                            metrics.watchHours += (videoRes.data.items || []).reduce((sum, item) => {
+                                return sum + Math.round(parseInt(item.statistics.viewCount || 0) * 0.05);
+                            }, 0);
+                        }
+                    }
+                }
+            } catch (accErr) {
+                console.log(`Analytics fetch error for ${accId}: ${accErr.message}`);
+            }
+        }
+
+        // Jika tidak ada data chart (belum ada akun/API error), kirim array kosong
+        res.json({ chart: chartData, metrics });
+    } catch (e) {
+        res.json({ chart: [], metrics: { revenue: 0, watchHours: 0, subscribers: 0, totalViews: 0 } });
+    }
 });
 
 app.get('/api/logs', (req, res) => {

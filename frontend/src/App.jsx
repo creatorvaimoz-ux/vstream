@@ -12,9 +12,9 @@ import {
 } from 'lucide-react';
 
 // === KONFIGURASI BRANDING APLIKASI ===
-const BRAND_PREFIX = "V";           
-const BRAND_SUFFIX = "Stream";      
-const BRAND_TAGLINE = "Vaimoz Youtube Stream V.1"; 
+const BRAND_PREFIX = "V";
+const BRAND_SUFFIX = "Stream";
+const BRAND_TAGLINE = "Vaimoz Youtube Stream V.1";
 // =====================================
 
 // =============================================================================
@@ -157,8 +157,8 @@ export default function App() {
                 <PlayCircle className="text-white w-5 h-5" />
               </div>
               <div className="hidden sm:flex flex-col justify-center">
-                <h1 className="text-xl font-bold tracking-tight leading-none mb-1">V<span className="text-emerald-600 dark:text-emerald-400">Stream</span></h1>
-                <span className="text-[9px] font-bold tracking-widest text-gray-500 dark:text-slate-400 uppercase leading-none">Vaimoz Youtube Stream V.1</span>
+                <h1 className="text-xl font-bold tracking-tight leading-none mb-1">{BRAND_PREFIX}<span className="text-emerald-600 dark:text-emerald-400">{BRAND_SUFFIX}</span></h1>
+                <span className="text-[9px] font-bold tracking-widest text-gray-500 dark:text-slate-400 uppercase leading-none">{BRAND_TAGLINE}</span>
               </div>
             </div>
 
@@ -303,8 +303,7 @@ function DashboardView({ accounts, isPreview, API_BASE, onEditTask }) {
       if(!window.confirm('Mulai Streaming untuk tugas ini sekarang?')) return;
       try {
           const payload = { ...task, isMulaiSekarang: true };
-          await fetch(`${API_BASE}/api/tasks`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-          await fetch(`${API_BASE}/api/tasks/${task.id}`, { method: 'DELETE' }); 
+          await fetch(`${API_BASE}/api/tasks/${task.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
           fetchTasks();
       } catch(e) {}
   };
@@ -377,7 +376,7 @@ function DashboardView({ accounts, isPreview, API_BASE, onEditTask }) {
           <ProgressBar label="CPU" percentage={sysInfo.cpu} color="bg-blue-400 dark:bg-blue-500" />
           <ProgressBar label="RAM" percentage={sysInfo.ram} color="bg-purple-400 dark:bg-purple-500" />
           <ProgressBar label="Disk" percentage={sysInfo.disk} color="bg-yellow-400 dark:bg-amber-400" />
-          <ProgressBar label="Bandwidth" percentage={sysInfo.bandwidth * 10} color="bg-cyan-400 dark:bg-cyan-500" valueText={<span>{sysInfo.bandwidth}<span className="text-[8px] text-gray-400 dark:text-slate-500 font-normal ml-0.5">MB/s</span></span>} />
+          <ProgressBar label="Bandwidth" percentage={sysInfo.bandwidth * 10} color="bg-cyan-400 dark:bg-cyan-500" valueText={sysInfo.bandwidth} unitText="MB/s" />
         </div>
       </div>
 
